@@ -89,6 +89,8 @@ describe('taoChayBuild', () => {
     expect(prod.ANH_BASE_URL).toBe(config.publicBaseUrl);
     expect(prod.BUILD_SHA).toBe(SHA);
     expect(prod.GITHUB_REPO).toBe('chu/repo');
+    expect(prod.NOI_DUNG_PHIEN).toBe(String((db.prepare("SELECT gia_tri FROM he_thong WHERE khoa='noi_dung_phien'").get() as { gia_tri: string }).gia_tri));
+    expect(builds[1].env.NOI_DUNG_PHIEN).toBe(prod.NOI_DUNG_PHIEN);
     expect(prod.NOINDEX_ALL).toBe('true');
     const preview = builds[1].env;
     expect(preview.SITE_URL).toBe(config.previewBaseUrl);

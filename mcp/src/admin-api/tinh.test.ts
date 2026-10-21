@@ -71,6 +71,6 @@ describe('GET /api/admin/build', () => {
     const dn = await request(app).post('/api/admin/dang-nhap').send({ email: 'a@x.vn', matKhau: 'mat-khau-dai-12-ky-tu' });
     const c = (dn.headers['set-cookie'] as unknown as string[])[0]!.split(';')[0]!;
     const r = await request(app).get('/api/admin/build').set('Cookie', c);
-    expect(r.body).toEqual({ trangThai: 'dang-build', dangCho: true, lanCuoi: null, saoLuuCuoiLuc: 1700000000000 });
+    expect(r.body).toEqual({ trangThai: 'dang-build', dangCho: true, lanCuoi: null, saoLuuCuoiLuc: 1700000000000, previewNoiDungPhien: null, productionNoiDungPhien: null });
   });
 });

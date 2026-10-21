@@ -8,7 +8,7 @@ import { canTheoTrangThaiPhien, kiemCsrfGhi, yeuCauDangNhap } from '../tai-khoan
 import type { HangDoiBuild } from '../build/hang-doi';
 import { baiRouter } from './bai';
 import { haiLopRouter } from './hai-lop';
-import { heThongRouter } from './he-thong';
+import { buildRouter } from './build';
 import { mailRouter } from './mail';
 import { laHttps, xacThucCongKhai, xacThucDaDangNhap, type DepsXacThuc } from './xac-thuc';
 
@@ -37,7 +37,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(xacThucDaDangNhap(d));
   r.use(haiLopRouter(d));
   r.use(baiRouter({ config: d.config, db: d.db, now: d.now, hangDoi: deps.hangDoi }));
-  r.use(heThongRouter({ db: d.db, hangDoi: deps.hangDoi }));
+  r.use(buildRouter({ config: d.config, db: d.db, hangDoi: deps.hangDoi }));
   r.use(mailRouter({ db: d.db, khoaBiMat: d.config.khoaBiMat, mail: deps.mail, now: d.now }));
   r.use((_req, res) => {
     res.status(404).json({ loi: 'Không tìm thấy' });

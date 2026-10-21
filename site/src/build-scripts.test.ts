@@ -23,6 +23,15 @@ describe('write-build-json', () => {
     expect(json.target).toBe('production');
   });
 
+  it('ghi noiDungPhien từ NOI_DUNG_PHIEN; không đặt thì null', () => {
+    const thuMuc = mkdtempSync(join(tmpdir(), 'vtt-wbj-'));
+    mkdirSync(join(thuMuc, 'dist'));
+    execFileSync('node', [script('write-build-json.mjs')], { cwd: thuMuc, env: { PATH: process.env.PATH, NOI_DUNG_PHIEN: '42' } });
+    expect(JSON.parse(readFileSync(join(thuMuc, 'dist/build.json'), 'utf8')).noiDungPhien).toBe(42);
+    execFileSync('node', [script('write-build-json.mjs')], { cwd: thuMuc, env: { PATH: process.env.PATH } });
+    expect(JSON.parse(readFileSync(join(thuMuc, 'dist/build.json'), 'utf8')).noiDungPhien).toBeNull();
+  });
+
   it('không đặt BUILD_SHA → sha là "local"', () => {
     const thuMuc = mkdtempSync(join(tmpdir(), 'vtt-wbj-'));
     mkdirSync(join(thuMuc, 'dist'));

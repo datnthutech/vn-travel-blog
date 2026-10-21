@@ -1,5 +1,6 @@
 // API bài viết của trang quản trị: danh sách, đọc, tạo, sửa (kiểm tra phiên bản), tự lưu.
 // Hai người cùng sửa một bài: người lưu sau nhận 409 kèm tên người sửa trước, không ghi đè im lặng.
+import { urlBai } from '@vntraveltips/schema';
 import { diffLines } from 'diff';
 import { Router, type Request, type Response } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
@@ -401,6 +402,38 @@ export function baiRouter(d: DepsBai): Router {
     ghi(req, 'huy-hen-gio', doc.id);
     baoDoi();
     res.json({ ok: true });
+  });
+
+
+  // ---- Xem trước (Review) ----
+  // Lưu như PUT (409 nếu xung đột), xếp lượt build, trả URL trang xem trước + bộ đếm nội dung. Trang quản trị chờ tới khi
+  // GET /build báo previewNoiDungPhien ≥ noiDungPhien này rồi mới mở URL.
+  r.post('/bai/:id/xem-truoc', (req, res) => {
+    const doc = layBai(req, res);
+    const g = doc && lay(req, res);
+    if (!doc || !g) return;
+    let phienSo: number;
+    try {
+      ({ phienSo } = luuBai(
+        d.db,
+        { id: doc.id, ngonNgu: 'vi', bai: g.bai as never, noiDung: g.noiDung, trangThai: doc.trangThai, henGio: doc.henGio ?? undefined, nguoiId: req.nguoiDung!.id, phienSo: g.phienSo, kiemTra: 'co-ban' },
+        d.now,
+      ));
+    } catch (e) {
+      if (e instanceof XungDotPhienBan) return void traXungDot(res, e);
+      return void res.status(/UNIQUE/.test((e as Error).message) ? 409 : 400).json({ loi: /UNIQUE/.test((e as Error).message) ? 'Slug này đã có bài khác dùng' : (e as Error).message });
+    }
+    baoDoi();
+    const luu = docBai(d.db, doc.id)!;
+    // Bản nháp còn thiếu trường không dựng được trang: báo rõ để người dùng không chờ vô ích.
+    const kt = kiemTraDayDu(d.db, d.config.anhDir, luu.bai, luu.noiDung, luu.bai.slug);
+    res.json({
+      url: `${d.config.previewBaseUrl}${urlBai(luu.bai)}`,
+      noiDungPhien: Number((d.db.prepare("SELECT gia_tri FROM he_thong WHERE khoa = 'noi_dung_phien'").get() as { gia_tri: string }).gia_tri),
+      phienSo,
+      hopLe: kt.dat,
+      ...(kt.dat ? {} : { loi: kt.loi }),
+    });
   });
 
   return r;

@@ -85,13 +85,15 @@ export function taoChayBuild(config: Config, db: Db, exec: Exec = chayLenh): () 
 
       // Dấu của lần build: commit + mọi thứ ảnh hưởng nội dung build. Trùng lần thành công trước → không cần build.
       const fileDau = join(config.dataDir, '.dau-build');
-      const dau = JSON.stringify({ sha, noiDungPhien: docNoiDungPhien(db), buildEnv: config.buildEnv, publicBaseUrl: config.publicBaseUrl, previewBaseUrl: config.previewBaseUrl, anhDir: config.anhDir });
+      const noiDungPhien = docNoiDungPhien(db);
+      const dau = JSON.stringify({ sha, noiDungPhien, buildEnv: config.buildEnv, publicBaseUrl: config.publicBaseUrl, previewBaseUrl: config.previewBaseUrl, anhDir: config.anhDir });
       if (existsSync(fileDau) && readFileSync(fileDau, 'utf8') === dau && (await daCoBanBuild(config))) return { ok: true, sha };
       const envBuild = {
         ...moiTruong,
         NODE_OPTIONS: '--max-old-space-size=512',
         ANH_BASE_URL: config.publicBaseUrl,
         BUILD_SHA: sha,
+        NOI_DUNG_PHIEN: String(noiDungPhien), // site ghi vào build.json để trang quản trị biết bản xem trước đã chứa thay đổi mới chưa
         GITHUB_REPO: config.githubRepo,
         // Site đọc meta.json của ảnh từ đĩa (thư mục anh/ trong volume), không tải qua mạng.
         ANH_META_DIR: config.anhDir,
