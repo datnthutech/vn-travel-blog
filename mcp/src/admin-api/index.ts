@@ -9,6 +9,7 @@ import type { HangDoiBuild } from '../build/hang-doi';
 import { anhRouter } from './anh';
 import { baiRouter } from './bai';
 import { chuyenMucRouter } from './chuyen-muc';
+import { tinhRouter } from './tinh-tag';
 import { haiLopRouter } from './hai-lop';
 import { buildRouter } from './build';
 import { mailRouter } from './mail';
@@ -42,6 +43,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(xacThucDaDangNhap(d));
   r.use(haiLopRouter(d));
   r.use(baiRouter({ config: d.config, db: d.db, now: d.now, hangDoi: deps.hangDoi }));
+  r.use(tinhRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(chuyenMucRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(anhRouter({ config: d.config, db: d.db, now: d.now, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaByte, toiDaFile: deps.toiDaFile }));
   r.use(buildRouter({ config: d.config, db: d.db, hangDoi: deps.hangDoi }));

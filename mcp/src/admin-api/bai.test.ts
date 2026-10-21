@@ -144,9 +144,9 @@ describe('danh sách', () => {
     expect((await m.chinh.gui('get', '/bai?chuyenMuc=an-uong')).body.tong).toBe(12);
   });
 
-  it('GET /tinh trả danh sách tỉnh (chỉ đọc)', async () => {
+  it('GET /tinh trả danh sách tỉnh (có số bài)', async () => {
     m.db.prepare("INSERT INTO tinh (slug, du_lieu) VALUES ('vung-tau', ?)").run(JSON.stringify({ ten: 'Vũng Tàu', slug: 'vung-tau', gioiThieu: 'g', anhBia: { ma: 'x', alt: 'y' }, moTa: 'm' }));
-    expect((await m.chinh.gui('get', '/tinh')).body).toEqual({ tinh: [{ slug: 'vung-tau', ten: 'Vũng Tàu' }] });
+    expect((await m.chinh.gui('get', '/tinh')).body.tinh).toEqual([expect.objectContaining({ slug: 'vung-tau', ten: 'Vũng Tàu', soBai: 0 })]);
   });
 
   it('chưa đăng nhập → 401', async () => {

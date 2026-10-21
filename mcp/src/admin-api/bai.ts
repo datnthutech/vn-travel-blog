@@ -12,7 +12,7 @@ import { danhDauNoiDungDoi } from '../noi-dung/phien-noi-dung';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { baiVietSchema, taoSlug } from '@vntraveltips/schema';
 import { docBai, luuBai, slugKhongTrung, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
-import { kiemTraDayDu, layDanhSachTinh } from '../noi-dung/kiem-tra';
+import { kiemTraDayDu } from '../noi-dung/kiem-tra';
 
 export interface DepsBai {
   config: Config;
@@ -71,10 +71,6 @@ export function baiRouter(d: DepsBai): Router {
   };
 
   const traLoiLuat = (res: Response, loi: string[]) => res.status(400).json({ loi: 'Bài chưa đạt kiểm tra', chiTiet: loi });
-
-  r.get('/tinh', (_req, res) => {
-    res.json({ tinh: layDanhSachTinh(d.db).map((t) => ({ slug: t.slug, ten: t.ten })) });
-  });
 
   r.get('/bai', (req, res) => {
     const q = String(req.query.q ?? '').trim();
