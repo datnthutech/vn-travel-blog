@@ -109,6 +109,8 @@ export function luuBai(db: Db, input: LuuBaiInput, now: () => number = Date.now)
         themRedirectKhiDoiUrl(db, urlBai({ slug: cu.slug_cu, tinh: cu.tinh_cu ?? undefined }), urlBai({ slug: bai.slug, tinh: bai.tinh }));
       }
       db.prepare('UPDATE bai SET tinh = ?, loai = ?, nguoi_sua_cuoi_id = ?, sua_luc = ? WHERE id = ?').run(bai.tinh ?? null, bai.loai ?? '', input.nguoiId ?? null, t, id);
+      // Vừa chuyển sang "đã đăng": ghi người đăng.
+      if (input.trangThai === 'da-dang' && cu.trang_thai_cu !== 'da-dang') db.prepare('UPDATE bai SET nguoi_dang_id = ? WHERE id = ?').run(input.nguoiId ?? null, id);
       db.prepare(
         'UPDATE ban_dich SET slug = ?, trang_thai = ?, hen_gio = ?, du_lieu = ?, noi_dung = ?, dang_luc = ?, sua_luc = ?, phien_so = ?, nhap_tu_luu = NULL, phien_ban_cuoi_luc = ? WHERE bai_id = ? AND ngon_ngu = ?',
       ).run(bai.slug, input.trangThai, input.henGio ?? null, duLieuJson(bai), input.noiDung, input.trangThai === 'da-dang' ? (cu.dang_luc ?? t) : cu.dang_luc, t, phienSo, t, id, input.ngonNgu);

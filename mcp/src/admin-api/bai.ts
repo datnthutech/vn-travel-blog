@@ -4,7 +4,9 @@ import { Router, type Request, type Response } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
-import { gioVN } from '../mail/ngay-vn';
+import { gioVN, ngayVN } from '../mail/ngay-vn';
+import { danhDauNoiDungDoi } from '../noi-dung/phien-noi-dung';
+import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { taoSlug } from '@vntraveltips/schema';
 import { docBai, luuBai, slugKhongTrung, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
 import { kiemTraDayDu, layDanhSachTinh } from '../noi-dung/kiem-tra';
@@ -199,6 +201,98 @@ export function baiRouter(d: DepsBai): Router {
       }
     })();
     res.json({ ok: true, luc: t });
+  });
+
+
+  // ---- Trạng thái: đăng, gỡ, thùng rác, khôi phục, xoá hẳn, nhân bản ----
+  const ghi = (req: Request, loai: string, id: number, chiTiet?: object) =>
+    ghiNhatKy(d.db, { nguoiDungId: req.nguoiDung!.id, loai, ip: req.ip, chiTiet: { baiId: id, ...chiTiet } }, d.now);
+  const baoDoi = () => d.hangDoi.yeuCau();
+  const luuThat = (req: Request, doc: BaiDoc, trangThai: 'nhap' | 'da-dang', bai: unknown, phienSo?: number) =>
+    luuBai(d.db, { id: doc.id, ngonNgu: 'vi', bai: bai as never, noiDung: doc.noiDung, trangThai, nguoiId: req.nguoiDung!.id, phienSo, kiemTra: trangThai === 'nhap' ? 'co-ban' : 'day-du' }, d.now);
+
+  r.post('/bai/:id/dang', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    if (doc.xoaLuc !== null) return void res.status(409).json({ loi: 'Bài đang trong thùng rác, hãy khôi phục trước khi đăng' });
+    // Ngày đăng trống → hôm nay theo giờ Việt Nam.
+    const bai = { ...doc.bai, ngayDang: doc.bai.ngayDang ?? ngayVN(d.now()) };
+    const kt = kiemTraDayDu(d.db, d.config.anhDir, bai, doc.noiDung, doc.bai.slug);
+    if (!kt.dat) return void traLoiLuat(res, kt.loi);
+    try {
+      luuThat(req, doc, 'da-dang', bai, (req.body as { phienSo?: number } | undefined)?.phienSo);
+    } catch (e) {
+      if (e instanceof XungDotPhienBan) return void traXungDot(res, e);
+      return void res.status(400).json({ loi: (e as Error).message });
+    }
+    ghi(req, 'dang-bai', doc.id);
+    baoDoi();
+    res.json({ ok: true });
+  });
+
+  r.post('/bai/:id/go', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    if (doc.trangThai === 'nhap') return void res.status(409).json({ loi: 'Bài đang là bản nháp, không cần gỡ' });
+    luuThat(req, doc, 'nhap', doc.bai);
+    ghi(req, 'go-bai', doc.id);
+    baoDoi();
+    res.json({ ok: true });
+  });
+
+  r.post('/bai/:id/thung-rac', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    if (doc.xoaLuc !== null) return void res.status(409).json({ loi: 'Bài đã ở trong thùng rác' });
+    d.db.transaction(() => {
+      d.db.prepare('UPDATE bai SET xoa_luc = ? WHERE id = ?').run(d.now(), doc.id);
+      danhDauNoiDungDoi(d.db);
+    })();
+    ghi(req, 'thung-rac', doc.id);
+    baoDoi();
+    res.json({ ok: true });
+  });
+
+  r.post('/bai/:id/khoi-phuc', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    if (doc.xoaLuc === null) return void res.status(409).json({ loi: 'Bài không ở trong thùng rác' });
+    d.db.transaction(() => {
+      d.db.prepare('UPDATE bai SET xoa_luc = NULL WHERE id = ?').run(doc.id);
+      danhDauNoiDungDoi(d.db);
+    })();
+    ghi(req, 'khoi-phuc-bai', doc.id);
+    baoDoi();
+    res.json({ ok: true });
+  });
+
+  // Xoá hẳn: chỉ khi đã ở thùng rác (GĐ4 giới hạn cho quản trị). Ảnh không bị xoá (có thể bài khác dùng).
+  r.delete('/bai/:id', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    if (doc.xoaLuc === null) return void res.status(409).json({ loi: 'Chỉ xoá hẳn được bài đã ở trong thùng rác' });
+    d.db.transaction(() => {
+      d.db.prepare('DELETE FROM bai WHERE id = ?').run(doc.id);
+      danhDauNoiDungDoi(d.db);
+    })();
+    ghi(req, 'xoa-han', doc.id, { slug: doc.bai.slug });
+    baoDoi();
+    res.json({ ok: true });
+  });
+
+  r.post('/bai/:id/nhan-ban', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    const tieuDe = `${doc.bai.tieuDe ?? ''} (bản sao)`;
+    const { draft: _d, ...goc } = doc.bai as unknown as Record<string, unknown>;
+    const moi = luuBai(
+      d.db,
+      { ngonNgu: 'vi', bai: { ...goc, tieuDe, slug: slugKhongTrung(d.db, 'vi', doc.bai.slug) } as never, noiDung: doc.noiDung, trangThai: 'nhap', nguoiId: req.nguoiDung!.id, kiemTra: 'co-ban' },
+      d.now,
+    );
+    ghi(req, 'nhan-ban', moi.id, { tu: doc.id });
+    baoDoi();
+    res.status(201).json({ id: moi.id, phienSo: moi.phienSo });
   });
 
   return r;
