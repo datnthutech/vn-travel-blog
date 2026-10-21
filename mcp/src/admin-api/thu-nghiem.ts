@@ -8,6 +8,7 @@ import type { HangDoiBuild } from '../build/hang-doi';
 import { loadConfig } from '../config';
 import { moDb } from '../db/ket-noi';
 import { taoNguoiDung } from '../tai-khoan/nguoi-dung';
+import { maTotpHienTai } from '../tai-khoan/totp';
 import type { VaiTro } from '../tai-khoan/quyen';
 
 export const MK = 'mat-khau-dai-12-ky-tu';
@@ -19,7 +20,7 @@ export interface PhienThu {
   gui: (method: 'get' | 'post' | 'put' | 'patch' | 'delete', url: string, body?: object) => request.Test;
 }
 
-export async function dungAdmin(opt: { vaiTro?: VaiTro; email?: string; deps?: Partial<AppDeps> } = {}) {
+export async function dungAdmin(opt: { vaiTro?: VaiTro; email?: string; deps?: Partial<AppDeps>; taoDeps?: (db: ReturnType<typeof moDb>) => Partial<AppDeps> } = {}) {
   const db = moDb(':memory:');
   const anhDir = mkdtempSync(join(tmpdir(), 'vtt-anh-'));
   const dongHo = { v: Date.UTC(2026, 9, 21, 3, 0, 0) };
@@ -35,14 +36,22 @@ export async function dungAdmin(opt: { vaiTro?: VaiTro; email?: string; deps?: P
     GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'a'.repeat(64),
     DATA_DIR: mkdtempSync(join(tmpdir(), 'vtt-data-')),
   });
-  const app = createApp(config, { db, now: () => dongHo.v, hangDoi, cho: async () => {}, ...opt.deps });
+  const app = createApp(config, { db, now: () => dongHo.v, hangDoi, cho: async () => {}, ...opt.taoDeps?.(db), ...opt.deps });
   let dem = 0;
-  async function dangNhap(email: string, ten: string, vaiTro: VaiTro = opt.vaiTro ?? 'quan-ly'): Promise<PhienThu> {
+  async function dangNhap(email: string, ten: string, vaiTro: VaiTro = opt.vaiTro ?? 'quan-tri'): Promise<PhienThu> {
     const nguoi = await taoNguoiDung(db, { email, ten, vaiTro, matKhau: MK }, () => dongHo.v);
     const ip = `10.1.1.${++dem}`;
     const r = await request(app).post('/api/admin/dang-nhap').set('X-Forwarded-For', ip).send({ email, matKhau: MK });
     const cookie = (r.headers['set-cookie'] as unknown as string[])[0]!.split(';')[0]!;
-    const csrf = (await request(app).get('/api/admin/toi').set('Cookie', cookie)).body.csrf as string;
+    let csrf = (await request(app).get('/api/admin/toi').set('Cookie', cookie)).body.csrf as string;
+    // Quản trị bắt buộc 2FA (luật GĐ1): bật luôn bằng mã tính ở đồng hồ giả để phiên dùng được mọi API.
+    if (vaiTro === 'quan-tri') {
+      const goi = (url: string, body: object = {}) => request(app).post(`/api/admin/${url}`).set('Cookie', cookie).set('X-CSRF-Token', csrf).send(body);
+      const bd = await goi('2fa/bat-dau');
+      const biMat = /secret=([A-Z2-7]+)/.exec(bd.body.otpauthUrl as string)![1]!;
+      await goi('2fa/xac-nhan', { ma: maTotpHienTai(biMat, dongHo.v), matKhau: MK });
+      csrf = (await request(app).get('/api/admin/toi').set('Cookie', cookie)).body.csrf as string;
+    }
     return {
       cookie, csrf, nguoi,
       gui: (method, url, body) => {

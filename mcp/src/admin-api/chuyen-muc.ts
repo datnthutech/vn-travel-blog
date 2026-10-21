@@ -1,4 +1,5 @@
 // API chuyên mục: danh sách (kèm số bài), thêm, sửa/đổi slug, xoá (chuyển bài sang chuyên mục khác), đổi thứ tự.
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import { Router, type Response } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Db } from '../db/ket-noi';
@@ -22,7 +23,7 @@ export function chuyenMucRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => n
     res.json({ chuyenMuc: lietKeChuyenMuc(d.db).map((c) => ({ ...c, soBai: dem.get(c.slug) ?? 0 })) });
   });
 
-  r.post('/chuyen-muc', (req, res) => {
+  r.post('/chuyen-muc', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
       const c = themChuyenMuc(d.db, req.body ?? {});
       xong(req, 'them-chuyen-muc', { slug: c.slug });
@@ -33,7 +34,7 @@ export function chuyenMucRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => n
   });
 
   // Đặt TRƯỚC '/:slug' để "thu-tu" không bị coi là một slug.
-  r.put('/chuyen-muc/thu-tu', (req, res) => {
+  r.put('/chuyen-muc/thu-tu', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     const slugs = (req.body as { slugs?: unknown } | undefined)?.slugs;
     if (!Array.isArray(slugs) || slugs.some((s) => typeof s !== 'string')) return void res.status(400).json({ loi: 'Cần gửi slugs: mảng chuỗi' });
     try {
@@ -45,20 +46,20 @@ export function chuyenMucRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => n
     }
   });
 
-  r.put('/chuyen-muc/:slug', (req, res) => {
+  r.put('/chuyen-muc/:slug', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
-      const c = suaChuyenMuc(d.db, req.params.slug, req.body ?? {});
-      xong(req, 'sua-chuyen-muc', { tu: req.params.slug, den: c.slug });
+      const c = suaChuyenMuc(d.db, String(req.params.slug), req.body ?? {});
+      xong(req, 'sua-chuyen-muc', { tu: String(req.params.slug), den: c.slug });
       res.json(c);
     } catch (e) {
       traLoiNghiepVu(res, e);
     }
   });
 
-  r.delete('/chuyen-muc/:slug', (req, res) => {
+  r.delete('/chuyen-muc/:slug', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
-      const kq = xoaChuyenMuc(d.db, req.params.slug, typeof req.query.chuyenSang === 'string' && req.query.chuyenSang ? req.query.chuyenSang : undefined);
-      xong(req, 'xoa-chuyen-muc', { slug: req.params.slug, ...kq });
+      const kq = xoaChuyenMuc(d.db, String(req.params.slug), typeof req.query.chuyenSang === 'string' && req.query.chuyenSang ? req.query.chuyenSang : undefined);
+      xong(req, 'xoa-chuyen-muc', { slug: String(req.params.slug), ...kq });
       res.json({ ok: true, ...kq });
     } catch (e) {
       traLoiNghiepVu(res, e);

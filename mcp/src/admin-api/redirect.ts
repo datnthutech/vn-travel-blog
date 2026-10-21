@@ -1,5 +1,6 @@
 // API redirect 301: xem (tự động + thủ công), thêm thủ công, xoá. Kiểm tra bằng đúng luật build (`kiemTraRedirects`).
 import { duongDanRedirectHopLe } from '@vntraveltips/schema';
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import { Router } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Db } from '../db/ket-noi';
@@ -15,7 +16,7 @@ export function redirectRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => nu
     res.json(ds.map((x) => ({ tu: x.tu, den: x.den, tuDong: x.tu_dong === 1 })));
   });
 
-  r.post('/redirect', (req, res) => {
+  r.post('/redirect', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     const { tu, den } = (req.body ?? {}) as { tu?: unknown; den?: unknown };
     if (typeof tu !== 'string' || typeof den !== 'string') return void res.status(400).json({ loi: 'Cần gửi tu và den (đường dẫn)' });
     for (const p of [tu, den]) {
@@ -35,7 +36,7 @@ export function redirectRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => nu
     res.status(201).json({ tu, den, tuDong: false });
   });
 
-  r.delete('/redirect', (req, res) => {
+  r.delete('/redirect', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     const tu = String(req.query.tu ?? '');
     const xoa = d.db.transaction(() => {
       const n = d.db.prepare('DELETE FROM redirect WHERE tu = ?').run(tu).changes;

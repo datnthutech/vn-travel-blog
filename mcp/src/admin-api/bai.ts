@@ -2,6 +2,7 @@
 // Hai người cùng sửa một bài: người lưu sau nhận 409 kèm tên người sửa trước, không ghi đè im lặng.
 import { urlBai } from '@vntraveltips/schema';
 import { diffLines } from 'diff';
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import { Router, type Request, type Response } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Config } from '../config';
@@ -37,6 +38,10 @@ export function idTuUrl(v: string): number {
 
 export function baiRouter(d: DepsBai): Router {
   const r = Router();
+  // Chủ sở hữu bài (tác giả) lấy từ DB theo :id — writer chỉ sửa/đăng/xoá được bài của chính mình.
+  const chuBai = (req: Request) => ({
+    tacGiaId: (d.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(idTuUrl(String(req.params.id))) as { tac_gia_id: number | null } | undefined)?.tac_gia_id ?? null,
+  });
 
   /** Lấy bài theo :id; trả null (đã trả 404) nếu không có. */
   const layBai = (req: Request, res: Response): BaiDoc | null => {
@@ -72,7 +77,7 @@ export function baiRouter(d: DepsBai): Router {
 
   const traLoiLuat = (res: Response, loi: string[]) => res.status(400).json({ loi: 'Bài chưa đạt kiểm tra', chiTiet: loi });
 
-  r.get('/bai', (req, res) => {
+  r.get('/bai', yeuCauQuyen('bai.xem'), (req, res) => {
     const q = String(req.query.q ?? '').trim();
     const trangThai = String(req.query.trangThai ?? '');
     const tinh = String(req.query.tinh ?? '');
@@ -120,7 +125,7 @@ export function baiRouter(d: DepsBai): Router {
     });
   });
 
-  r.get('/bai/:id', (req, res) => {
+  r.get('/bai/:id', yeuCauQuyen('bai.xem'), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     res.json({
@@ -142,7 +147,7 @@ export function baiRouter(d: DepsBai): Router {
   });
 
   // Tạo bản nháp: chỉ kiểm tra cơ bản (nháp được thiếu trường).
-  r.post('/bai', (req, res) => {
+  r.post('/bai', yeuCauQuyen('bai.tao'), (req, res) => {
     const g = lay(req, res);
     if (!g) return;
     // Không gửi slug → gợi ý từ tiêu đề (bỏ dấu, đ→d) và tự thêm -2, -3… nếu trùng.
@@ -159,7 +164,7 @@ export function baiRouter(d: DepsBai): Router {
     }
   });
 
-  r.put('/bai/:id', (req, res) => {
+  r.put('/bai/:id', yeuCauQuyen('bai.sua', chuBai), (req, res) => {
     const doc = layBai(req, res);
     const g = doc && lay(req, res);
     if (!doc || !g) return;
@@ -182,7 +187,7 @@ export function baiRouter(d: DepsBai): Router {
   });
 
   // Tự lưu: chỉ ghi nhap_tu_luu (không bump phiên, không build). Cứ ≥ 10 phút lại chốt thành một phiên bản trong lịch sử.
-  r.patch('/bai/:id/tu-luu', (req, res) => {
+  r.patch('/bai/:id/tu-luu', yeuCauQuyen('bai.sua', chuBai), (req, res) => {
     const doc = layBai(req, res);
     const g = doc && lay(req, res);
     if (!doc || !g) return;
@@ -210,7 +215,7 @@ export function baiRouter(d: DepsBai): Router {
   const luuThat = (req: Request, doc: BaiDoc, trangThai: 'nhap' | 'da-dang', bai: unknown, phienSo?: number) =>
     luuBai(d.db, { id: doc.id, ngonNgu: 'vi', bai: bai as never, noiDung: doc.noiDung, trangThai, nguoiId: req.nguoiDung!.id, phienSo, kiemTra: trangThai === 'nhap' ? 'co-ban' : 'day-du' }, d.now);
 
-  r.post('/bai/:id/dang', (req, res) => {
+  r.post('/bai/:id/dang', yeuCauQuyen('bai.dang', chuBai), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.xoaLuc !== null) return void res.status(409).json({ loi: 'Bài đang trong thùng rác, hãy khôi phục trước khi đăng' });
@@ -229,7 +234,7 @@ export function baiRouter(d: DepsBai): Router {
     res.json({ ok: true });
   });
 
-  r.post('/bai/:id/go', (req, res) => {
+  r.post('/bai/:id/go', yeuCauQuyen('bai.dang', chuBai), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.trangThai === 'nhap') return void res.status(409).json({ loi: 'Bài đang là bản nháp, không cần gỡ' });
@@ -239,7 +244,7 @@ export function baiRouter(d: DepsBai): Router {
     res.json({ ok: true });
   });
 
-  r.post('/bai/:id/thung-rac', (req, res) => {
+  r.post('/bai/:id/thung-rac', yeuCauQuyen('bai.thung-rac', chuBai), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.xoaLuc !== null) return void res.status(409).json({ loi: 'Bài đã ở trong thùng rác' });
@@ -252,7 +257,7 @@ export function baiRouter(d: DepsBai): Router {
     res.json({ ok: true });
   });
 
-  r.post('/bai/:id/khoi-phuc', (req, res) => {
+  r.post('/bai/:id/khoi-phuc', yeuCauQuyen('bai.thung-rac', chuBai), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.xoaLuc === null) return void res.status(409).json({ loi: 'Bài không ở trong thùng rác' });
@@ -266,7 +271,7 @@ export function baiRouter(d: DepsBai): Router {
   });
 
   // Xoá hẳn: chỉ khi đã ở thùng rác (GĐ4 giới hạn cho quản trị). Ảnh không bị xoá (có thể bài khác dùng).
-  r.delete('/bai/:id', (req, res) => {
+  r.delete('/bai/:id', yeuCauQuyen('bai.xoa-han', chuBai), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.xoaLuc === null) return void res.status(409).json({ loi: 'Chỉ xoá hẳn được bài đã ở trong thùng rác' });
@@ -279,7 +284,7 @@ export function baiRouter(d: DepsBai): Router {
     res.json({ ok: true });
   });
 
-  r.post('/bai/:id/nhan-ban', (req, res) => {
+  r.post('/bai/:id/nhan-ban', yeuCauQuyen('bai.tao'), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     const tieuDe = `${doc.bai.tieuDe ?? ''} (bản sao)`;
@@ -307,14 +312,14 @@ export function baiRouter(d: DepsBai): Router {
     return pb;
   };
 
-  r.get('/bai/:id/phien-ban', (req, res) => {
+  r.get('/bai/:id/phien-ban', yeuCauQuyen('bai.xem'), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     const ds = d.db.prepare("SELECT id, luc, nguoi_dung_id FROM phien_ban WHERE bai_id = ? AND ngon_ngu = 'vi' ORDER BY luc DESC, id DESC").all(doc.id) as { id: number; luc: number; nguoi_dung_id: number | null }[];
     res.json(ds.map((p) => ({ id: p.id, luc: p.luc, nguoiSua: tenNguoi(d.db, p.nguoi_dung_id) })));
   });
 
-  r.get('/bai/:id/phien-ban/:pid', (req, res) => {
+  r.get('/bai/:id/phien-ban/:pid', yeuCauQuyen('bai.xem'), (req, res) => {
     const doc = layBai(req, res);
     const pb = doc && layPb(req, res, doc);
     if (!doc || !pb) return;
@@ -322,7 +327,7 @@ export function baiRouter(d: DepsBai): Router {
   });
 
   // So phiên bản đã chọn ("trước") với bản hiện tại ("sau"): các trường frontmatter khác nhau + diff thân bài theo dòng.
-  r.get('/bai/:id/phien-ban/:pid/so-sanh', (req, res) => {
+  r.get('/bai/:id/phien-ban/:pid/so-sanh', yeuCauQuyen('bai.xem'), (req, res) => {
     const doc = layBai(req, res);
     const pb = doc && layPb(req, res, doc);
     if (!doc || !pb) return;
@@ -340,7 +345,7 @@ export function baiRouter(d: DepsBai): Router {
   });
 
   // Khôi phục = tạo phiên bản MỚI từ bản cũ (không xoá lịch sử), giữ nguyên trạng thái đăng.
-  r.post('/bai/:id/phien-ban/:pid/khoi-phuc', (req, res) => {
+  r.post('/bai/:id/phien-ban/:pid/khoi-phuc', yeuCauQuyen('bai.sua', chuBai), (req, res) => {
     const doc = layBai(req, res);
     const pb = doc && layPb(req, res, doc);
     if (!doc || !pb) return;
@@ -367,7 +372,7 @@ export function baiRouter(d: DepsBai): Router {
 
 
   // ---- Hẹn giờ đăng (giờ Việt Nam) ----
-  r.post('/bai/:id/hen-gio', (req, res) => {
+  r.post('/bai/:id/hen-gio', yeuCauQuyen('bai.dang', chuBai), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.xoaLuc !== null) return void res.status(409).json({ loi: 'Bài đang trong thùng rác' });
@@ -393,7 +398,7 @@ export function baiRouter(d: DepsBai): Router {
     res.json({ ok: true, henGio: luc, gioVN: epochSangGioVN(luc) });
   });
 
-  r.post('/bai/:id/huy-hen-gio', (req, res) => {
+  r.post('/bai/:id/huy-hen-gio', yeuCauQuyen('bai.dang', chuBai), (req, res) => {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.trangThai !== 'hen-gio') return void res.status(409).json({ loi: 'Bài không có hẹn giờ' });
@@ -407,7 +412,7 @@ export function baiRouter(d: DepsBai): Router {
   // ---- Xem trước (Review) ----
   // Lưu như PUT (409 nếu xung đột), xếp lượt build, trả URL trang xem trước + bộ đếm nội dung. Trang quản trị chờ tới khi
   // GET /build báo previewNoiDungPhien ≥ noiDungPhien này rồi mới mở URL.
-  r.post('/bai/:id/xem-truoc', (req, res) => {
+  r.post('/bai/:id/xem-truoc', yeuCauQuyen('bai.sua', chuBai), (req, res) => {
     const doc = layBai(req, res);
     const g = doc && lay(req, res);
     if (!doc || !g) return;

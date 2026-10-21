@@ -1,16 +1,14 @@
 // API cấu hình mail: không bao giờ trả mật khẩu SMTP (dưới mọi dạng), ghi mật khẩu mã hoá, gửi thử, thống kê, nhật ký.
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createApp } from '../app';
-import { loadConfig } from '../config';
-import { moDb, type Db } from '../db/ket-noi';
+import type { createApp } from '../app';
+import type { Db } from '../db/ket-noi';
 import { taoDichVuMail } from '../mail/dich-vu';
-import { taoNguoiDung } from '../tai-khoan/nguoi-dung';
+import { dungAdmin } from './thu-nghiem';
 
-const MK = 'mat-khau-dai-12-ky-tu';
 const MK_SMTP = 'mat-khau-smtp-sieu-bi-mat';
-const KHOA = 'd'.repeat(64);
 
+let m: Awaited<ReturnType<typeof dungAdmin>>;
 let db: Db;
 let app: ReturnType<typeof createApp>;
 let c: string;
@@ -18,19 +16,13 @@ let csrf: string;
 let daGui: string[];
 
 beforeEach(async () => {
-  db = moDb(':memory:');
   daGui = [];
-  const config = loadConfig({
-    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: 'http://localhost:8090',
-    PREVIEW_BASE_URL: 'https://nhap.example.com', ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32),
-    GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: KHOA,
-  });
-  const mail = taoDichVuMail(db, { khoaBiMat: KHOA, taoTransport: () => ({ sendMail: async (o) => void daGui.push(o.to) }) });
-  app = createApp(config, { db, mail });
-  await taoNguoiDung(db, { email: 'chu@x.vn', ten: 'Chủ', vaiTro: 'quan-ly', matKhau: MK });
-  const dn = await request(app).post('/api/admin/dang-nhap').send({ email: 'chu@x.vn', matKhau: MK });
-  c = (dn.headers['set-cookie'] as unknown as string[])[0]!.split(';')[0]!;
-  csrf = (await request(app).get('/api/admin/toi').set('Cookie', c)).body.csrf;
+  // Cấu hình mail chỉ dành cho quản trị (quyền cai-dat.sua): dùng người dùng quan-tri đã bật 2FA của bộ đồ test chung.
+  m = await dungAdmin({ taoDeps: (d) => ({ mail: taoDichVuMail(d, { khoaBiMat: 'a'.repeat(64), taoTransport: () => ({ sendMail: async (o) => void daGui.push(o.to) }) }) }) });
+  db = m.db;
+  app = m.app;
+  c = m.chinh.cookie;
+  csrf = m.chinh.csrf;
 });
 
 const ghi = (method: 'post' | 'put' | 'delete', url: string, body?: object) =>
@@ -105,13 +97,10 @@ describe('gửi thử, thống kê, nhật ký', () => {
   });
 
   it('gửi thử lỗi → 503 kèm thông báo, không lộ mật khẩu', async () => {
-    const mail = taoDichVuMail(db, { khoaBiMat: KHOA, taoTransport: (_n, mk) => ({ sendMail: async () => { throw new Error(`xác thực lỗi ${mk}`); } }) });
-    const config = loadConfig({
-      GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: 'http://localhost:8090',
-      PREVIEW_BASE_URL: 'https://nhap.example.com', ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32),
-      GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: KHOA,
-    });
-    app = createApp(config, { db, mail });
+    const hong = await dungAdmin({ taoDeps: (d) => ({ mail: taoDichVuMail(d, { khoaBiMat: 'a'.repeat(64), taoTransport: (_n, mk) => ({ sendMail: async () => { throw new Error(`xác thực lỗi ${mk}`); } }) }) }) });
+    app = hong.app;
+    c = hong.chinh.cookie;
+    csrf = hong.chinh.csrf;
     const { id } = (await ghi('post', '/nha-cung-cap', NCC)).body;
     const r = await ghi('post', `/nha-cung-cap/${id}/gui-thu`, { den: 'toi@x.vn' });
     expect(r.status).toBe(503);

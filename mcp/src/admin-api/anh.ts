@@ -11,6 +11,7 @@ import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import { timAnhDungO } from '../noi-dung/anh-dung-o-dau';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 
 export interface DepsAnh {
   config: Config;
@@ -73,6 +74,7 @@ export function anhRouter(d: DepsAnh): Router {
 
   r.post(
     '/anh',
+    yeuCauQuyen('anh.tai-len'),
     async (_req, res, next) => {
       try {
         await mkdir(tmpDir, { recursive: true });
@@ -145,8 +147,8 @@ export function anhRouter(d: DepsAnh): Router {
 
   const layMa = (ma: string): string | null => (MA_ANH.test(ma) ? ma : null);
 
-  r.patch('/anh/:ma', (req, res) => {
-    const ma = layMa(req.params.ma);
+  r.patch('/anh/:ma', yeuCauQuyen('anh.tai-len'), (req, res) => {
+    const ma = layMa(String(req.params.ma));
     const alt = (req.body as { altMacDinh?: unknown } | undefined)?.altMacDinh;
     if (typeof alt !== 'string' || alt.length > 300) return void res.status(400).json({ loi: 'altMacDinh phải là chuỗi (tối đa 300 ký tự)' });
     if (!ma || d.db.prepare('UPDATE anh SET alt_mac_dinh = ? WHERE ma = ?').run(alt, ma).changes === 0) return void res.status(404).json({ loi: 'Không tìm thấy ảnh' });
@@ -154,14 +156,18 @@ export function anhRouter(d: DepsAnh): Router {
   });
 
   r.get('/anh/:ma/dung-o', (req, res) => {
-    const ma = layMa(req.params.ma);
+    const ma = layMa(String(req.params.ma));
     if (!ma || !d.db.prepare('SELECT 1 FROM anh WHERE ma = ?').get(ma)) return void res.status(404).json({ loi: 'Không tìm thấy ảnh' });
     const dung = timAnhDungO(d.db);
     res.json({ bai: tieuDeBai(dung.bai.get(ma) ?? []), tinh: dung.tinh.get(ma) ?? [] });
   });
 
-  r.delete('/anh/:ma', async (req, res) => {
-    const ma = layMa(req.params.ma);
+  // Writer chỉ xoá được ảnh do chính mình tải lên (nguoi_dung_id); ảnh cũ không rõ người tải thì chỉ quản trị/quản lý xoá.
+  const chuAnh = (req: import('express').Request) => ({
+    tacGiaId: (d.db.prepare('SELECT nguoi_dung_id FROM anh WHERE ma = ?').get(String(req.params.ma)) as { nguoi_dung_id: number | null } | undefined)?.nguoi_dung_id ?? null,
+  });
+  r.delete('/anh/:ma', yeuCauQuyen('anh.xoa', chuAnh), async (req, res) => {
+    const ma = layMa(String(req.params.ma));
     if (!ma || !d.db.prepare('SELECT 1 FROM anh WHERE ma = ?').get(ma)) return void res.status(404).json({ loi: 'Không tìm thấy ảnh' });
     const dung = timAnhDungO(d.db);
     const bai = dung.bai.get(ma) ?? [];

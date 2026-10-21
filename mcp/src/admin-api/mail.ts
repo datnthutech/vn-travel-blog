@@ -1,6 +1,7 @@
 // API cấu hình mail của trang quản trị: nhà cung cấp SMTP, gửi thử, thống kê, nhật ký.
 // Mật khẩu SMTP chỉ GHI; đọc ra chỉ có `daDatMatKhau: boolean`. (GĐ4 giới hạn cho vai trò quản trị.)
 import { Router } from 'express';
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import type { Db } from '../db/ket-noi';
 import type { DichVuMail } from '../mail/dich-vu';
 import { lietKeNhaCungCapCongKhai, MAU_NHA_CUNG_CAP, nhaCungCapSchema, suaNhaCungCap, themNhaCungCap, xoaNhaCungCap } from '../mail/nha-cung-cap';
@@ -10,6 +11,8 @@ const TRANG = 50;
 
 export function mailRouter(d: { db: Db; khoaBiMat: string; mail: DichVuMail; now: () => number }): Router {
   const r = Router();
+  // Mọi đường dẫn /mail/* (cấu hình SMTP, gửi thử, thống kê, nhật ký) chỉ cho người có quyền sửa cài đặt (quản trị).
+  r.use('/mail', yeuCauQuyen('cai-dat.sua'));
   const idTuUrl = (v: string) => (/^\d+$/.test(v) ? Number(v) : NaN);
 
   r.get('/mail/mau', (_req, res) => {

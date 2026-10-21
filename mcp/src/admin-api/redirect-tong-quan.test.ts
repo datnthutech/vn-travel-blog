@@ -87,7 +87,7 @@ describe('tổng quan', () => {
       expect(r.saoLuu.canhBao).toBe(true);
     }
     const mails = m.db.prepare("SELECT loai, den FROM mail_hang_doi ORDER BY den").all() as { loai: string; den: string }[];
-    expect(mails).toEqual([{ loai: 'quan-trong', den: 'qt1@x.vn' }, { loai: 'quan-trong', den: 'qt2@x.vn' }]);
+    expect(mails).toEqual([{ loai: 'quan-trong', den: 'chu@x.vn' }, { loai: 'quan-trong', den: 'qt1@x.vn' }, { loai: 'quan-trong', den: 'qt2@x.vn' }]); // gồm cả người dùng chính (cũng là quản trị)
   });
 
   it('sang ngày mới (giờ VN) và vẫn quá hạn → gửi thêm đúng 1 lần nữa; bản ra ngoài còn mới → không cảnh báo, không mail', async () => {
@@ -95,19 +95,19 @@ describe('tổng quan', () => {
     const t0 = m.dongHo.v;
     danhDau(t0 - 30 * 3600_000);
     await m.chinh.gui('get', '/tong-quan');
-    expect((m.db.prepare('SELECT count(*) AS n FROM mail_hang_doi').get() as { n: number }).n).toBe(1);
+    expect((m.db.prepare('SELECT count(*) AS n FROM mail_hang_doi').get() as { n: number }).n).toBe(2); // 2 quản trị: người dùng chính + qt1
     // ngày kế tiếp giờ VN (t0 = 03:00 UTC = 10:00 VN → +17h = 03:00 VN ngày sau); đăng nhập lại vì phiên 12 giờ đã hết
     m.dongHo.v = t0 + 17 * 3600_000;
     const moi = await m.dangNhap('b@x.vn', 'B');
     await moi.gui('get', '/tong-quan');
     await moi.gui('get', '/tong-quan');
-    expect((m.db.prepare('SELECT count(*) AS n FROM mail_hang_doi').get() as { n: number }).n).toBe(2);
+    expect((m.db.prepare('SELECT count(*) AS n FROM mail_hang_doi').get() as { n: number }).n).toBe(5); // 2 (hôm qua) + 3 quản trị (chu, qt1, b) hôm nay, mỗi người đúng 1 mail
     danhDau(m.dongHo.v - 3600_000); // vừa sao lưu ra ngoài
     m.dongHo.v += 20 * 3600_000;
     const c = await m.dangNhap('c@x.vn', 'C');
     const r = (await c.gui('get', '/tong-quan')).body;
     expect(r.saoLuu.canhBao).toBe(false);
-    expect((m.db.prepare('SELECT count(*) AS n FROM mail_hang_doi').get() as { n: number }).n).toBe(2);
+    expect((m.db.prepare('SELECT count(*) AS n FROM mail_hang_doi').get() as { n: number }).n).toBe(5);
   });
 
   it('chưa có file đánh dấu (chưa cấu hình sao lưu ngoài) → chỉ cảnh báo trên bảng, KHÔNG gửi mail', async () => {

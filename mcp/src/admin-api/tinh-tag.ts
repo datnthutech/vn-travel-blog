@@ -1,4 +1,5 @@
 // API tỉnh và tag.
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import { Router } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Db } from '../db/ket-noi';
@@ -18,7 +19,7 @@ export function tinhRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => number
     const dem = demBaiTheoTinh(d.db);
     res.json({ tinh: lietKeTinh(d.db).map((t) => ({ ...t, soBai: dem.get(t.slug) ?? 0 })) });
   });
-  r.post('/tinh', (req, res) => {
+  r.post('/tinh', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
       const t = themTinh(d.db, req.body ?? {});
       xong(req, 'them-tinh', { slug: t.slug });
@@ -27,20 +28,20 @@ export function tinhRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => number
       traLoiNghiepVu(res, e);
     }
   });
-  r.put('/tinh/:slug', (req, res) => {
+  r.put('/tinh/:slug', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
-      const t = suaTinh(d.db, req.params.slug, req.body ?? {});
-      xong(req, 'sua-tinh', { tu: req.params.slug, den: t.slug });
+      const t = suaTinh(d.db, String(req.params.slug), req.body ?? {});
+      xong(req, 'sua-tinh', { tu: String(req.params.slug), den: t.slug });
       res.json(t);
     } catch (e) {
       traLoiNghiepVu(res, e);
     }
   });
-  r.delete('/tinh/:slug', (req, res) => {
+  r.delete('/tinh/:slug', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
       const cs = typeof req.query.chuyenSang === 'string' ? req.query.chuyenSang : undefined; // '' = bỏ tỉnh
-      const kq = xoaTinh(d.db, req.params.slug, cs);
-      xong(req, 'xoa-tinh', { slug: req.params.slug, ...kq });
+      const kq = xoaTinh(d.db, String(req.params.slug), cs);
+      xong(req, 'xoa-tinh', { slug: String(req.params.slug), ...kq });
       res.json({ ok: true, ...kq });
     } catch (e) {
       traLoiNghiepVu(res, e);
@@ -53,7 +54,7 @@ export function tinhRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => number
   r.get('/tag/khong-dung', (_req, res) => {
     res.json({ tag: tagKhongDung(d.db) });
   });
-  r.post('/tag/doi-ten', (req, res) => {
+  r.post('/tag/doi-ten', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
       const b = (req.body ?? {}) as { tu?: unknown; den?: unknown };
       const kq = doiTenTag(d.db, b.tu, b.den);

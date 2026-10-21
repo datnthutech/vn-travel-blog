@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
+import { dungAdmin } from './admin-api/thu-nghiem';
 import { createApp } from './app';
 import { loadConfig } from './config';
 import { moDb } from './db/ket-noi';
@@ -20,21 +21,16 @@ const MK = 'mat-khau-dai-12-ky-tu';
 
 describe('review GĐ1', () => {
   it('PUT nhà cung cấp một phần (vd {laChinh:true}) không ghi đè trường khác bằng giá trị mặc định', async () => {
-    const db = moDb(':memory:');
-    const app = createApp(config, { db });
-    await taoNguoiDung(db, { email: 'a@x.vn', ten: 'A', vaiTro: 'quan-ly', matKhau: MK });
-    const dn = await request(app).post('/api/admin/dang-nhap').send({ email: 'a@x.vn', matKhau: MK });
-    const c = (dn.headers['set-cookie'] as unknown as string[])[0]!.split(';')[0]!;
-    const csrf = (await request(app).get('/api/admin/toi').set('Cookie', c)).body.csrf;
-    const g = (m: 'post' | 'put', u: string, b: object) => request(app)[m](`/api/admin/mail${u}`).set('Cookie', c).set('X-CSRF-Token', csrf).send(b);
+    const m = await dungAdmin();
+    const g = (method: 'post' | 'put', u: string, b: object) => m.chinh.gui(method, `/mail${u}`, b);
     const base = { host: 'h', cong: 465, baoMat: 'ssl', taiKhoan: 't', diaChiGui: 'a@b.vn', gioiHanNgay: 100 };
     const a = (await g('post', '/nha-cung-cap', { ...base, ten: 'A', laChinh: true, duPhongQuanTrong: 7, thuTu: 3 })).body.id;
     const b = (await g('post', '/nha-cung-cap', { ...base, ten: 'B', bat: false })).body.id;
     await g('put', `/nha-cung-cap/${b}`, { laChinh: true });
-    const ds = (await request(app).get('/api/admin/mail/nha-cung-cap').set('Cookie', c)).body.nhaCungCap as Record<string, unknown>[];
+    const ds = (await m.chinh.gui('get', '/mail/nha-cung-cap')).body.nhaCungCap as Record<string, unknown>[];
     expect(ds.find((x) => x.id === b)).toMatchObject({ laChinh: true, bat: false, duPhongQuanTrong: 30 });
     await g('put', `/nha-cung-cap/${a}`, { bat: false });
-    expect((await request(app).get('/api/admin/mail/nha-cung-cap').set('Cookie', c)).body.nhaCungCap.find((x: { id: number }) => x.id === a)).toMatchObject({ bat: false, duPhongQuanTrong: 7, thuTu: 3 });
+    expect((await m.chinh.gui('get', '/mail/nha-cung-cap')).body.nhaCungCap.find((x: { id: number }) => x.id === a)).toMatchObject({ bat: false, duPhongQuanTrong: 7, thuTu: 3 });
   });
 
   it('nhập nội dung cũ là nguyên tử: một file hỏng → không bài nào được ghi, chưa đặt cờ, lần sau nhập lại được', () => {

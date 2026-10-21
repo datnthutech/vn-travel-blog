@@ -2,6 +2,7 @@
 import { caiDatSiteSchema } from '@vntraveltips/schema';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import { Router } from 'express';
 import type { Config } from '../config';
 import type { HangDoiBuild } from '../build/hang-doi';
@@ -12,10 +13,10 @@ import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 
 export function caiDatRouter(d: { config: Config; db: Db; hangDoi: HangDoiBuild; now: () => number }): Router {
   const r = Router();
-  r.get('/cai-dat/site', (_req, res) => {
+  r.get('/cai-dat/site', yeuCauQuyen('cai-dat.sua'), (_req, res) => {
     res.json(docCaiDatSite(d.db));
   });
-  r.put('/cai-dat/site', (req, res) => {
+  r.put('/cai-dat/site', yeuCauQuyen('cai-dat.sua'), (req, res) => {
     const kq = caiDatSiteSchema.safeParse(req.body);
     if (!kq.success) {
       return void res.status(400).json({ loi: 'Cài đặt không hợp lệ', chiTiet: kq.error.issues.map((i) => `${i.path.join('.') || '(gốc)'}: ${i.message}`) });

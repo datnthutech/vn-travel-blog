@@ -1,5 +1,6 @@
 // Bảng tổng quan: số bài theo trạng thái, build, sao lưu (trong/ngoài VPS), ổ đĩa, mail hôm nay, lần chuyển nhà cung cấp mail gần nhất.
 import { statfs } from 'node:fs/promises';
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import { Router } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Config } from '../config';
@@ -10,7 +11,7 @@ import { docBuildJson } from './build';
 
 export function tongQuanRouter(d: { config: Config; db: Db; hangDoi: HangDoiBuild; mail: DichVuMail; now: () => number }): Router {
   const r = Router();
-  r.get('/tong-quan', async (_req, res) => {
+  r.get('/tong-quan', yeuCauQuyen('cau-truc.sua'), async (_req, res) => {
     const dem = (dk: string) => (d.db.prepare(`SELECT count(*) AS n FROM bai b JOIN ban_dich x ON x.bai_id = b.id WHERE x.ngon_ngu = 'vi' AND ${dk}`).get() as { n: number }).n;
     const saoLuu = trangThaiSaoLuu(d.db, d.config.dataDir, d.now());
     guiCanhBaoSaoLuu(d.db, d.mail, d.config.dataDir, d.now()); // tối đa 1 lần/ngày, chỉ khi có file đánh dấu quá hạn

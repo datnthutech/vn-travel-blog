@@ -1,4 +1,5 @@
 // API trang tĩnh: danh sách, thêm, sửa (có kiểm tra phiên bản), tự lưu, đăng/gỡ, xoá, lịch sử.
+import { yeuCauQuyen } from '../tai-khoan/quyen';
 import { Router, type Request, type Response } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Db } from '../db/ket-noi';
@@ -30,7 +31,7 @@ export function trangRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => numbe
     res.json({ trang: lietKeTrang(d.db).map(({ noiDung: _n, nhapTuLuu: _t, ...con }) => ({ ...con, nguoiSuaCuoi: tenNguoi(con.nguoiSuaCuoiId) })) });
   });
 
-  r.post('/trang', (req, res) => {
+  r.post('/trang', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
       const t = themTrang(d.db, req.body ?? {}, req.nguoiDung!.id, d.now);
       xong(req, 'them-trang', { slug: t.slug });
@@ -41,24 +42,24 @@ export function trangRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => numbe
   });
 
   r.get('/trang/:slug', (req, res) => {
-    const t = docTrang(d.db, req.params.slug);
+    const t = docTrang(d.db, String(req.params.slug));
     if (!t) return void res.status(404).json({ loi: 'Không tìm thấy trang' });
     res.json({ ...t, nguoiSuaCuoi: tenNguoi(t.nguoiSuaCuoiId) });
   });
 
-  r.put('/trang/:slug', (req, res) => {
+  r.put('/trang/:slug', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
-      const t = suaTrang(d.db, req.params.slug, { ...(req.body ?? {}), phienSo: phienSo(req) }, req.nguoiDung!.id, d.now);
-      xong(req, 'sua-trang', { tu: req.params.slug, den: t.slug });
+      const t = suaTrang(d.db, String(req.params.slug), { ...(req.body ?? {}), phienSo: phienSo(req) }, req.nguoiDung!.id, d.now);
+      xong(req, 'sua-trang', { tu: String(req.params.slug), den: t.slug });
       res.json(t);
     } catch (e) {
       loi(res, e);
     }
   });
 
-  r.patch('/trang/:slug/tu-luu', (req, res) => {
+  r.patch('/trang/:slug/tu-luu', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
-      tuLuuTrang(d.db, req.params.slug, { ...(req.body ?? {}), phienSo: phienSo(req) }, d.now);
+      tuLuuTrang(d.db, String(req.params.slug), { ...(req.body ?? {}), phienSo: phienSo(req) }, d.now);
       res.json({ ok: true });
     } catch (e) {
       loi(res, e);
@@ -66,10 +67,10 @@ export function trangRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => numbe
   });
 
   for (const [duong, trangThai, loai] of [['dang', 'da-dang', 'dang-trang'], ['go', 'nhap', 'go-trang']] as const) {
-    r.post(`/trang/:slug/${duong}`, (req, res) => {
+    r.post(`/trang/:slug/${duong}`, yeuCauQuyen('cau-truc.sua'), (req, res) => {
       try {
-        datTrangThaiTrang(d.db, req.params.slug, trangThai);
-        xong(req, loai, { slug: req.params.slug });
+        datTrangThaiTrang(d.db, String(req.params.slug), trangThai);
+        xong(req, loai, { slug: String(req.params.slug) });
         res.json({ ok: true });
       } catch (e) {
         loi(res, e);
@@ -77,10 +78,10 @@ export function trangRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => numbe
     });
   }
 
-  r.delete('/trang/:slug', (req, res) => {
+  r.delete('/trang/:slug', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     try {
-      xoaTrang(d.db, req.params.slug);
-      xong(req, 'xoa-trang', { slug: req.params.slug });
+      xoaTrang(d.db, String(req.params.slug));
+      xong(req, 'xoa-trang', { slug: String(req.params.slug) });
       res.json({ ok: true });
     } catch (e) {
       loi(res, e);
@@ -88,8 +89,8 @@ export function trangRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => numbe
   });
 
   r.get('/trang/:slug/phien-ban', (req, res) => {
-    if (!docTrang(d.db, req.params.slug)) return void res.status(404).json({ loi: 'Không tìm thấy trang' });
-    const ds = d.db.prepare("SELECT id, luc, nguoi_dung_id FROM phien_ban WHERE trang_slug = ? ORDER BY luc DESC, id DESC").all(req.params.slug) as { id: number; luc: number; nguoi_dung_id: number | null }[];
+    if (!docTrang(d.db, String(req.params.slug))) return void res.status(404).json({ loi: 'Không tìm thấy trang' });
+    const ds = d.db.prepare("SELECT id, luc, nguoi_dung_id FROM phien_ban WHERE trang_slug = ? ORDER BY luc DESC, id DESC").all(String(req.params.slug)) as { id: number; luc: number; nguoi_dung_id: number | null }[];
     res.json(ds.map((p) => ({ id: p.id, luc: p.luc, nguoiSua: tenNguoi(p.nguoi_dung_id) })));
   });
 
