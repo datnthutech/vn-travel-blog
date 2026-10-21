@@ -34,6 +34,9 @@ RUN npm run build -w @vntraveltips/admin
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
+# Xử lý ảnh (sharp/libvips) trên glibc hay giữ lại RAM sau khi xong (đo: ~310 MiB sau 3 ảnh 12 MP). Hai biến này ép glibc
+# trả bộ nhớ sớm → RAM lúc nghỉ chỉ cao hơn lúc mới khởi động ~45 MiB (cùng ảnh: 124 MiB so với 77 MiB lúc đầu).
+ENV MALLOC_ARENA_MAX=2 MALLOC_TRIM_THRESHOLD_=131072
 
 # git: clone/pull repo vào volume để build site. ca-certificates: gọi HTTPS tới GitHub.
 RUN apt-get update \

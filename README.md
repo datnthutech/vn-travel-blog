@@ -66,6 +66,18 @@ Quên mật khẩu: dùng liên kết "Quên mật khẩu?" ở trang đăng nh�
 
 Ảnh trong thân bài viết là `![mô tả ảnh](anh:MÃ_ẢNH)` (mã lấy từ `liet_ke_anh`); alt không được để trống.
 
+## Viết bài trên trang quản trị
+
+Vào `/quan-tri/` → **Bài viết** → **Viết bài mới** (dùng được trên điện thoại):
+
+1. Điền tiêu đề — bài **tự lưu nháp** sau 3 giây không gõ (hiện "đã tự lưu"); slug tự gợi ý từ tiêu đề (bỏ dấu, `đ` → `d`, tự thêm `-2` nếu trùng).
+2. Chọn loại bài, tỉnh, chuyên mục, **ảnh bìa** (chọn từ thư viện hoặc tải ảnh mới — ảnh được nén và xoá GPS), điền khối **Tra nhanh** (nhật ký/review), thân bài (soạn trực quan hoặc "Markdown thô"; ảnh luôn lưu dạng `![mô tả](anh:MÃ)`), địa điểm, đồ cho bé, FAQ.
+3. Ô **SEO** đếm độ dài mô tả (120–160 ký tự) và cho xem trước kết quả Google/chia sẻ.
+4. **Xem trước**: lưu, dựng bản xem trước rồi mở tab mới (bản xem trước có cả bài nháp, không bị Google lập chỉ mục).
+5. **Đăng**: kiểm tra đúng luật dữ liệu + SEO của site; thiếu gì sẽ báo ngay cạnh ô sai. Hoặc **Hẹn giờ** (giờ Việt Nam; hệ thống tự đăng khi tới hạn), **Gỡ**, **Nhân bản**, **Thùng rác** (khôi phục hoặc xoá hẳn).
+6. Hai người cùng sửa một bài: người lưu sau nhận thông báo "bài đã được … sửa lúc …" và chọn *Tải bản mới* hoặc *Giữ bản của tôi để chép* — không bao giờ ghi đè im lặng. Mỗi lần lưu tạo một phiên bản; xem, so sánh và khôi phục ở **Lịch sử phiên bản**.
+7. Đổi slug hoặc tỉnh của bài đã đăng sẽ tự tạo chuyển hướng 301 từ địa chỉ cũ.
+
 ## Thêm connector MCP vào Claude
 
 claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → đăng nhập GitHub. App Claude trên iPhone tự đồng bộ connector. Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).
