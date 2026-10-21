@@ -7,6 +7,7 @@
   import DangNhap from './routes/DangNhap.svelte';
   import DatLai from './routes/DatLai.svelte';
   import Mail from './routes/Mail.svelte';
+  import SoanBai from './routes/SoanBai.svelte';
   import QuenMatKhau from './routes/QuenMatKhau.svelte';
   import ThietBi from './routes/ThietBi.svelte';
   import TongQuan from './routes/TongQuan.svelte';
@@ -73,6 +74,10 @@
   <main class="khung">
     {#if dieuHuong.duong === `${GOC}/bat-totp`}
       <BatTotp />
+    {:else if dieuHuong.duong === `${GOC}/bai/moi`}
+      {#key 'moi'}<SoanBai idBanDau={null} />{/key}
+    {:else if /^\/quan-tri\/bai\/\d+$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanBai idBanDau={Number(dieuHuong.duong.split('/').pop())} />{/key}
     {:else if dieuHuong.duong === `${GOC}/thiet-bi`}
       <ThietBi />
     {:else if dieuHuong.duong === `${GOC}/mail`}

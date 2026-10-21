@@ -150,7 +150,7 @@ export function xacThucDaDangNhap(d: DepsXacThuc): Router {
     const csrf = taoCsrf(d.config.khoaBiMat, req.phienId!);
     // Phiên chờ TOTP chưa được biết người dùng là ai.
     if (req.choTotp) res.json({ choTotp: true, csrf });
-    else res.json({ nguoiDung: req.nguoiDung, csrf });
+    else res.json({ nguoiDung: req.nguoiDung, csrf, publicBaseUrl: d.config.publicBaseUrl });
   });
 
   r.post('/dang-xuat', (req, res) => {

@@ -10,14 +10,15 @@ export interface NguoiDung {
   coTotp: boolean;
 }
 
-export const phien = $state<{ daTai: boolean; nguoiDung: NguoiDung | null; choTotp: boolean }>({ daTai: false, nguoiDung: null, choTotp: false });
+export const phien = $state<{ daTai: boolean; nguoiDung: NguoiDung | null; choTotp: boolean; publicBaseUrl: string }>({ daTai: false, nguoiDung: null, choTotp: false, publicBaseUrl: '' });
 
 /** Hỏi máy chủ "tôi là ai". 401 → chưa đăng nhập (không tự chuyển trang, App quyết định). */
 export async function taiPhien(): Promise<void> {
   try {
-    const r = await goiApi<{ nguoiDung?: NguoiDung; choTotp?: boolean }>('GET', '/toi', undefined, { khongChuyenTrang: true });
+    const r = await goiApi<{ nguoiDung?: NguoiDung; choTotp?: boolean; publicBaseUrl?: string }>('GET', '/toi', undefined, { khongChuyenTrang: true });
     phien.nguoiDung = r.nguoiDung ?? null;
     phien.choTotp = r.choTotp === true;
+    if (r.publicBaseUrl) phien.publicBaseUrl = r.publicBaseUrl;
   } catch (e) {
     if (!(e instanceof LoiApi) || e.status !== 401) throw e;
     phien.nguoiDung = null;

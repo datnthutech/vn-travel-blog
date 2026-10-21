@@ -26,6 +26,7 @@ COPY site/package.json site/
 COPY admin/package.json admin/
 RUN npm ci -w @vntraveltips/admin --include-workspace-root=false
 COPY tsconfig.base.json ./
+COPY packages/schema/src packages/schema/src
 COPY admin/index.html admin/vite.config.ts admin/svelte.config.js admin/tsconfig.json admin/
 COPY admin/src admin/src
 RUN npm run build -w @vntraveltips/admin
