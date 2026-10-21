@@ -1,6 +1,19 @@
 # Image cho vntraveltips-mcp. Build từ THƯ MỤC GỐC repo (vì dùng chung packages/schema).
 # Build TRÊN VPS bằng ./deploy.sh (docker compose build), không cần registry hay GitHub Actions.
 # Image chỉ chứa mã MCP; mã site được clone vào volume /data lúc chạy và build tại đó.
+# Stage deps: có toolchain (python3 make g++) để better-sqlite3 tự biên dịch khi không có bản dựng sẵn cho kiến trúc máy.
+# Toolchain chỉ nằm ở stage này, image cuối không mang theo.
+FROM node:22-slim AS deps
+WORKDIR /app
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+COPY packages/schema/package.json packages/schema/
+COPY mcp/package.json mcp/
+COPY site/package.json site/
+RUN npm ci --omit=dev -w @vntraveltips/mcp -w @vntraveltips/schema --include-workspace-root=false
+
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
@@ -14,7 +27,7 @@ COPY package.json package-lock.json ./
 COPY packages/schema/package.json packages/schema/
 COPY mcp/package.json mcp/
 COPY site/package.json site/
-RUN npm ci --omit=dev -w @vntraveltips/mcp -w @vntraveltips/schema --include-workspace-root=false
+COPY --from=deps /app/node_modules node_modules
 
 COPY packages/schema/src packages/schema/src
 COPY mcp/src mcp/src
