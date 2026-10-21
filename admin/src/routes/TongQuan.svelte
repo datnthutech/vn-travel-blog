@@ -1,57 +1,60 @@
-<!-- Tổng quan giai đoạn 1: người đang đăng nhập, trạng thái build, lần sao lưu gần nhất, mail hôm nay. -->
+<!-- Bảng tổng quan: số bài theo trạng thái, build, sao lưu (trong/ngoài VPS), ổ đĩa, mail hôm nay. -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goiApi } from '../lib/api';
+  import { bamLienKet, GOC } from '../lib/dieu-huong.svelte';
   import { phien, thongBaoLoi } from '../lib/phien.svelte';
 
-  interface Build { trangThai: 'roi' | 'dang-cho' | 'dang-build'; dangCho: boolean; lanCuoi: { ok: boolean; luc?: string; log?: string } | null; saoLuuCuoiLuc: number | null }
-  interface ThongKeMail { id: number; ten: string; daGui: number; gioiHan: number }
-
-  let build = $state<Build | null>(null);
-  let mail = $state<ThongKeMail[]>([]);
+  interface Tq {
+    bai: { daDang: number; nhap: number; henGio: number; thungRac: number };
+    build: { trangThai: 'roi' | 'dang-build'; dangCho: boolean; lanCuoi: { ok: boolean; luc?: string } | null; previewNoiDungPhien: number | null; productionNoiDungPhien: number | null };
+    saoLuu: { trongVpsLuc: number | null; ngoaiVpsLuc: number | null; canhBao: boolean };
+    oDia: { daDungByte: number; conTrongByte: number | null };
+    mail: { id: number; ten: string; daGui: number; gioiHan: number }[];
+    chuyenNhaCungCapGanNhat?: { luc: number; tu: string; den: string };
+  }
+  let tq = $state<Tq | null>(null);
   let loi = $state('');
-
-  const TEN_TRANG_THAI: Record<string, string> = { roi: 'Đang rảnh', 'dang-cho': 'Đang chờ build', 'dang-build': 'Đang build site…' };
   const gio = (ms: number) => new Date(ms).toLocaleString('vi-VN');
-
-  onMount(async () => {
-    try {
-      [build, mail] = await Promise.all([
-        goiApi<Build>('GET', '/build'),
-        goiApi<{ homNay: ThongKeMail[] }>('GET', '/mail/thong-ke').then((r) => r.homNay),
-      ]);
-    } catch (e) {
-      loi = thongBaoLoi(e);
-    }
-  });
+  const GB = (b: number) => `${(b / 1024 ** 3).toFixed(1)} GB`;
+  onMount(() => void goiApi<Tq>('GET', '/tong-quan').then((r) => (tq = r)).catch((e) => (loi = thongBaoLoi(e))));
 </script>
 
 <h1>Tổng quan</h1>
 {#if loi}<p class="thong-bao-loi" role="alert">{loi}</p>{/if}
-<div class="nhom">
-  <section class="the">
-    <h2>Bạn</h2>
-    <p><strong>{phien.nguoiDung?.ten}</strong><br /><span class="nhat">{phien.nguoiDung?.email} · {phien.nguoiDung?.vaiTro}</span></p>
-    <p class="nhat">Xác thực 2 lớp: {phien.nguoiDung?.coTotp ? 'đã bật' : 'chưa bật'}</p>
-  </section>
-  <section class="the">
-    <h2>Site</h2>
-    {#if build}
-      <p>Trạng thái build: <strong>{TEN_TRANG_THAI[build.trangThai] ?? build.trangThai}</strong></p>
-      {#if build.lanCuoi}
-        <p class={build.lanCuoi.ok ? 'thong-bao-ok' : 'thong-bao-loi'}>
-          Lần build gần nhất: {build.lanCuoi.ok ? 'thành công' : 'LỖI'}{build.lanCuoi.luc ? ` (${new Date(build.lanCuoi.luc).toLocaleString('vi-VN')})` : ''}
-        </p>
+<p class="nhat">Xin chào <strong>{phien.nguoiDung?.ten}</strong> · {phien.nguoiDung?.email}</p>
+{#if tq}
+  {#if tq.saoLuu.canhBao}
+    <p class="thong-bao-loi" role="alert">
+      {tq.saoLuu.ngoaiVpsLuc ? `Bản sao lưu ra ngoài VPS lần cuối ${gio(tq.saoLuu.ngoaiVpsLuc)} (quá 26 giờ).` : 'Chưa có bản sao lưu ra ngoài VPS.'} Hãy kiểm tra cron sao lưu (deploy/backup).
+    </p>
+  {/if}
+  {#if tq.build.lanCuoi && !tq.build.lanCuoi.ok}<p class="thong-bao-loi" role="alert">Lần build gần nhất bị LỖI — site đang giữ bản cũ. Hãy kiểm tra nhật ký.</p>{/if}
+  <div class="nhom">
+    <section class="the">
+      <h2>Bài viết</h2>
+      <p><a href="{GOC}/bai" onclick={bamLienKet}>Đã đăng: <strong>{tq.bai.daDang}</strong></a><br />Nháp: <strong>{tq.bai.nhap}</strong> · Hẹn giờ: <strong>{tq.bai.henGio}</strong><br />
+        <a href="{GOC}/thung-rac" onclick={bamLienKet}>Thùng rác: {tq.bai.thungRac}</a></p>
+    </section>
+    <section class="the">
+      <h2>Site</h2>
+      <p>Build: <strong>{tq.build.trangThai === 'dang-build' ? 'đang dựng…' : tq.build.dangCho ? 'đang chờ' : 'rảnh'}</strong></p>
+      <p class="nhat">Bản đang chạy: nội dung #{tq.build.productionNoiDungPhien ?? '?'} · bản xem trước: #{tq.build.previewNoiDungPhien ?? '?'}</p>
+    </section>
+    <section class="the">
+      <h2>Sao lưu</h2>
+      <p class="nhat">Trong VPS: {tq.saoLuu.trongVpsLuc ? gio(tq.saoLuu.trongVpsLuc) : 'chưa có'}<br />Ngoài VPS: {tq.saoLuu.ngoaiVpsLuc ? gio(tq.saoLuu.ngoaiVpsLuc) : 'chưa có'}</p>
+    </section>
+    <section class="the">
+      <h2>Ổ đĩa và ảnh</h2>
+      <p>Ảnh: {GB(tq.oDia.daDungByte)}{tq.oDia.conTrongByte !== null ? ` · ổ còn trống ${GB(tq.oDia.conTrongByte)}` : ''}</p>
+    </section>
+    <section class="the">
+      <h2>Mail hôm nay</h2>
+      {#if tq.mail.length === 0}<p class="nhat">Chưa cấu hình nhà cung cấp mail.</p>{:else}
+        <ul class="danh-sach">{#each tq.mail as m}<li>{m.ten}: <strong>{m.daGui}</strong> / {m.gioiHan}</li>{/each}</ul>
       {/if}
-      <p class="nhat">Sao lưu dữ liệu gần nhất: {build.saoLuuCuoiLuc ? gio(build.saoLuuCuoiLuc) : 'chưa có'}</p>
-    {:else}<p class="nhat">Đang tải…</p>{/if}
-  </section>
-  <section class="the">
-    <h2>Mail hôm nay</h2>
-    {#if mail.length === 0}
-      <p class="nhat">Chưa cấu hình nhà cung cấp mail. Vào <em>Cài đặt mail</em> để thêm.</p>
-    {:else}
-      <ul class="danh-sach">{#each mail as m}<li>{m.ten}: <strong>{m.daGui}</strong> / {m.gioiHan} thư</li>{/each}</ul>
-    {/if}
-  </section>
-</div>
+      {#if tq.chuyenNhaCungCapGanNhat}<p class="nhat">Lần tự chuyển gần nhất: {tq.chuyenNhaCungCapGanNhat.tu} → {tq.chuyenNhaCungCapGanNhat.den} ({gio(tq.chuyenNhaCungCapGanNhat.luc)})</p>{/if}
+    </section>
+  </div>
+{/if}

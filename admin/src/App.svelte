@@ -7,6 +7,14 @@
   import DangNhap from './routes/DangNhap.svelte';
   import DatLai from './routes/DatLai.svelte';
   import Mail from './routes/Mail.svelte';
+  import Menu from './routes/Menu.svelte';
+  import Redirect from './routes/Redirect.svelte';
+  import SoanTrang from './routes/SoanTrang.svelte';
+  import Tag from './routes/Tag.svelte';
+  import Tinh from './routes/Tinh.svelte';
+  import Trang from './routes/Trang.svelte';
+  import CaiDatSite from './routes/CaiDatSite.svelte';
+  import ChuyenMuc from './routes/ChuyenMuc.svelte';
   import DanhSachBai from './routes/DanhSachBai.svelte';
   import LichSuBai from './routes/LichSuBai.svelte';
   import SoanBai from './routes/SoanBai.svelte';
@@ -23,6 +31,13 @@
     { duong: `${GOC}/bai`, ten: 'Bài viết' },
     { duong: `${GOC}/anh`, ten: 'Ảnh' },
     { duong: `${GOC}/thung-rac`, ten: 'Thùng rác' },
+    { duong: `${GOC}/chuyen-muc`, ten: 'Chuyên mục' },
+    { duong: `${GOC}/tinh`, ten: 'Tỉnh' },
+    { duong: `${GOC}/tag`, ten: 'Tag' },
+    { duong: `${GOC}/trang`, ten: 'Trang tĩnh' },
+    { duong: `${GOC}/menu`, ten: 'Menu' },
+    { duong: `${GOC}/redirect`, ten: 'Chuyển hướng' },
+    { duong: `${GOC}/cai-dat`, ten: 'Cài đặt site' },
     { duong: `${GOC}/thiet-bi`, ten: 'Tài khoản & thiết bị' },
     { duong: `${GOC}/mail`, ten: 'Cài đặt mail' },
   ];
@@ -83,6 +98,22 @@
       <BatTotp />
     {:else if dieuHuong.duong === `${GOC}/bai`}
       <DanhSachBai />
+    {:else if dieuHuong.duong === `${GOC}/chuyen-muc`}
+      <ChuyenMuc />
+    {:else if dieuHuong.duong === `${GOC}/tinh`}
+      <Tinh />
+    {:else if dieuHuong.duong === `${GOC}/tag`}
+      <Tag />
+    {:else if dieuHuong.duong === `${GOC}/menu`}
+      <Menu />
+    {:else if dieuHuong.duong === `${GOC}/redirect`}
+      <Redirect />
+    {:else if dieuHuong.duong === `${GOC}/cai-dat`}
+      <CaiDatSite />
+    {:else if dieuHuong.duong === `${GOC}/trang`}
+      <Trang />
+    {:else if /^\/quan-tri\/trang\/[a-z0-9-]+$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanTrang slug={dieuHuong.duong.split('/').pop()!} />{/key}
     {:else if dieuHuong.duong === `${GOC}/anh`}
       <ThuVienAnh />
     {:else if dieuHuong.duong === `${GOC}/thung-rac`}

@@ -10,7 +10,7 @@
   import NutTrangThai from '../lib/form/NutTrangThai.svelte';
   import OSeo from '../lib/form/OSeo.svelte';
   import TraNhanhForm from '../lib/form/TraNhanh.svelte';
-  import { baiTrong, CHUYEN_MUC, gomLoi, LOAI_BAI, loiCua, traNhanhTrong, type BaiForm } from '../lib/kieu';
+  import { baiTrong, gomLoi, LOAI_BAI, loiCua, traNhanhTrong, type BaiForm } from '../lib/kieu';
   import { phien } from '../lib/phien.svelte';
   import { goiTaiAnh } from '../lib/tai-anh';
   import { taoTuLuu, type TrangThaiTuLuu } from '../lib/tu-luu';
@@ -29,6 +29,7 @@
   let thungRac = $state(false);
   let phienSo = $state(1);
   let tinhDs = $state<{ slug: string; ten: string }[]>([]);
+  let chuyenMucDs = $state<{ slug: string; ten: string }[]>([]);
   let loiTruong = $state<Record<string, string[]>>({});
   let loiChung = $state('');
   let thongBao = $state('');
@@ -105,7 +106,10 @@
   onMount(() => {
     void (async () => {
       try {
-        tinhDs = (await goiApi<{ tinh: typeof tinhDs }>('GET', '/tinh')).tinh;
+        [tinhDs, chuyenMucDs] = await Promise.all([
+          goiApi<{ tinh: typeof tinhDs }>('GET', '/tinh').then((r) => r.tinh),
+          goiApi<{ chuyenMuc: typeof chuyenMucDs }>('GET', '/chuyen-muc').then((r) => r.chuyenMuc),
+        ]);
         if (id !== null) napTuApi(await goiApi<Record<string, unknown>>('GET', `/bai/${id}`));
         else if (canTraNhanh) bai.traNhanh = traNhanhTrong();
       } catch (e) {
@@ -368,7 +372,7 @@
     </select>
     <fieldset>
       <legend>Chuyên mục</legend>
-      {#each CHUYEN_MUC as c}<label class="hang-chon"><input type="checkbox" checked={bai.chuyenMuc.includes(c.ma)} onchange={() => them('chuyenMuc', c.ma)} /> {c.ten}</label>{/each}
+      {#each chuyenMucDs as c}<label class="hang-chon"><input type="checkbox" checked={bai.chuyenMuc.includes(c.slug)} onchange={() => them('chuyenMuc', c.slug)} /> {c.ten}</label>{/each}
     </fieldset>
     <label for="tags">Tag (cách nhau bằng dấu phẩy)</label>
     <input id="tags" type="text" value={bai.tags.join(', ')} oninput={(e) => (bai.tags = e.currentTarget.value.split(',').map((s) => s.trim()).filter(Boolean))} />
