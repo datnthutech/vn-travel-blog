@@ -7,3 +7,4 @@ export * from './url';
 export * from './menu';
 export * from './cai-dat';
 export * from './quyen';
+export * from './ban-dich';
