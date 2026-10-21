@@ -280,4 +280,32 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX nhat_ky_nguoi_loai ON nhat_ky(nguoi_dung_id, loai, luc);
     `,
   },
+  {
+    phienBan: 12,
+    sql: `
+      CREATE TABLE binh_luan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bai_id INTEGER NOT NULL REFERENCES bai(id) ON DELETE CASCADE,
+        ngon_ngu TEXT NOT NULL DEFAULT 'vi',
+        cha_id INTEGER REFERENCES binh_luan(id) ON DELETE CASCADE,
+        ten TEXT NOT NULL,
+        email TEXT NOT NULL,
+        noi_dung TEXT NOT NULL,
+        ip_bam TEXT NOT NULL,
+        trang_thai TEXT NOT NULL CHECK (trang_thai IN ('hien', 'an', 'cho-xem')),
+        ly_do_cho_xem TEXT,
+        nguoi_dung_id INTEGER,
+        la_tac_gia INTEGER NOT NULL DEFAULT 0,
+        tao_luc INTEGER NOT NULL
+      );
+      CREATE INDEX binh_luan_bai ON binh_luan(bai_id, ngon_ngu, trang_thai, tao_luc);
+      CREATE INDEX binh_luan_ip ON binh_luan(ip_bam, tao_luc);
+      CREATE TABLE chan_binh_luan (
+        loai TEXT NOT NULL CHECK (loai IN ('email', 'ip')),
+        gia_tri_bam TEXT NOT NULL,
+        PRIMARY KEY (loai, gia_tri_bam)
+      );
+      ALTER TABLE nguoi_dung ADD COLUMN nhan_mail_binh_luan INTEGER NOT NULL DEFAULT 1;
+    `,
+  },
 ];

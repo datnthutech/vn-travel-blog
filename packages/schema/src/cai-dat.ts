@@ -28,6 +28,8 @@ export const caiDatSiteSchema = z.object({
   choPhepLapChiMuc: z.boolean(),
   goatcounterCode: z.string().regex(/^[a-z0-9-]{1,40}$/, 'mã GoatCounter chỉ gồm a-z, 0-9, dấu gạch ngang').optional(),
   quangCao: z.object({ bat: z.boolean(), viTri: z.array(z.enum(VI_TRI_QUANG_CAO)).default([]) }).default({ bat: false, viTri: [] }),
+  /** Bình luận của người đọc: mặc định TẮT (bật trong Cài đặt site). `tuCam`: bình luận chứa từ này (không phân biệt hoa/thường, bỏ dấu) sẽ vào hàng chờ xem. */
+  binhLuan: z.object({ bat: z.boolean().default(false), tuCam: z.array(z.string().trim().min(1).max(60)).max(200).default([]) }).default({ bat: false, tuCam: [] }),
   affiliateMacDinh: z.enum(['agoda', 'klook', 'traveloka', 'booking']).optional(),
   muiGio: z.literal('Asia/Ho_Chi_Minh').default('Asia/Ho_Chi_Minh'),
 });
@@ -47,5 +49,6 @@ export function caiDatSiteMacDinh(env: Record<string, string | undefined> = {}):
     choPhepLapChiMuc: env.NOINDEX_ALL === 'false',
     ...(ma && /^[a-z0-9-]{1,40}$/.test(ma) ? { goatcounterCode: ma } : {}),
     quangCao: { bat: false, viTri: [] },
+    binhLuan: { bat: false, tuCam: [] },
   });
 }
