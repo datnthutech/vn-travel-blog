@@ -1,7 +1,9 @@
 // Tạo ứng dụng Express. Tách khỏi server.ts để test được mà không phải mở cổng thật.
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Octokit } from '@octokit/rest';
+import cookieParser from 'cookie-parser';
 import express from 'express';
+import { adminApiRouter } from './admin-api';
 import { GithubClient } from './github/client';
 import type { ToolCtx } from './tools/ctx';
 import { taiAnhRouter, type TaiAnhDeps } from './anh/trang-tai';
@@ -13,7 +15,13 @@ import { moDb, type Db } from './db/ket-noi';
 import { taoMcpServer } from './mcp/server';
 import { webhookRouter } from './webhook/github';
 
-export type AppDeps = TaiAnhDeps & OAuthDeps & { github?: GithubClient; hangDoi?: HangDoiBuild; db?: Db };
+export type AppDeps = TaiAnhDeps & OAuthDeps & {
+  github?: GithubClient;
+  hangDoi?: HangDoiBuild;
+  db?: Db;
+  /** Chờ ms mili giây (làm chậm tài khoản bị dò); test truyền bản giả. */
+  cho?: (ms: number) => Promise<void>;
+};
 
 // Hàng đợi mặc định KHÔNG build gì: test dựng app không được kích hoạt build thật. server.ts truyền hàng đợi thật.
 const hangDoiKhongLam: HangDoiBuild = {
@@ -38,6 +46,10 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   app.use(webhookRouter(config, hangDoi));
   app.use(taiAnhRouter(config, deps));
 
+  // Trang quản trị: API cần đăng nhập. Body JSON giới hạn 1 MB; cookie phiên đọc bằng cookie-parser.
+  const db = deps.db ?? moDb(':memory:');
+  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho }));
+
   const oauth = createOAuth(config, deps);
   app.use(oauth.router);
 
@@ -45,7 +57,7 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   const host = new URL(config.publicBaseUrl).host;
   const ctx: ToolCtx = {
     config,
-    db: deps.db ?? moDb(':memory:'),
+    db,
     github: deps.github ?? new GithubClient(new Octokit({ auth: config.githubToken }), config.githubRepo),
     now: deps.now ?? Date.now,
     hangDoi,
