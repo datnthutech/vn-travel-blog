@@ -38,7 +38,7 @@ export function tongQuanRouter(d: { config: Config; db: Db; hangDoi: HangDoiBuil
       mail: d.mail.thongKeHomNay(),
       ...(chuyen && ct ? { chuyenNhaCungCapGanNhat: { luc: chuyen.luc, tu: ct.tu ?? '', den: ct.sang ?? '' } } : {}),
       // Bình luận cần để ý: tạo trong 24 giờ qua HOẶC đang chờ xem (mỗi bình luận đếm một lần).
-      binhLuanMoi: (d.db.prepare("SELECT count(*) AS n FROM binh_luan WHERE la_tac_gia = 0 AND (tao_luc > ? OR trang_thai = 'cho-xem')").get(d.now() - 86_400_000) as { n: number }).n,
+      binhLuanMoi: (d.db.prepare("SELECT count(*) AS n FROM binh_luan WHERE la_tac_gia = 0 AND ((tao_luc > ? AND trang_thai = 'hien') OR trang_thai = 'cho-xem')").get(d.now() - 86_400_000) as { n: number }).n,
       binhLuanChoXem: (d.db.prepare("SELECT count(*) AS n FROM binh_luan WHERE trang_thai = 'cho-xem'").get() as { n: number }).n,
     });
   });

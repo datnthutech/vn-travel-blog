@@ -34,7 +34,25 @@ export const demLink = (s: string): number => (s.match(/https?:\/\/|www\./gi) ??
 export function phanLoai(noiDung: string, tuCam: string[]): { trangThai: 'hien' | 'cho-xem'; lyDo?: string } {
   if (demLink(noiDung) > TOI_DA_LINK) return { trangThai: 'cho-xem', lyDo: `Có hơn ${TOI_DA_LINK} liên kết` };
   const nd = boDau(noiDung);
-  const tu = tuCam.find((t) => t.trim() && nd.includes(boDau(t).trim()));
+  const tu = tuCam.find((t) => {
+    const k = boDau(t).trim();
+    return k.length >= 2 && nd.includes(k); // kiểm SAU khi bỏ dấu: cụm rỗng/quá ngắn không được khớp mọi bình luận
+  });
   if (tu) return { trangThai: 'cho-xem', lyDo: `Chứa từ cấm: ${tu}` };
   return { trangThai: 'hien' };
+}
+
+/**
+ * Mỗi vé chỉ dùng được vài lần (người thật gửi 1 lần, có thể gửi lại khi lỗi): chặn bot lấy MỘT vé rồi dùng suốt 24 giờ.
+ * Bộ đếm nằm trong bộ nhớ (mất khi khởi động lại — chấp nhận được vì vé vẫn bị giới hạn theo IP và hạn 24 giờ).
+ */
+export const TOI_DA_LAN_DUNG_VE = 3;
+export function taoSoDemVe(): (ve: string) => number {
+  const dem = new Map<string, number>();
+  return (ve: string) => {
+    if (dem.size > 20_000) dem.clear(); // giữ bộ nhớ có trần
+    const n = (dem.get(ve) ?? 0) + 1;
+    dem.set(ve, n);
+    return n;
+  };
 }

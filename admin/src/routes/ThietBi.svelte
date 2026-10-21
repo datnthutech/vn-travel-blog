@@ -14,6 +14,7 @@
   let mkMoi = $state('');
   let tat = $state({ matKhau: '', ma: '' });
   let nhanMail = $state(true);
+  let daTaiTuyChon = $state(false); // chỉ cho bấm sau khi đã đọc được giá trị thật (tránh gửi nhầm giá trị mặc định)
 
   const gio = (ms: number) => new Date(ms).toLocaleString('vi-VN');
   async function tai() {
@@ -31,7 +32,7 @@
   }
   onMount(() => {
     void tai().catch((e) => (loi = thongBaoLoi(e)));
-    void goiApi<{ nhanMailBinhLuan: boolean }>('GET', '/toi/tuy-chon').then((r) => (nhanMail = r.nhanMailBinhLuan)).catch(() => {});
+    void goiApi<{ nhanMailBinhLuan: boolean }>('GET', '/toi/tuy-chon').then((r) => { nhanMail = r.nhanMailBinhLuan; daTaiTuyChon = true; }).catch((e) => (loi = thongBaoLoi(e)));
   });
   const doiNhanMail = () => lam(async () => { await goiApi('PUT', '/toi/tuy-chon', { nhanMailBinhLuan: nhanMail }); }, nhanMail ? 'Sẽ nhận mail khi có bình luận mới ở bài của bạn.' : 'Đã tắt mail báo bình luận.');
 
@@ -67,7 +68,7 @@
 
 <section class="the">
   <h2>Thông báo</h2>
-  <label class="hang-chon"><input type="checkbox" bind:checked={nhanMail} onchange={doiNhanMail} /> Gửi mail cho tôi khi có bình luận mới ở bài của tôi</label>
+  <label class="hang-chon"><input type="checkbox" bind:checked={nhanMail} disabled={!daTaiTuyChon} onchange={doiNhanMail} /> Gửi mail cho tôi khi có bình luận mới ở bài của tôi</label>
 </section>
 
 <section class="the">

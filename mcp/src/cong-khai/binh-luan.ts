@@ -3,7 +3,7 @@ import { Router } from 'express';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import { bamGiaTri, daBiChan, lietKeHien, themBinhLuan } from '../binh-luan/kho';
-import { kiemVeGui, phanLoai, taoVeGui, TOI_DA_MOI_IP, CUA_SO_IP_MS } from '../binh-luan/chong-spam';
+import { kiemVeGui, phanLoai, taoSoDemVe, taoVeGui, TOI_DA_LAN_DUNG_VE, TOI_DA_MOI_IP, CUA_SO_IP_MS } from '../binh-luan/chong-spam';
 import { docCaiDatSite } from '../noi-dung/cai-dat-site';
 import { thongBaoBinhLuanMoi } from '../binh-luan/bao-mail';
 import type { DichVuMail } from '../mail/dich-vu';
@@ -14,6 +14,7 @@ interface Deps { config: Config; db: Db; now: () => number; mail?: DichVuMail }
 
 export function congKhaiRouter(d: Deps): Router {
   const r = Router();
+  const demVe = taoSoDemVe();
 
   // Bài phải tồn tại, đã đăng, chưa vào thùng rác.
   const layBai = (baiId: number, ngonNgu: string) =>
@@ -47,6 +48,7 @@ export function congKhaiRouter(d: Deps): Router {
       return void res.status(400).json({ loi: ve === 'som' ? 'Bạn gửi quá nhanh, hãy thử lại sau vài giây' : ve === 'het-han' ? 'Trang đã mở quá lâu, hãy tải lại trang rồi gửi lại' : 'Yêu cầu không hợp lệ, hãy tải lại trang' });
     }
 
+    if (demVe(String(b.veGui)) > TOI_DA_LAN_DUNG_VE) return void res.status(400).json({ loi: 'Trang đã mở quá lâu, hãy tải lại trang rồi gửi lại' });
     const ip = req.ip ?? 'khong-ro';
     const ipBam = bamGiaTri(d.config.khoaBiMat, 'ip', ip);
     const daGui = (d.db.prepare('SELECT count(*) AS n FROM binh_luan WHERE ip_bam = ? AND tao_luc > ?').get(ipBam, d.now() - CUA_SO_IP_MS) as { n: number }).n;

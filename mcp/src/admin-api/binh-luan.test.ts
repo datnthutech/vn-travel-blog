@@ -121,4 +121,10 @@ describe('kiểm duyệt', () => {
     const r = (await m.chinh.gui('get', '/tong-quan')).body;
     expect(r).toMatchObject({ binhLuanMoi: 2, binhLuanChoXem: 1 });
   });
+
+  it('tổng quan: bình luận đã ẩn không còn được tính là "mới"', async () => {
+    const id = (await khach('sẽ bị ẩn', '1.1.1.1')).body.id;
+    m.db.prepare("UPDATE binh_luan SET trang_thai = 'an' WHERE id = ?").run(id);
+    expect((await m.chinh.gui('get', '/tong-quan')).body.binhLuanMoi).toBe(0);
+  });
 });

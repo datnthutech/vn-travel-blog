@@ -10,7 +10,7 @@ const KHUNG = `<section data-binh-luan data-bai="12" data-ngon-ngu="vi">
   <h2>Bình luận</h2><div class="bl-danh-sach"></div><p class="bl-trang-thai" hidden></p>
   <form class="bl-form" hidden>
     <input name="ten"><input name="email"><textarea name="noiDung"></textarea>
-    <input name="website" class="bl-bay" tabindex="-1" autocomplete="off"><button type="submit">Gửi bình luận</button>
+    <input name="bay" class="bl-bay" tabindex="-1" autocomplete="off"><button type="submit">Gửi bình luận</button>
   </form></section>`;
 
 function dung(trangThai: { get?: unknown; post?: { status: number; body: unknown } } = {}) {
@@ -93,7 +93,7 @@ describe('gửi bình luận', () => {
     gan('ten', over.ten ?? 'Minh');
     gan('email', over.email ?? 'minh@x.vn');
     gan('noiDung', over.noiDung ?? 'Bình luận mới');
-    gan('website', over.website ?? '');
+    gan('bay', over.website ?? '');
     f.dispatchEvent(new Event('submit', { cancelable: true }));
     await doi();
     await doi();
@@ -107,6 +107,30 @@ describe('gửi bình luận', () => {
     expect(post.body).toMatchObject({ bai: 12, ngonNgu: 'vi', ten: 'Minh', email: 'minh@x.vn', noiDung: 'Bình luận mới', website: '', veGui: 've-1' });
     expect(t.khung.querySelector('.bl-danh-sach')!.textContent).toContain('Bình luận mới');
     expect((t.khung.querySelector('textarea') as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('trả lời: bình luận hiện ngay dưới bình luận cha; nút "Huỷ trả lời" bỏ chaId', async () => {
+    const t = dung({ get: { veGui: 've-1', binhLuan: [
+      { id: 1, chaId: null, ten: 'Lan', noiDung: 'Một', laTacGia: false, taoLuc: 1700000000000 },
+      { id: 2, chaId: null, ten: 'Hoa', noiDung: 'Hai', laTacGia: false, taoLuc: 1700000100000 },
+    ] } });
+    t.vaoTamNhin();
+    await doi();
+    const nutTraLoi = () => t.khung.querySelectorAll<HTMLButtonElement>('.bl-tra-loi');
+    nutTraLoi()[0]!.click();
+    t.khung.querySelector<HTMLButtonElement>('.bl-huy')!.click();
+    nutTraLoi()[0]!.click();
+    await guiBinhLuan(t, { noiDung: 'Trả lời Lan' });
+    const post = t.goi.filter((g) => g.method === 'POST').pop()!;
+    expect(post.body.chaId).toBe(1);
+    const muc = [...t.khung.querySelectorAll('.bl-muc')].map((e) => e.textContent ?? '');
+    expect(muc[1]).toContain('Trả lời Lan');
+    expect(muc[2]).toContain('Hai');
+    // sau khi huỷ, lần gửi kế tiếp không còn chaId
+    nutTraLoi()[0]!.click();
+    t.khung.querySelector<HTMLButtonElement>('.bl-huy')!.click();
+    await guiBinhLuan(t, { noiDung: 'Bình luận gốc' });
+    expect(t.goi.filter((g) => g.method === 'POST').pop()!.body.chaId ?? null).toBeNull();
   });
 
   it('bình luận chờ xem → báo "đang chờ", KHÔNG hiện trong danh sách', async () => {

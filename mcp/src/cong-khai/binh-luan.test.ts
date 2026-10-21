@@ -69,15 +69,31 @@ describe('POST — bình luận hợp lệ', () => {
 
 describe('POST — chống spam (Review Focus)', () => {
   it('bot gửi 50 bình luận hợp lệ/phút từ 1 IP → đúng 3 cái 201, còn lại 429', async () => {
-    const v = await ve();
     const kq: number[] = [];
-    for (let i = 0; i < 50; i++) kq.push((await gui(hopLe(v, { noiDung: `Bình luận số ${i}` }))).status);
+    for (let i = 0; i < 50; i++) kq.push((await gui(hopLe(await ve(), { noiDung: `Bình luận số ${i}` }))).status); // mỗi lần một vé mới (đã chờ đủ 3 giây)
     expect(kq.filter((s) => s === 201)).toHaveLength(3);
     expect(kq.filter((s) => s === 429)).toHaveLength(47);
     expect(soDong()).toBe(3);
     // sau 10 phút được gửi lại
     m.dongHo.v += 10 * 60_000 + 1000;
     expect((await gui(hopLe(await ve(), { noiDung: 'Lại nhé' }))).status).toBe(201);
+  });
+
+  it('một vé chỉ dùng tối đa 3 lần (bot không lấy 1 vé dùng suốt 24 giờ từ nhiều IP)', async () => {
+    const v = await ve();
+    const kq: number[] = [];
+    for (let i = 0; i < 6; i++) kq.push((await gui(hopLe(v, { noiDung: `lần ${i} ok` }), `10.0.0.${i + 1}`)).status); // mỗi lần một IP khác nhau
+    expect(kq).toEqual([201, 201, 201, 400, 400, 400]);
+  });
+
+  it('trả lời bình luận đang ẨN / chờ xem → 400 (không lộ id nào đang ẩn, không có trả lời "mồ côi")', async () => {
+    const a = await gui(hopLe(await ve('1.1.1.1'), { noiDung: 'http://a.vn http://b.vn http://c.vn' }), '1.1.1.1'); // cho-xem
+    expect(a.body.trangThai).toBe('cho-xem');
+    expect((await gui(hopLe(await ve('2.2.2.2'), { chaId: a.body.id, noiDung: 'trả lời bình luận chờ xem' }), '2.2.2.2')).status).toBe(400);
+    const b = await gui(hopLe(await ve('3.3.3.3')), '3.3.3.3');
+    m.db.prepare("UPDATE binh_luan SET trang_thai = 'an' WHERE id = ?").run(b.body.id);
+    expect((await gui(hopLe(await ve('4.4.4.4'), { chaId: b.body.id, noiDung: 'trả lời bình luận đã ẩn' }), '4.4.4.4')).status).toBe(400);
+    expect(soDong()).toBe(2);
   });
 
   it('IP khác không bị ảnh hưởng bởi giới hạn của IP bot', async () => {
@@ -124,6 +140,11 @@ describe('POST — chống spam (Review Focus)', () => {
     expect(hai.body.trangThai).toBe('hien');
   });
 
+  it('từ cấm rỗng/quá ngắn (hoặc chỉ gồm dấu thanh) không khớp mọi bình luận', async () => {
+    await batBinhLuan(['', ' ', '\u0301', 'a']);
+    expect((await gui(hopLe(await ve(), { noiDung: 'Bình luận bình thường' }))).body.trangThai).toBe('hien');
+  });
+
   it('từ cấm không phân biệt hoa thường/dấu: "Cờ bạc" với tuCam ["co bac"] → chờ xem', async () => {
     await batBinhLuan(['co bac']);
     const r = await gui(hopLe(await ve(), { noiDung: 'Chơi CỜ BẠC online ở đây' }));
@@ -138,13 +159,12 @@ describe('POST — chống spam (Review Focus)', () => {
   });
 
   it('kiểm tra độ dài/định dạng: tên rỗng/61, nội dung 1/2001 ký tự, email sai → 400; body quá 16 KB → 413', async () => {
-    const v = await ve();
     for (const over of [{ ten: '' }, { ten: 'x'.repeat(61) }, { noiDung: 'a' }, { noiDung: 'x'.repeat(2001) }, { email: 'khong-phai-email' }]) {
-      expect((await gui(hopLe(v, over))).status, JSON.stringify(over).slice(0, 40)).toBe(400);
+      expect((await gui(hopLe(await ve(), over))).status, JSON.stringify(over).slice(0, 40)).toBe(400);
     }
-    expect((await gui(hopLe(v, { noiDung: 'x'.repeat(20_000) }))).status).toBe(413);
+    expect((await gui(hopLe(await ve(), { noiDung: 'x'.repeat(20_000) }))).status).toBe(413);
     expect(soDong()).toBe(0);
-    expect((await gui(hopLe(v, { ten: 'x'.repeat(60), noiDung: 'xx' }))).status).toBe(201); // biên hợp lệ
+    expect((await gui(hopLe(await ve(), { ten: 'x'.repeat(60), noiDung: 'xx' }))).status).toBe(201); // biên hợp lệ
   });
 
   it('bình luận đang tắt → POST 403; bài lạ → 404', async () => {

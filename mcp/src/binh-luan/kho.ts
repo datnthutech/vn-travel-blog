@@ -34,8 +34,9 @@ export interface ThemInput {
 export function themBinhLuan(db: Db, i: ThemInput, now: () => number = Date.now): { id: number; trangThai: TrangThaiBinhLuan; chaId: number | null } {
   let cha: number | null = null;
   if (i.chaId) {
-    const c = db.prepare('SELECT id, cha_id, bai_id, ngon_ngu FROM binh_luan WHERE id = ?').get(i.chaId) as { id: number; cha_id: number | null; bai_id: number; ngon_ngu: string } | undefined;
-    if (!c || c.bai_id !== i.baiId || c.ngon_ngu !== i.ngonNgu) throw new Error('Bình luận được trả lời không tồn tại trong bài này');
+    const c = db.prepare('SELECT id, cha_id, bai_id, ngon_ngu, trang_thai FROM binh_luan WHERE id = ?').get(i.chaId) as { id: number; cha_id: number | null; bai_id: number; ngon_ngu: string; trang_thai: string } | undefined;
+    // Chỉ trả lời được bình luận ĐANG HIỆN (trả lời bình luận ẩn/chờ xem sẽ không bao giờ hiện, và lộ ra id nào đang bị ẩn).
+    if (!c || c.bai_id !== i.baiId || c.ngon_ngu !== i.ngonNgu || c.trang_thai !== 'hien') throw new Error('Bình luận được trả lời không tồn tại trong bài này');
     cha = c.cha_id ?? c.id; // trả lời của trả lời → gộp về cha cấp 1
   }
   const id = Number(
@@ -52,11 +53,12 @@ export function lietKeHien(db: Db, baiId: number, ngonNgu: string): BinhLuanCong
     .prepare("SELECT id, cha_id, ten, noi_dung, la_tac_gia, tao_luc FROM binh_luan WHERE bai_id = ? AND ngon_ngu = ? AND trang_thai = 'hien' ORDER BY tao_luc, id")
     .all(baiId, ngonNgu) as { id: number; cha_id: number | null; ten: string; noi_dung: string; la_tac_gia: number; tao_luc: number }[];
   const toCong = (r: (typeof dong)[number]): BinhLuanCongKhai => ({ id: r.id, chaId: r.cha_id, ten: r.ten, noiDung: r.noi_dung, laTacGia: r.la_tac_gia === 1, taoLuc: r.tao_luc });
-  const cha = dong.filter((r) => r.cha_id === null);
+  const conCua = new Map<number, typeof dong>();
+  for (const r of dong) if (r.cha_id !== null) conCua.set(r.cha_id, [...(conCua.get(r.cha_id) ?? []), r]);
   const ra: BinhLuanCongKhai[] = [];
-  for (const c of cha) {
+  for (const c of dong.filter((r) => r.cha_id === null)) {
     ra.push(toCong(c));
-    for (const con of dong.filter((r) => r.cha_id === c.id)) ra.push(toCong(con)); // con của cha đang ẩn không được hiện (vì cha không có trong danh sách)
+    for (const con of conCua.get(c.id) ?? []) ra.push(toCong(con)); // con của cha đang ẩn không hiện (cha không có trong danh sách)
   }
   return ra;
 }

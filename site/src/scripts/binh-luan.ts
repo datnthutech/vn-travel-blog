@@ -11,8 +11,14 @@ export function khoiTaoBinhLuan(khung: HTMLElement, opt: TuyChon = {}): void {
   const bai = Number(khung.dataset.bai);
   const ngonNgu = khung.dataset.ngonNgu ?? 'vi';
   const ds = khung.querySelector<HTMLElement>('.bl-danh-sach')!;
+  // Nút huỷ trả lời (tạo bằng script để HTML tĩnh không phải có thêm phần tử).
+  const huy = document.createElement('button');
   const tb = khung.querySelector<HTMLElement>('.bl-trang-thai')!;
   const form = khung.querySelector<HTMLFormElement>('.bl-form')!;
+  huy.type = 'button';
+  huy.className = 'bl-huy';
+  huy.textContent = 'Huỷ trả lời';
+  huy.hidden = true;
   let veGui = '';
   let chaId: number | null = null;
   let daNap = false;
@@ -28,6 +34,7 @@ export function khoiTaoBinhLuan(khung: HTMLElement, opt: TuyChon = {}): void {
     tb.hidden = !chu;
   };
 
+  /** Vẽ một bình luận; bình luận trả lời được chèn NGAY SAU cha (và các trả lời trước đó của cha), không phải cuối danh sách. */
   function ve(b: BL): void {
     const m = el('div', b.chaId ? 'bl-muc bl-con' : 'bl-muc');
     const dau = el('p', 'bl-dau');
@@ -46,10 +53,18 @@ export function khoiTaoBinhLuan(khung: HTMLElement, opt: TuyChon = {}): void {
       tl.setAttribute('type', 'button');
       tl.addEventListener('click', () => {
         chaId = b.id;
-        thongBao(`Đang trả lời ${b.ten}.`);
+        thongBao(`Đang trả lời ${b.ten}. Bấm "Huỷ trả lời" nếu muốn viết bình luận mới.`);
+        huy.hidden = false;
         form.querySelector<HTMLElement>('textarea')?.focus();
       });
       m.append(tl);
+    }
+    m.dataset.id = String(b.id);
+    if (b.chaId) {
+      const cha = ds.querySelector<HTMLElement>(`[data-id="${b.chaId}"]`);
+      let vi: Element | null = cha;
+      while (vi?.nextElementSibling?.classList.contains('bl-con')) vi = vi.nextElementSibling;
+      if (vi) return void vi.after(m);
     }
     ds.append(m);
   }
@@ -64,10 +79,17 @@ export function khoiTaoBinhLuan(khung: HTMLElement, opt: TuyChon = {}): void {
       veGui = d.veGui ?? '';
       (d.binhLuan ?? []).forEach(ve);
       form.hidden = false;
+      form.insertBefore(huy, form.querySelector('button[type=submit]'));
     } catch {
       khung.hidden = true; // mất mạng / lỗi: ẩn khung, không làm hỏng trang
     }
   }
+
+  huy.addEventListener('click', () => {
+    chaId = null;
+    huy.hidden = true;
+    thongBao('');
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -78,7 +100,7 @@ export function khoiTaoBinhLuan(khung: HTMLElement, opt: TuyChon = {}): void {
       const r = await goi(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bai, ngonNgu, chaId, ten: g('ten'), email: g('email'), noiDung: g('noiDung'), website: g('website'), veGui }),
+        body: JSON.stringify({ bai, ngonNgu, chaId, ten: g('ten'), email: g('email'), noiDung: g('noiDung'), website: g('bay'), veGui }),
       });
       const d = (await r.json().catch(() => ({}))) as { id?: number; trangThai?: string; loi?: string };
       if (!r.ok) return void thongBao(typeof d.loi === 'string' ? d.loi : 'Chưa gửi được bình luận, hãy thử lại.');
@@ -89,6 +111,7 @@ export function khoiTaoBinhLuan(khung: HTMLElement, opt: TuyChon = {}): void {
       }
       (form.elements.namedItem('noiDung') as HTMLTextAreaElement).value = '';
       chaId = null;
+      huy.hidden = true;
     } catch {
       thongBao('Mất kết nối, hãy thử lại.');
     } finally {
