@@ -20,22 +20,29 @@ export function gioVNSangEpoch(chuoi: string): number {
 /** epoch mili giây → "YYYY-MM-DDTHH:mm" theo giờ VN. */
 export const epochSangGioVN = (ms: number): string => new Date(ms + GIO_VN).toISOString().slice(0, 16);
 
-/** Đăng mọi bài hẹn giờ đã tới hạn (bỏ qua bài trong thùng rác). Trả id các bài vừa đăng. */
+/**
+ * Đăng mọi bản hẹn giờ đã tới hạn (bỏ qua bài trong thùng rác). Bản DỊCH chỉ đăng khi bản tiếng Việt đã `da-dang` (nếu chưa thì chờ tới lượt sau).
+ * Trả id các bài vừa có bản đăng (không lặp).
+ */
 export function dangBaiDenHan(db: Db, now: number): number[] {
   return db.transaction(() => {
     const den = db
       .prepare(
-        `SELECT d.bai_id AS id, d.hen_gio_nguoi_id AS nguoi FROM ban_dich d JOIN bai b ON b.id = d.bai_id
-         WHERE d.trang_thai = 'hen-gio' AND d.hen_gio <= ? AND b.xoa_luc IS NULL ORDER BY d.hen_gio, d.bai_id`,
+        `SELECT d.bai_id AS id, d.ngon_ngu AS ngonNgu, d.hen_gio_nguoi_id AS nguoi FROM ban_dich d JOIN bai b ON b.id = d.bai_id
+         WHERE d.trang_thai = 'hen-gio' AND d.hen_gio <= ? AND b.xoa_luc IS NULL ORDER BY (d.ngon_ngu = 'vi') DESC, d.hen_gio, d.bai_id`,
       )
-      .all(now) as { id: number; nguoi: number | null }[];
+      .all(now) as { id: number; ngonNgu: string; nguoi: number | null }[];
+    const daDang: { id: number; ngonNgu: string }[] = [];
     for (const b of den) {
-      db.prepare("UPDATE ban_dich SET trang_thai = 'da-dang', hen_gio = NULL, dang_luc = ?, sua_luc = ? WHERE bai_id = ? AND ngon_ngu = 'vi'").run(now, now, b.id);
-      db.prepare('UPDATE bai SET nguoi_dang_id = ? WHERE id = ?').run(b.nguoi, b.id);
-      ghiNhatKy(db, { nguoiDungId: b.nguoi, loai: 'dang-bai', chiTiet: { baiId: b.id, henGio: true } }, () => now);
+      // Bản vi được xử lý trước (ORDER BY) nên bản dịch cùng đợt thấy ngay bài vi vừa đăng.
+      if (b.ngonNgu !== 'vi' && (db.prepare("SELECT trang_thai FROM ban_dich WHERE bai_id = ? AND ngon_ngu = 'vi'").get(b.id) as { trang_thai: string } | undefined)?.trang_thai !== 'da-dang') continue;
+      db.prepare("UPDATE ban_dich SET trang_thai = 'da-dang', hen_gio = NULL, dang_luc = ?, sua_luc = ? WHERE bai_id = ? AND ngon_ngu = ?").run(now, now, b.id, b.ngonNgu);
+      if (b.ngonNgu === 'vi') db.prepare('UPDATE bai SET nguoi_dang_id = ? WHERE id = ?').run(b.nguoi, b.id);
+      ghiNhatKy(db, { nguoiDungId: b.nguoi, loai: b.ngonNgu === 'vi' ? 'dang-bai' : 'dang-ban-dich', chiTiet: { baiId: b.id, ngonNgu: b.ngonNgu, henGio: true } }, () => now);
+      daDang.push(b);
     }
-    if (den.length > 0) danhDauNoiDungDoi(db);
-    return den.map((b) => b.id);
+    if (daDang.length > 0) danhDauNoiDungDoi(db);
+    return [...new Set(daDang.map((b) => b.id))];
   })();
 }
 

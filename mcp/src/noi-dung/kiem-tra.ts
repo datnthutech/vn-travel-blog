@@ -13,8 +13,9 @@ export function layDanhSachTinh(db: Db): Tinh[] {
     .flatMap((k) => (k.success ? [k.data] : []));
 }
 
-export function kiemTraDayDu(db: Db, anhDir: string, bai: BaiViet | unknown, noiDung: string, slugDangSua?: string): KetQuaKiemTra {
-  const baiKhac = (db.prepare("SELECT slug FROM ban_dich WHERE ngon_ngu = 'vi'").all() as { slug: string }[]).filter((r) => r.slug !== slugDangSua);
+/** `ngonNgu`: slug chỉ phải khác slug các bài CÙNG ngôn ngữ (mỗi ngôn ngữ có không gian đường dẫn riêng /<mã>/…). */
+export function kiemTraDayDu(db: Db, anhDir: string, bai: BaiViet | unknown, noiDung: string, slugDangSua?: string, ngonNgu = 'vi'): KetQuaKiemTra {
+  const baiKhac = (db.prepare('SELECT slug FROM ban_dich WHERE ngon_ngu = ?').all(ngonNgu) as { slug: string }[]).filter((r) => r.slug !== slugDangSua);
   const maAnhHopLe = (ma: string) => MA_ANH.test(ma) && existsSync(join(anhDir, ma, 'meta.json'));
   const chuyenMuc = db.prepare('SELECT slug FROM chuyen_muc').all() as { slug: string }[];
   return kiemTraBai({ ...(bai as object), draft: false }, layDanhSachTinh(db), baiKhac, noiDung, maAnhHopLe, chuyenMuc);

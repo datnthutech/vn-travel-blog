@@ -14,6 +14,8 @@ import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { baiVietSchema, taoSlug } from '@vntraveltips/schema';
 import { docBai, luuBai, slugKhongTrung, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
 import { kiemTraDayDu } from '../noi-dung/kiem-tra';
+import { cuHonBanGoc, docBanDich } from '../noi-dung/ban-dich';
+import { lietKeNgonNgu } from '../noi-dung/ngon-ngu';
 
 export interface DepsBai {
   config: Config;
@@ -104,6 +106,20 @@ export function baiRouter(d: DepsBai): Router {
     if (tinh) (dieuKien.push('b.tinh = ?'), tham.push(tinh));
     if (chuyenMuc) (dieuKien.push("EXISTS (SELECT 1 FROM json_each(d.du_lieu, '$.chuyenMuc') WHERE value = ?)"), tham.push(chuyenMuc));
     if (/^\d+$/.test(tacGia)) (dieuKien.push('b.tac_gia_id = ?'), tham.push(Number(tacGia)));
+    // Lọc theo bản dịch: thieuBanDich=<mã> → chưa có bản dịch; banDichCu=<mã> → có bản dịch nhưng cũ hơn bản gốc (băm tính ở JS nên lọc theo danh sách id).
+    const thieu = String(req.query.thieuBanDich ?? '');
+    const cu = String(req.query.banDichCu ?? '');
+    if (thieu) (dieuKien.push('NOT EXISTS (SELECT 1 FROM ban_dich x WHERE x.bai_id = b.id AND x.ngon_ngu = ?)'), tham.push(thieu));
+    if (cu) {
+      const ids = (d.db.prepare('SELECT bai_id FROM ban_dich WHERE ngon_ngu = ?').all(cu) as { bai_id: number }[])
+        .map((x) => x.bai_id)
+        .filter((id) => {
+          const ban = docBanDich(d.db, id, cu);
+          return ban !== null && cuHonBanGoc(d.db, ban);
+        });
+      dieuKien.push(`b.id IN (${ids.length ? ids.map(() => '?').join(',') : 'NULL'})`);
+      tham.push(...ids);
+    }
     const tu = `FROM bai b JOIN ban_dich d ON d.bai_id = b.id WHERE ${dieuKien.join(' AND ')}`;
     const tong = (d.db.prepare(`SELECT count(*) AS n ${tu}`).get(...tham) as { n: number }).n;
     const dong = d.db
@@ -121,6 +137,13 @@ export function baiRouter(d: DepsBai): Router {
         ...(dangLuc !== null ? { dangLuc } : {}),
         tacGia: tenNguoi(d.db, tacGiaId as number | null),
         nguoiSuaCuoi: tenNguoi(d.db, nguoiSuaCuoiId as number | null),
+        // Trạng thái bản dịch theo từng ngôn ngữ ĐANG BẬT (chua-dich nếu chưa có), kèm cờ "cũ hơn bản gốc".
+        banDich: Object.fromEntries(
+          lietKeNgonNgu(d.db).filter((n) => n.bat && n.ma !== 'vi').map((n) => {
+            const ban = docBanDich(d.db, con.id as number, n.ma);
+            return [n.ma, ban ? { trangThai: ban.trangThai, cu: cuHonBanGoc(d.db, ban), daKiemTra: ban.daKiemTra } : { trangThai: 'chua-dich' }];
+          }),
+        ),
       })),
       tong,
     });

@@ -54,6 +54,17 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('POST', '/bai/:id/hen-gio', 'bai.dang'),
   L('POST', '/bai/:id/huy-hen-gio', 'bai.dang'),
   L('POST', '/bai/:id/xem-truoc', 'bai.sua'),
+  // Bản dịch bài
+  L('GET', '/bai/:id/ban-dich/:ngonNgu', 'bai.xem'),
+  L('PUT', '/bai/:id/ban-dich/:ngonNgu', 'bai.sua'),
+  L('PATCH', '/bai/:id/ban-dich/:ngonNgu/tu-luu', 'bai.sua'),
+  L('POST', '/bai/:id/ban-dich/:ngonNgu/dang', 'bai.dang'),
+  L('POST', '/bai/:id/ban-dich/:ngonNgu/go', 'bai.dang'),
+  L('POST', '/bai/:id/ban-dich/:ngonNgu/hen-gio', 'bai.dang'),
+  L('POST', '/bai/:id/ban-dich/:ngonNgu/huy-hen-gio', 'bai.dang'),
+  L('POST', '/bai/:id/ban-dich/:ngonNgu/kiem-tra', 'ban-dich.kiem-tra'),
+  L('GET', '/bai/:id/ban-dich/:ngonNgu/phien-ban', 'bai.xem'),
+  L('GET', '/bai/:id/ban-dich/:ngonNgu/phien-ban/:pid', 'bai.xem'),
   // Bình luận
   L('GET', '/binh-luan', 'chi-dang-nhap'), // người viết chỉ thấy bình luận ở bài của mình (lọc ở máy chủ)
   L('PUT', '/binh-luan/:id', 'binh-luan.an-xoa'),

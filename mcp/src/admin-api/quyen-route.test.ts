@@ -55,7 +55,7 @@ describe('(a) mọi route đều được khai báo quyền', () => {
 });
 
 const dienDuongDan = (duongDan: string): string =>
-  duongDan.replace(':id', duongDan.startsWith('/bai') ? String(baiId) : duongDan.startsWith('/binh-luan') ? String(maBinhLuan) : '999').replace(':pid', '999').replace(':slug', 'khong-co').replace(':ma', maAnh);
+  duongDan.replace(':id', duongDan.startsWith('/bai') ? String(baiId) : duongDan.startsWith('/binh-luan') ? String(maBinhLuan) : '999').replace(':pid', '999').replace(':ngonNgu', 'en').replace(':slug', 'khong-co').replace(':ma', maAnh);
 
 const kiemTuDong = QUYEN_ROUTE.filter((x) => x.hanhDong !== 'cong-khai' && !x.doiPhien);
 
