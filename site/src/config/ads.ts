@@ -1,10 +1,19 @@
-// Cấu hình quảng cáo. TẮT mặc định. Khi có khoảng 30–50 bài và vài trăm lượt xem/ngày thì xin AdSense, rồi:
-//   1) đặt enabled: true  2) điền client (ca-pub-...) và mã từng ô (slots)  3) push lên main.
-// Mỗi ô giữ sẵn chiều cao tối thiểu (minHeight, px) để trang không bị nhảy bố cục khi quảng cáo tải xong.
-// Script quảng cáo chỉ được tải khi enabled, và tải chậm (sau khi trang load xong, lúc trình duyệt rảnh).
+// Cấu hình quảng cáo. TẮT mặc định. Bật/tắt và chọn vị trí trong trang quản trị (Cài đặt site → Quảng cáo); mã AdSense
+// (client, slots) vẫn điền ở đây sau khi có tài khoản AdSense: client 'ca-pub-…' và mã từng ô.
+// Mỗi ô giữ sẵn chiều cao tối thiểu (minHeight, px) để trang không bị nhảy bố cục. Script chỉ tải khi bật, và tải chậm.
+import { layCaiDatSite } from '../lib/cai-dat';
+
+const VI_TRI = { sauTraNhanh: 'sau-tra-nhanh', giuaBai: 'giua-bai', cuoiBai: 'cuoi-bai' } as const;
+const caiDat = layCaiDatSite().quangCao;
+const client = ''; // ví dụ 'ca-pub-1234567890123456'
+const slots = { sauTraNhanh: '', giuaBai: '', cuoiBai: '' };
+
 export const ads = {
-  enabled: false,
-  client: '', // ví dụ 'ca-pub-1234567890123456'
-  slots: { sauTraNhanh: '', giuaBai: '', cuoiBai: '' },
+  // Chỉ thật sự bật khi đã bật trong Cài đặt site VÀ đã điền mã client (tránh sinh ô trống/ script lỗi).
+  enabled: caiDat.bat && client !== '',
+  client,
+  slots,
   minHeight: { sauTraNhanh: 280, giuaBai: 280, cuoiBai: 280 },
+  /** Ô nào được hiện theo Cài đặt site. */
+  viTri: Object.fromEntries(Object.entries(VI_TRI).map(([k, v]) => [k, caiDat.viTri.includes(v)])) as Record<keyof typeof VI_TRI, boolean>,
 } as const;

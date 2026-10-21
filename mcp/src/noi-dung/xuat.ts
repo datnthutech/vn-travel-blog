@@ -31,6 +31,10 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
     writeFileSync(join(dich, 'tinh', `${r.slug}.md`), `---\n${stringify(JSON.parse(r.du_lieu), { lineWidth: 0 })}---\n`);
   }
 
+  // Cài đặt site: chỉ ghi khi đã có (server khởi tạo lần đầu từ env); thiếu thì site dùng mặc định + env.
+  const caiDat = docCaiDat(db, 'site');
+  if (caiDat) writeFileSync(join(dich, 'cai-dat.json'), JSON.stringify(caiDat, null, 2) + '\n');
+
   // Menu: chỉ ghi khi chủ blog đã lưu; thiếu thì site dùng menu mặc định. Mục có đích chưa đăng bị site ẩn lúc build.
   const menu = docCaiDat(db, 'menu');
   if (menu) writeFileSync(join(dich, 'menu.json'), JSON.stringify(menu, null, 2) + '\n');

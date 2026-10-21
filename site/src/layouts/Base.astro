@@ -6,6 +6,7 @@ import SeoHead from '../components/SeoHead.astro';
 import AdScript from '../components/AdScript.astro';
 import { goatcounterScript } from '../lib/analytics';
 import Menu from '../components/Menu.astro';
+import { SITE } from '../config/site';
 interface Props {
   title: string;
   moTa?: string;
@@ -27,12 +28,22 @@ const gc = goatcounterScript();
     {coNoindex() && <meta name="robots" content="noindex, nofollow" />}
     <SeoHead title={title} {...seo} />
     {gc && <script is:inline async data-goatcounter={gc.endpoint} src={gc.src}></script>}
+    {SITE.favicon && <link rel="icon" type="image/webp" href={`/anh/${SITE.favicon.ma}/480.webp`} />}
     <slot name="head" />
   </head>
   <body>
-    <header class="site-header"><a href="/">VNTravelTips</a><Menu vitri="dauTrang" /></header>
+    <header class="site-header">
+      <a href="/">{SITE.logo ? <img src={`/anh/${SITE.logo.ma}/480.webp`} alt={SITE.ten} height="32" /> : SITE.ten}</a>
+      <Menu vitri="dauTrang" />
+    </header>
     <main><slot /></main>
-    <footer class="site-footer">© VNTravelTips — nhật ký du lịch của một gia đình nhỏ<Menu vitri="chanTrang" /></footer>
+    <footer class="site-footer">
+      © {SITE.ten} — nhật ký du lịch của một gia đình nhỏ
+      {Object.keys(SITE.mangXaHoi).length > 0 && (
+        <ul class="mxh">{Object.entries(SITE.mangXaHoi).map(([k, u]) => <li><a href={u} rel="noopener me" target="_blank">{k}</a></li>)}</ul>
+      )}
+      <Menu vitri="chanTrang" />
+    </footer>
     <AdScript />
   </body>
 </html>

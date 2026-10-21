@@ -9,7 +9,7 @@ const { viTri } = Astro.props;
 ---
 
 {
-  ads.enabled && (
+  ads.enabled && ads.viTri[viTri] && (
     <div class="ad-slot" style={`min-height:${ads.minHeight[viTri]}px`} aria-label="Quảng cáo">
       <ins class="adsbygoogle" style="display:block" data-ad-client={ads.client} data-ad-slot={ads.slots[viTri]} data-ad-format="auto" data-full-width-responsive="true" />
     </div>

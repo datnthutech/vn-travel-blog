@@ -13,3 +13,13 @@ describe('coNoindex', () => {
     expect(coNoindex({ NOINDEX_ALL: 'false' })).toBe(true);
   });
 });
+
+describe('coNoindex theo Cài đặt site (cai-dat.json)', () => {
+  it('có cài đặt: choPhepLapChiMuc quyết định ở production, NOINDEX_ALL không còn tác dụng', () => {
+    expect(coNoindex({ BUILD_TARGET: 'production', NOINDEX_ALL: 'false' }, { choPhepLapChiMuc: false })).toBe(true);
+    expect(coNoindex({ BUILD_TARGET: 'production', NOINDEX_ALL: 'true' }, { choPhepLapChiMuc: true })).toBe(false);
+  });
+  it('preview luôn noindex dù cài đặt cho phép', () => {
+    expect(coNoindex({ BUILD_TARGET: 'preview' }, { choPhepLapChiMuc: true })).toBe(true);
+  });
+});

@@ -210,4 +210,24 @@ describe('build với NOI_DUNG_DIR', () => {
       expect(html).toContain('href="/chinh-sach-lien-ket/"'); // chân trang
     }
   }, 240_000);
+
+  it('Cài đặt site: choPhepLapChiMuc=false → mọi trang production có noindex; true → không có; GoatCounter chỉ ở production', async () => {
+    const { caiDatSiteMacDinh } = await import('@vntraveltips/schema');
+    const taoVoi = (cd: object) => {
+      const nd = taoThuMuc((_f, t) => t);
+      writeFileSync(join(nd, 'cai-dat.json'), JSON.stringify({ ...caiDatSiteMacDinh({}), ...cd }));
+      return nd;
+    };
+    const chan = taoVoi({ choPhepLapChiMuc: false, goatcounterCode: 'vntraveltips', tenSite: 'Blog Thử' });
+    const prodChan = buildPreview(chan, 'production');
+    const prevChan = buildPreview(chan, 'preview');
+    const mo = taoVoi({ choPhepLapChiMuc: true, goatcounterCode: 'vntraveltips' });
+    const prodMo = buildPreview(mo, 'production');
+    const trang = (o: string) => ['index.html', 'gioi-thieu/index.html'].map((f) => readFileSync(join(o, f), 'utf8'));
+    for (const h of trang(prodChan)) expect(h).toContain('name="robots" content="noindex, nofollow"');
+    for (const h of trang(prodMo)) expect(h).not.toContain('noindex');
+    expect(trang(prodMo)[0]).toContain('data-goatcounter="https://vntraveltips.goatcounter.com/count"');
+    expect(trang(prevChan)[0]).not.toContain('goatcounter'); // preview không đếm lượt xem
+    expect(trang(prodChan)[0]).toContain('Blog Thử'); // tên site lấy từ Cài đặt
+  }, 360_000);
 });
