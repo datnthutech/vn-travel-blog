@@ -4,12 +4,12 @@ import { render } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import type { TrangTinh } from '../lib/trang';
 import { SITE } from '../config/site';
-interface Props { trang: TrangTinh }
-const { trang } = Astro.props;
+interface Props { trang: TrangTinh; ngonNgu?: string }
+const { trang, ngonNgu = 'vi' } = Astro.props;
 const { Content } = await render(trang.entry);
 ---
 
-<Base title={`${trang.tieuDe} — ${SITE.ten}`} moTa={trang.moTa || undefined}>
+<Base title={`${trang.tieuDe} — ${SITE.ten}`} ngonNgu={ngonNgu} moTa={trang.moTa || undefined}>
   <h1>{trang.tieuDe}</h1>
   <div class="noi-dung"><Content /></div>
 </Base>

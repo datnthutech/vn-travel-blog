@@ -63,6 +63,10 @@ export const baiVietSchema = z
     faq: z.array(z.object({ hoi: z.string(), dap: z.string() })).default([]),
     /** Mã bài trong DB: `xuatNoiDung` ghi vào frontmatter để trang bài nạp bình luận (bài mẫu chạy local không có thì không hiện bình luận). */
     maBai: z.number().int().positive().optional(),
+    /** Chỉ file bản dịch có: mã ngôn ngữ của bản dịch (bản tiếng Việt không ghi, mặc định 'vi'). */
+    ngonNgu: z.string().optional(),
+    /** `xuatNoiDung` ghi: URL các bản dịch/bản gốc ĐÃ ĐĂNG của bài này (mã ngôn ngữ → URL) để site dựng hreflang và nút chuyển ngôn ngữ. */
+    banDich: z.record(z.string(), z.string()).optional(),
     hopTac: z.boolean().default(false),
     draft: z.boolean().default(false),
   })

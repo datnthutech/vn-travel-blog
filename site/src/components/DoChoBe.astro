@@ -1,16 +1,18 @@
 ---
 // "Đồ nên mang cho bé" — link (nếu có) là affiliate nên gắn rel="sponsored nofollow noopener".
 import { REL_AFFILIATE } from '../lib/affiliate';
+import { t } from '../i18n/giao-dien';
 interface Props {
   doMang: { ten: string; ghiChu?: string; link?: string }[];
+  ngonNgu?: string;
 }
-const { doMang } = Astro.props;
+const { doMang, ngonNgu = 'vi' } = Astro.props;
 ---
 
 {
   doMang.length > 0 && (
     <section>
-      <h2>Đồ nên mang cho bé</h2>
+      <h2>{t(ngonNgu, 'do-mang-cho-be')}</h2>
       <ul>
         {doMang.map((d) => (
           <li>

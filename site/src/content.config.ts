@@ -13,10 +13,17 @@ const trangSchema = z.object({ tieuDe: z.string().min(1), moTa: z.string().defau
 
 export const collections = {
   trang: defineCollection({ loader: glob({ pattern: '**/*.md', base: `${goc}/trang` }), schema: trangSchema }),
+  // Bài tiếng Việt: file nằm thẳng trong bai-viet/. Bản dịch: bai-viet/<mã ngôn ngữ>/<slug>.md (có `ngonNgu` trong frontmatter).
   'bai-viet': defineCollection({
-    loader: glob({ pattern: '**/*.{md,mdx}', base: `${goc}/bai-viet` }),
+    loader: glob({ pattern: '*.{md,mdx}', base: `${goc}/bai-viet` }),
     schema: baiVietSchema,
   }),
+  'bai-viet-dich': defineCollection({
+    loader: glob({ pattern: '*/*.{md,mdx}', base: `${goc}/bai-viet` }),
+    schema: baiVietSchema,
+  }),
+  // Bản dịch trang tĩnh: trang-dich/<mã ngôn ngữ>/<slug>.md.
+  'trang-dich': defineCollection({ loader: glob({ pattern: '*/*.md', base: `${goc}/trang-dich` }), schema: trangSchema.extend({ slugGoc: z.string().min(1) }) }),
   tinh: defineCollection({
     loader: glob({ pattern: '**/*.md', base: `${goc}/tinh` }),
     schema: tinhSchema,

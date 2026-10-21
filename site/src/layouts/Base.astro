@@ -7,8 +7,13 @@ import AdScript from '../components/AdScript.astro';
 import { goatcounterScript } from '../lib/analytics';
 import Menu from '../components/Menu.astro';
 import DangKyBanTin from '../components/DangKyBanTin.astro';
+import ChuyenNgonNgu from '../components/ChuyenNgonNgu.astro';
+import { t } from '../i18n/giao-dien';
 import { SITE } from '../config/site';
 interface Props {
+  ngonNgu?: string;
+  /** mã ngôn ngữ → đường dẫn trang này ở từng ngôn ngữ đã đăng (gồm trang hiện tại): sinh hreflang + nút chuyển ngôn ngữ. */
+  hreflang?: Record<string, string>;
   title: string;
   moTa?: string;
   duongDan?: string;
@@ -16,35 +21,37 @@ interface Props {
   loai?: 'website' | 'article';
   jsonLd?: object[];
 }
-const { title, ...seo } = Astro.props;
+const { title, ngonNgu = 'vi', hreflang = {}, ...seo } = Astro.props;
+const tien = ngonNgu === 'vi' ? '' : `/${ngonNgu}`;
 const gc = goatcounterScript();
 ---
 
 <!doctype html>
-<html lang="vi">
+<html lang={ngonNgu}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     {coNoindex() && <meta name="robots" content="noindex, nofollow" />}
-    <SeoHead title={title} {...seo} />
+    <SeoHead title={title} ngonNgu={ngonNgu} hreflang={hreflang} {...seo} />
     {gc && <script is:inline async data-goatcounter={gc.endpoint} src={gc.src}></script>}
     {SITE.favicon && <link rel="icon" type="image/webp" href={`/anh/${SITE.favicon.ma}/480.webp`} />}
     <slot name="head" />
   </head>
   <body>
     <header class="site-header">
-      <a href="/">{SITE.logo ? <img src={`/anh/${SITE.logo.ma}/480.webp`} alt={SITE.ten} height="32" /> : SITE.ten}</a>
-      <Menu vitri="dauTrang" />
+      <a href={`${tien}/`}>{SITE.logo ? <img src={`/anh/${SITE.logo.ma}/480.webp`} alt={SITE.ten} height="32" /> : SITE.ten}</a>
+      <Menu vitri="dauTrang" ngonNgu={ngonNgu} />
+      <ChuyenNgonNgu ngonNgu={ngonNgu} hreflang={hreflang} />
     </header>
     <main><slot /></main>
     <footer class="site-footer">
-      <DangKyBanTin neo />
-      © {SITE.ten} — nhật ký du lịch của một gia đình nhỏ
+      <DangKyBanTin neo ngonNgu={ngonNgu} />
+      © {SITE.ten} — {t(ngonNgu, 'chan-trang')}
       {Object.keys(SITE.mangXaHoi).length > 0 && (
         <ul class="mxh">{Object.entries(SITE.mangXaHoi).map(([k, u]) => <li><a href={u} rel="noopener me" target="_blank">{k}</a></li>)}</ul>
       )}
-      <Menu vitri="chanTrang" />
+      <Menu vitri="chanTrang" ngonNgu={ngonNgu} />
     </footer>
     <AdScript />
   </body>

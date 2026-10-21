@@ -1,15 +1,17 @@
 ---
 // Câu hỏi thường gặp. Không có FAQ thì không hiện gì.
+import { t } from '../i18n/giao-dien';
 interface Props {
   faq: { hoi: string; dap: string }[];
+  ngonNgu?: string;
 }
-const { faq } = Astro.props;
+const { faq, ngonNgu = 'vi' } = Astro.props;
 ---
 
 {
   faq.length > 0 && (
     <section>
-      <h2>Câu hỏi thường gặp</h2>
+      <h2>{t(ngonNgu, 'faq')}</h2>
       {faq.map((f) => <details><summary>{f.hoi}</summary><p>{f.dap}</p></details>)}
     </section>
   )

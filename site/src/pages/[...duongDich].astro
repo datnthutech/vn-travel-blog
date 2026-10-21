@@ -1,0 +1,95 @@
+---
+// MỘT route bắt-tất-cả sinh mọi trang của ngôn ngữ KHÁC tiếng Việt dưới /<mã>/…, dùng lại layout/component của bản tiếng Việt:
+//   /<mã>/ (chỉ khi có ≥ 1 bài đã đăng), /<mã>/<tỉnh>/<slug>/, /<mã>/kinh-nghiem/<slug>/, hub /<mã>/<tỉnh>/, /<mã>/chu-de/<chuyên-mục>/, /<mã>/<slug-trang>/.
+// Slug tỉnh/chuyên mục giữ nguyên giữa các ngôn ngữ (chỉ tên/mô tả được dịch). Tiếng Việt không đi qua route này (URL không đổi).
+import { urlBai, type BaiViet, type Tinh } from '@vntraveltips/schema';
+import type { CollectionEntry } from 'astro:content';
+import BaiCard from '../components/BaiCard.astro';
+import BaiVietLayout from '../layouts/BaiViet.astro';
+import Base from '../layouts/Base.astro';
+import TrangTinh from '../components/TrangTinh.astro';
+import { SITE } from '../config/site';
+import { t } from '../i18n/giao-dien';
+import { layBaiViet, layBaiVietDayDu, layTinh } from '../lib/bai';
+import { layChuyenMuc } from '../lib/chuyen-muc';
+import { chuoiDich } from '../lib/dich-cau-truc';
+import { layNgonNguPhu } from '../lib/ngon-ngu';
+import { layTrangDich, type TrangDich } from '../lib/trang-dich';
+
+type Props =
+  | { kieu: 'trang-chu'; ngonNgu: string; bai: BaiViet[]; tinh: Tinh[] }
+  | { kieu: 'bai'; ngonNgu: string; bai: BaiViet; entry: CollectionEntry<'bai-viet'>; tinh?: Tinh }
+  | { kieu: 'tinh'; ngonNgu: string; tinh: Tinh; bai: BaiViet[] }
+  | { kieu: 'chuyen-muc'; ngonNgu: string; cm: { slug: string; ten: string; moTa: string }; bai: BaiViet[] }
+  | { kieu: 'trang'; ngonNgu: string; trang: TrangDich };
+
+export async function getStaticPaths() {
+  const tinhTatCa = await layTinh();
+  const ra: { params: { duongDich: string }; props: Props }[] = [];
+  for (const { ma } of layNgonNguPhu()) {
+    const dayDu = await layBaiVietDayDu(ma);
+    const bai = dayDu.map((x) => x.bai);
+    if (bai.length === 0) continue; // ngôn ngữ chưa có bài đã đăng → chưa có trang nào (kể cả trang chủ)
+    ra.push({ params: { duongDich: `${ma}` }, props: { kieu: 'trang-chu', ngonNgu: ma, bai, tinh: tinhTatCa.filter((t) => bai.some((b) => b.tinh === t.slug)) } });
+    for (const x of dayDu) {
+      ra.push({
+        params: { duongDich: `${ma}${urlBai(x.bai).replace(/\/$/, '')}` },
+        props: { kieu: 'bai', ngonNgu: ma, bai: x.bai, entry: x.entry, tinh: tinhTatCa.find((t) => t.slug === x.bai.tinh) },
+      });
+    }
+    for (const tinh of tinhTatCa) {
+      const cua = bai.filter((b) => b.tinh === tinh.slug);
+      if (cua.length > 0) ra.push({ params: { duongDich: `${ma}/${tinh.slug}` }, props: { kieu: 'tinh', ngonNgu: ma, tinh, bai: cua } });
+    }
+    for (const cm of layChuyenMuc()) {
+      const cua = bai.filter((b) => b.chuyenMuc.includes(cm.slug));
+      if (cua.length > 0) {
+        ra.push({
+          params: { duongDich: `${ma}/chu-de/${cm.slug}` },
+          props: { kieu: 'chuyen-muc', ngonNgu: ma, cm: { slug: cm.slug, ten: chuoiDich('chuyen-muc', cm.slug, ma, 'ten', cm.ten), moTa: chuoiDich('chuyen-muc', cm.slug, ma, 'moTa', cm.moTa) }, bai: cua },
+        });
+      }
+    }
+    for (const trang of await layTrangDich(ma)) ra.push({ params: { duongDich: `${ma}/${trang.slug}` }, props: { kieu: 'trang', ngonNgu: ma, trang } });
+  }
+  return ra;
+}
+const p = Astro.props;
+const ma = p.ngonNgu;
+---
+
+{p.kieu === 'bai' && <BaiVietLayout bai={p.bai} entry={p.entry} tinh={p.tinh ? { ...p.tinh, ten: chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten) } : undefined} ngonNgu={ma} />}
+
+{p.kieu === 'trang-chu' && (
+  <Base title={`${SITE.ten} — ${t(ma, 'chan-trang')}`} ngonNgu={ma} moTa={chuoiDich('site', 'site', ma, 'moTaMacDinh', SITE.moTa)}>
+    <h1>{chuoiDich('site', 'site', ma, 'tenSite', SITE.ten)}</h1>
+    <p>{chuoiDich('site', 'site', ma, 'moTaMacDinh', SITE.moTa)}</p>
+    {p.tinh.length > 0 && (
+      <section>
+        <h2>{t(ma, 'diem-den')}</h2>
+        <ul>{p.tinh.map((x) => <li><a href={`/${ma}/${x.slug}/`}>{chuoiDich('tinh', x.slug, ma, 'ten', x.ten)}</a></li>)}</ul>
+      </section>
+    )}
+    <section>
+      <h2>{t(ma, 'bai-moi')}</h2>
+      {[...p.bai].sort((a, b) => +b.ngayDang - +a.ngayDang).slice(0, 12).map((b) => <BaiCard bai={b} ngonNgu={ma} />)}
+    </section>
+  </Base>
+)}
+
+{p.kieu === 'tinh' && (
+  <Base title={`${chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten)} — ${SITE.ten}`} ngonNgu={ma}>
+    <h1>{chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten)}</h1>
+    <p>{chuoiDich('tinh', p.tinh.slug, ma, 'gioiThieu', p.tinh.gioiThieu)}</p>
+    <ul>{p.bai.map((b) => <li><a href={`/${ma}${urlBai(b)}`}>{b.tieuDe}</a></li>)}</ul>
+  </Base>
+)}
+
+{p.kieu === 'chuyen-muc' && (
+  <Base title={`${p.cm.ten} — ${SITE.ten}`} ngonNgu={ma} moTa={p.cm.moTa || t(ma, 'mo-ta-chuyen-muc', { ten: p.cm.ten.toLowerCase() })}>
+    <h1>{p.cm.ten}</h1>
+    {p.bai.map((b) => <BaiCard bai={b} ngonNgu={ma} />)}
+  </Base>
+)}
+
+{p.kieu === 'trang' && <TrangTinh trang={{ slug: p.trang.slug, tieuDe: p.trang.tieuDe, moTa: p.trang.moTa, entry: p.trang.entry as never }} ngonNgu={ma} />}

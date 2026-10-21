@@ -2,7 +2,7 @@
 // Ghim các hành vi mà test đơn vị không thấy được: khối rỗng không hiện, URL đúng, nháp không lọt production.
 // Hai bài mẫu đang là nháp (draft: true): production KHÔNG có; bản preview CÓ. Các kiểm tra nội dung bài dùng bản preview.
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -266,6 +266,63 @@ describe('build với NOI_DUNG_DIR', () => {
     const prev = buildPreview(nd, 'preview');
     expect(readFileSync(join(prev, 'index.html'), 'utf8')).not.toContain('/api/cong-khai/ban-tin/dang-ky');
     expect(readFileSync(join(prev, 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8')).not.toContain('/api/cong-khai/ban-tin/dang-ky');
+  }, 360_000);
+
+  it('đa ngôn ngữ: /en/… có lang, hreflang (vi/en/x-default), sitemap, RSS, chuỗi giao diện theo giao-dien/en.json (thiếu → chuỗi vi + build.json liệt kê); bài chỉ có vi không có hreflang thừa; URL tiếng Việt không đổi', () => {
+    const nd = taoThuMuc((f, t) => (f.endsWith('.md') ? t.replace('draft: true', 'draft: false') : t));
+    const slugVi = 'vung-tau-can-ho-banh-canh';
+    const vi = readFileSync(join(nd, `bai-viet/${slugVi}.md`), 'utf8');
+    writeFileSync(join(nd, `bai-viet/${slugVi}.md`), vi.replace('hopTac: false', `hopTac: false\nbanDich:\n  en: /en/vung-tau/vung-tau-apartment/`));
+    const en = vi
+      .replace(/^tieuDe: .*$/m, 'tieuDe: Vung Tau 2 days in an apartment')
+      .replace(`slug: ${slugVi}`, 'slug: vung-tau-apartment')
+      .replace(/^moTa: .*$/m, `moTa: ${'An English description of the two day Vung Tau apartment trip with a small child, where we stayed, what we cooked and ate, and tips for parents.'}`)
+      .replace('hopTac: false', 'hopTac: false\nngonNgu: en\nbanDich:\n  vi: /vung-tau/vung-tau-can-ho-banh-canh/')
+      .replace('draft: false', 'draft: false');
+    mkdirSync(join(nd, 'bai-viet/en'), { recursive: true });
+    writeFileSync(join(nd, 'bai-viet/en/vung-tau-apartment.md'), en);
+    writeFileSync(join(nd, 'ngon-ngu.json'), JSON.stringify([{ ma: 'vi', ten: 'Tiếng Việt', thuTu: 0 }, { ma: 'en', ten: 'English', thuTu: 1 }]));
+    mkdirSync(join(nd, 'giao-dien'), { recursive: true });
+    writeFileSync(join(nd, 'giao-dien/en.json'), JSON.stringify({ 'tra-nhanh': 'Quick facts', 'trang-chu': 'Home' }));
+    const o = buildPreview(nd, 'production');
+    const docO = (p: string) => readFileSync(join(o, p, 'index.html'), 'utf8');
+
+    const bai = docO('en/vung-tau/vung-tau-apartment');
+    expect(bai).toContain('<html lang="en"');
+    expect(bai).toContain('<link rel="alternate" hreflang="vi" href="https://vntraveltips.monai.click/vung-tau/vung-tau-can-ho-banh-canh/"');
+    expect(bai).toContain('hreflang="en" href="https://vntraveltips.monai.click/en/vung-tau/vung-tau-apartment/"');
+    expect(bai).toContain('hreflang="x-default" href="https://vntraveltips.monai.click/vung-tau/vung-tau-can-ho-banh-canh/"');
+    expect(bai).toContain('<link rel="canonical" href="https://vntraveltips.monai.click/en/vung-tau/vung-tau-apartment/"');
+    expect(bai).toContain('Quick facts'); // chuỗi từ giao-dien/en.json
+    expect(bai).toContain('Thời gian'); // khoá thiếu → chuỗi tiếng Việt
+    expect(bai).toContain('class="chuyen-ngon-ngu"'); // nút chuyển ngôn ngữ, chỉ về bản dịch của chính trang này
+    expect(bai).toContain('href="/vung-tau/vung-tau-can-ho-banh-canh/" hreflang="vi"');
+    expect(docO('en')).toContain('<html lang="en"');
+    expect(existsSync(join(o, 'en/vung-tau/index.html'))).toBe(true); // hub tỉnh có bản dịch
+    expect(existsSync(join(o, 'en/rss.xml'))).toBe(true);
+    expect(readFileSync(join(o, 'en/rss.xml'), 'utf8')).toContain('/en/vung-tau/vung-tau-apartment/');
+    expect(readFileSync(join(o, 'rss.xml'), 'utf8')).not.toContain('/en/');
+
+    const viHtml = docO('vung-tau/vung-tau-can-ho-banh-canh');
+    expect(viHtml).toContain('<html lang="vi"');
+    expect(viHtml).toContain('hreflang="en" href="https://vntraveltips.monai.click/en/vung-tau/vung-tau-apartment/"');
+    expect(viHtml).toContain('hreflang="x-default"');
+    expect(viHtml).toContain('Tra nhanh'); // tiếng Việt không đổi
+    // bài chỉ có tiếng Việt: không có thẻ hreflang nào, không có nút chuyển ngôn ngữ
+    const chiVi = docO('kinh-nghiem/top-bai-bien-cho-be');
+    expect(chiVi).not.toContain('hreflang');
+    expect(chiVi).not.toContain('class="chuyen-ngon-ngu"');
+
+    const sitemap = readdirSync(o).filter((f) => /^sitemap-\d+\.xml$/.test(f)).map((f) => readFileSync(join(o, f), 'utf8')).join('');
+    expect(sitemap).toContain('/en/vung-tau/vung-tau-apartment/');
+    // build.json liệt kê khoá giao diện thiếu (viết bằng chính script sau build)
+    const tm = mkdtempSync(join(tmpdir(), 'vtt-bj-'));
+    mkdirSync(join(tm, 'dist'));
+    execFileSync('node', [join(__dirname, '..', 'scripts', 'write-build-json.mjs')], { cwd: tm, env: { PATH: process.env.PATH, NOI_DUNG_DIR: nd }, stdio: 'pipe' });
+    const thieu = JSON.parse(readFileSync(join(tm, 'dist/build.json'), 'utf8')).giaoDienThieu as Record<string, string[]>;
+    expect(Object.keys(thieu)).toEqual(['en']);
+    expect(thieu.en).toContain('thoi-gian');
+    expect(thieu.en).not.toContain('tra-nhanh');
   }, 360_000);
 
   it('bình luận: production có khung (data-bai) và script nhỏ ≤ 5 KB gzip; preview KHÔNG có khung; bài không có maBai (mẫu local) không hiện', async () => {
