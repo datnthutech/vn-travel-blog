@@ -6,7 +6,7 @@ import { Router } from 'express';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import type { DichVuMail } from '../mail/dich-vu';
-import { taoChongDo } from '../tai-khoan/chong-do';
+import { taoChongDo, tuanTu } from '../tai-khoan/chong-do';
 import { taoCsrf } from '../tai-khoan/csrf';
 import { bamMatKhau, kiemMatKhau, matKhauHopLe } from '../tai-khoan/mat-khau';
 import { tokenTuCookie } from '../tai-khoan/middleware';
@@ -43,7 +43,11 @@ export function xacThucCongKhai(d: DepsXacThuc): Router {
   const r = Router();
   const chongDo = taoChongDo(d.db, d.now);
 
-  r.post('/dang-nhap', async (req, res) => {
+  r.post('/dang-nhap', (req, res, next) => {
+    tuanTu(req.ip ?? 'khong-ro', () => xuLyDangNhap(req, res)).catch(next);
+  });
+
+  const xuLyDangNhap = async (req: import('express').Request, res: import('express').Response): Promise<void> => {
     const { email, matKhau, ghiNho } = (req.body ?? {}) as Record<string, unknown>;
     if (typeof email !== 'string' || typeof matKhau !== 'string' || !email || !matKhau) {
       res.status(400).json({ loi: 'Cần nhập email và mật khẩu' });
@@ -74,7 +78,7 @@ export function xacThucCongKhai(d: DepsXacThuc): Router {
     datCookiePhien(res, d.config, token, ghiNho === true);
     ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'dang-nhap', ip }, d.now);
     res.json({ canTotp: u.coTotp });
-  });
+  };
 
   // ---- Quên mật khẩu ----
   const GIO = 3600_000;
@@ -184,7 +188,17 @@ export function xacThucDaDangNhap(d: DepsXacThuc): Router {
       return;
     }
     const u = req.nguoiDung!;
+    // Có cookie phiên bị đánh cắp thì cũng không được đoán mật khẩu cũ vô hạn: tính vào chống dò như đăng nhập.
+    const chongDo = taoChongDo(d.db, d.now);
+    const ip = req.ip ?? 'khong-ro';
+    const kt = chongDo.kiemTra(ip, u.email);
+    if (!kt.choPhep) {
+      res.status(429).json({ loi: 'Nhập sai quá nhiều lần. Hãy thử lại sau.', conLaiGiay: kt.conLaiGiay });
+      return;
+    }
     if (!(await kiemMatKhau(docMatKhauBam(d.db, u.id)!, matKhauCu))) {
+      chongDo.ghiThatBai(ip, u.email);
+      ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'doi-mat-khau-that-bai', ip }, d.now);
       res.status(400).json({ loi: 'Mật khẩu cũ không đúng' });
       return;
     }

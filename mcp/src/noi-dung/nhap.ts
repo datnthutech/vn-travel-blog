@@ -16,6 +16,11 @@ const docTinh = (text: string) => {
 
 /** `redirectsFile` mặc định là `<thuMuc>/redirects.json` nếu có (bản cũ để ở site/redirects.json, ngoài thư mục content). */
 export function nhapTuThuMuc(db: Db, thuMuc: string, redirectsFile?: string): { soBai: number; soTinh: number; soRedirect: number } {
+  // Một transaction duy nhất: lỗi giữa chừng thì không có gì được ghi (tránh DB nhập dở rồi không bao giờ nhập tiếp).
+  return db.transaction(() => nhapTrongTransaction(db, thuMuc, redirectsFile))();
+}
+
+function nhapTrongTransaction(db: Db, thuMuc: string, redirectsFile?: string): { soBai: number; soTinh: number; soRedirect: number } {
   const dsBai = join(thuMuc, 'bai-viet');
   const dsTinh = join(thuMuc, 'tinh');
   const file = redirectsFile ?? join(thuMuc, 'redirects.json');

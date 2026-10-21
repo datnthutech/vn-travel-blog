@@ -47,7 +47,7 @@ async function bat2fa(s: { cookie: string; csrf: string }, email: string) {
   expect(bd.status).toBe(200);
   expect(bd.body.otpauthUrl).toMatch(/^otpauth:\/\/totp\//);
   const biMat = /secret=([A-Z2-7]+)/.exec(bd.body.otpauthUrl)![1]!;
-  const xn = await post(s, '2fa/xac-nhan', { ma: maTotpHienTai(biMat, t) });
+  const xn = await post(s, '2fa/xac-nhan', { ma: maTotpHienTai(biMat, t), matKhau: MK });
   expect(xn.status).toBe(200);
   expect(email).toBeTruthy();
   return { biMat, maDuPhong: xn.body.maDuPhong as string[] };
@@ -69,9 +69,9 @@ describe('bật 2FA', () => {
 
   it('xác nhận sai mã → 400 và chưa bật; chưa bắt đầu mà xác nhận → 400', async () => {
     const s = await taoVaDangNhap('w@x.vn', 'writer');
-    expect((await post(s, '2fa/xac-nhan', { ma: '123456' })).status).toBe(400);
+    expect((await post(s, '2fa/xac-nhan', { ma: '123456', matKhau: MK })).status).toBe(400);
     await post(s, '2fa/bat-dau');
-    expect((await post(s, '2fa/xac-nhan', { ma: '000000' })).status).toBe(400);
+    expect((await post(s, '2fa/xac-nhan', { ma: '000000', matKhau: MK })).status).toBe(400);
     expect((await get(s, 'toi')).body.nguoiDung.coTotp).toBe(false);
   });
 

@@ -38,7 +38,9 @@ export function mailRouter(d: { db: Db; khoaBiMat: string; mail: DichVuMail; now
       res.status(400).json({ loi: 'Dữ liệu nhà cung cấp mail không hợp lệ', chiTiet: kq.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
       return;
     }
-    if (!suaNhaCungCap(d.db, d.khoaBiMat, id, kq.data)) {
+    // zod 4 vẫn điền giá trị mặc định cho trường vắng khi .partial(): chỉ giữ các trường client thật sự gửi.
+    const gui = Object.fromEntries(Object.entries(kq.data).filter(([k]) => k in (req.body as object)));
+    if (!suaNhaCungCap(d.db, d.khoaBiMat, id, gui)) {
       res.status(404).json({ loi: 'Không tìm thấy nhà cung cấp mail' });
       return;
     }

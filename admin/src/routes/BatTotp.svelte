@@ -9,6 +9,7 @@
   let qr = $state('');
   let khoa = $state('');
   let ma = $state('');
+  let matKhau = $state('');
   let maDuPhong = $state<string[]>([]);
   let loi = $state('');
   let dang = $state(false);
@@ -33,7 +34,7 @@
     loi = '';
     dang = true;
     try {
-      const r = await goiApi<{ maDuPhong: string[] }>('POST', '/2fa/xac-nhan', { ma });
+      const r = await goiApi<{ maDuPhong: string[] }>('POST', '/2fa/xac-nhan', { ma, matKhau });
       maDuPhong = r.maDuPhong;
       buoc = 'ma-du-phong';
     } catch (e) {
@@ -67,6 +68,8 @@
     <p class="nhat">Không quét được? Nhập khoá thủ công: <code>{khoa}</code></p>
     <label for="ma">2. Nhập mã 6 số ứng dụng đang hiện</label>
     <input id="ma" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required bind:value={ma} />
+    <label for="mk">3. Nhập mật khẩu hiện tại để xác nhận</label>
+    <input id="mk" type="password" autocomplete="current-password" required bind:value={matKhau} />
     {#if loi}<p class="thong-bao-loi" role="alert">{loi}</p>{/if}
     <div class="hang-nut"><button type="submit" disabled={dang}>Xác nhận và bật</button></div>
   </form>

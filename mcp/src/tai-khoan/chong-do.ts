@@ -56,3 +56,17 @@ export function taoChongDo(db: Db, now: () => number = Date.now): ChongDo {
     },
   };
 }
+
+// Hàng đợi theo khoá (IP): các lần thử đăng nhập cùng IP chạy lần lượt, để "kiểm tra → băm mật khẩu → ghi lần sai"
+// không bị 200 request song song cùng vượt qua bước kiểm tra trước khi lần sai nào được ghi.
+const dangChay = new Map<string, Promise<unknown>>();
+export function tuanTu<T>(khoa: string, viec: () => Promise<T>): Promise<T> {
+  const truoc = dangChay.get(khoa) ?? Promise.resolve();
+  const sau = truoc.then(viec, viec);
+  const dau = sau.catch(() => undefined);
+  dangChay.set(khoa, dau);
+  void dau.then(() => {
+    if (dangChay.get(khoa) === dau) dangChay.delete(khoa);
+  });
+  return sau;
+}

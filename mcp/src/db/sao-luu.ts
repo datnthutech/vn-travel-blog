@@ -52,10 +52,29 @@ export function khoiPhuc(fileSaoLuu: string, duongDanDb: string, now: () => numb
     throw new Error(`Không đọc được file sao lưu: ${(e as Error).message}`);
   }
   if (ok !== 'ok') throw new Error('File sao lưu hỏng (integrity_check không ok), không khôi phục.');
+  // Bộ đếm nội dung phải LỚN HƠN mọi giá trị đã dùng làm dấu build, để build sau khôi phục không bị bỏ qua.
+  const dem = (d: string): number => {
+    if (!existsSync(d)) return 0;
+    const x = new Database(d, { readonly: true });
+    try {
+      return Number((x.prepare("SELECT gia_tri FROM he_thong WHERE khoa = 'noi_dung_phien'").get() as { gia_tri: string } | undefined)?.gia_tri ?? 0);
+    } catch {
+      return 0;
+    } finally {
+      x.close();
+    }
+  };
+  const caoNhat = Math.max(dem(duongDanDb), dem(fileSaoLuu));
   const hauTo = `.truoc-khoi-phuc-${now()}`;
   for (const duoi of ['', '-wal', '-shm']) {
     if (existsSync(duongDanDb + duoi)) renameSync(duongDanDb + duoi, duongDanDb + hauTo + duoi);
   }
   mkdirSync(join(duongDanDb, '..'), { recursive: true });
   copyFileSync(fileSaoLuu, duongDanDb);
+  const moi = new Database(duongDanDb);
+  try {
+    moi.prepare("INSERT OR REPLACE INTO he_thong (khoa, gia_tri) VALUES ('noi_dung_phien', ?)").run(String(caoNhat + 1));
+  } finally {
+    moi.close();
+  }
 }

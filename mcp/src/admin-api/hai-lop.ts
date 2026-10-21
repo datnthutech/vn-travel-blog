@@ -1,9 +1,10 @@
 // API xác thực 2 lớp (TOTP): bật, xác nhận, tắt, và hoàn tất đăng nhập bằng mã (hoặc mã dự phòng).
 import { Router } from 'express';
 import { giaiMa, maHoa } from '../bi-mat';
-import { taoChongDo } from '../tai-khoan/chong-do';
+import { taoChongDo, tuanTu } from '../tai-khoan/chong-do';
 import { kiemMatKhau } from '../tai-khoan/mat-khau';
 import { docMatKhauBam } from '../tai-khoan/nguoi-dung';
+import { xoaMoiPhien } from '../tai-khoan/phien';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { hoanTatTotp } from '../tai-khoan/phien';
 import { bamMaDuPhong, buocTotpDung, giongMaDuPhong, taoBiMatTotp, taoMaDuPhong } from '../tai-khoan/totp';
@@ -31,7 +32,11 @@ export function haiLopRouter(d: DepsXacThuc): Router {
   const chongDo = taoChongDo(d.db, d.now);
 
   // Hoàn tất đăng nhập của phiên "chờ TOTP". Sai mã cũng tính vào chống dò như sai mật khẩu.
-  r.post('/dang-nhap/totp', (req, res) => {
+  r.post('/dang-nhap/totp', (req, res, next) => {
+    tuanTu(req.ip ?? 'khong-ro', async () => xuLyTotp(req, res)).catch(next);
+  });
+
+  const xuLyTotp = (req: import('express').Request, res: import('express').Response): void => {
     const ma = String((req.body as { ma?: unknown } | undefined)?.ma ?? '').trim();
     const u = req.nguoiDung!;
     const ip = req.ip ?? 'khong-ro';
@@ -54,7 +59,7 @@ export function haiLopRouter(d: DepsXacThuc): Router {
     hoanTatTotp(d.db, req.phienId!);
     ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'dang-nhap', ip, chiTiet: { totp: true } }, d.now);
     res.json({ ok: true });
-  });
+  };
 
   r.post('/2fa/bat-dau', (req, res) => {
     const u = req.nguoiDung!;
@@ -67,9 +72,23 @@ export function haiLopRouter(d: DepsXacThuc): Router {
     res.json({ otpauthUrl });
   });
 
-  r.post('/2fa/xac-nhan', (req, res) => {
+  r.post('/2fa/xac-nhan', async (req, res) => {
     const u = req.nguoiDung!;
     const ma = String((req.body as { ma?: unknown } | undefined)?.ma ?? '').trim();
+    // Bật 2FA phải nhập lại mật khẩu: nếu không, kẻ chỉ có mật khẩu (hoặc phiên mượn) có thể chiếm yếu tố thứ hai.
+    const mk = (req.body as { matKhau?: unknown } | undefined)?.matKhau;
+    const chongDo = taoChongDo(d.db, d.now);
+    const ip = req.ip ?? 'khong-ro';
+    const kt = chongDo.kiemTra(ip, u.email);
+    if (!kt.choPhep) {
+      res.status(429).json({ loi: 'Nhập sai quá nhiều lần. Hãy thử lại sau.', conLaiGiay: kt.conLaiGiay });
+      return;
+    }
+    if (typeof mk !== 'string' || !(await kiemMatKhau(docMatKhauBam(d.db, u.id)!, mk))) {
+      chongDo.ghiThatBai(ip, u.email);
+      res.status(400).json({ loi: 'Cần nhập đúng mật khẩu hiện tại để bật xác thực 2 lớp' });
+      return;
+    }
     const tam = (d.db.prepare('SELECT totp_tam FROM nguoi_dung WHERE id = ?').get(u.id) as { totp_tam: string | null }).totp_tam;
     if (!tam) {
       res.status(400).json({ loi: 'Chưa bắt đầu bật xác thực 2 lớp' });
@@ -88,6 +107,7 @@ export function haiLopRouter(d: DepsXacThuc): Router {
       const them = d.db.prepare('INSERT INTO ma_du_phong (nguoi_dung_id, ma_bam, da_dung) VALUES (?,?,0)');
       for (const m of maDuPhong) them.run(u.id, bamMaDuPhong(m));
     })();
+    xoaMoiPhien(d.db, u.id, req.phienId); // các thiết bị khác phải đăng nhập lại (giờ có yêu cầu mã)
     ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'bat-2fa', ip: req.ip }, d.now);
     res.json({ maDuPhong }); // chỉ hiện MỘT lần
   });
