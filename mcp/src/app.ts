@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { adminApiRouter } from './admin-api';
 import { congKhaiRouter } from './cong-khai/binh-luan';
+import { banTinCongKhaiRouter } from './cong-khai/ban-tin';
 import { trangQuanTriRouter } from './admin-api/tinh';
 import { GithubClient } from './github/client';
 import type { ToolCtx } from './tools/ctx';
@@ -64,7 +65,9 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   app.use('/quan-tri', trangQuanTriRouter(deps.adminDist ?? process.env.ADMIN_DIST ?? fileURLToPath(new URL('../../admin/dist', import.meta.url))));
 
   // API công khai (người đọc): body JSON ≤ 16 KB, không cookie.
-  app.use('/api/cong-khai', express.json({ limit: '16kb' }), congKhaiRouter({ config, db, now: deps.now ?? Date.now, mail }));
+  // Form đăng ký bản tin không cần JS nên gửi dạng application/x-www-form-urlencoded (cũng ≤ 16 KB).
+  app.use('/api/cong-khai', express.json({ limit: '16kb' }), express.urlencoded({ extended: false, limit: '16kb' }));
+  app.use('/api/cong-khai', congKhaiRouter({ config, db, now: deps.now ?? Date.now, mail }), banTinCongKhaiRouter({ config, db, now: deps.now ?? Date.now, mail }));
 
   const oauth = createOAuth(config, deps);
   app.use(oauth.router);
