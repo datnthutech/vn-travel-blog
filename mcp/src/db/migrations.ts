@@ -371,4 +371,24 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    phienBan: 15,
+    sql: `
+      CREATE TABLE oauth_client (
+        client_id TEXT PRIMARY KEY,
+        du_lieu TEXT NOT NULL,
+        tao_luc INTEGER NOT NULL
+      );
+      CREATE TABLE oauth_token (
+        token_bam TEXT PRIMARY KEY,
+        loai TEXT NOT NULL CHECK (loai IN ('access', 'refresh')),
+        client_id TEXT NOT NULL,
+        nguoi_dung_id INTEGER NOT NULL REFERENCES nguoi_dung(id) ON DELETE CASCADE,
+        het_han_luc INTEGER NOT NULL,
+        scopes TEXT NOT NULL,
+        resource TEXT
+      );
+      CREATE INDEX oauth_token_nguoi ON oauth_token(nguoi_dung_id);
+    `,
+  },
 ];

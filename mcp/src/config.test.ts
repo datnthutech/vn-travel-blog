@@ -6,18 +6,21 @@ import { createApp } from './app';
 const du = {
   GITHUB_TOKEN: 'ghp_bi_mat_khong_duoc_lo',
   GITHUB_REPO: 'chu/repo',
-  ALLOWED_GITHUB_USER: 'chu-blog',
   PUBLIC_BASE_URL: 'https://vntraveltips.monai.click',
   PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
   ANH_DIR: '/data/anh',
   SESSION_SECRET: 'x'.repeat(32),
-  GITHUB_OAUTH_CLIENT_ID: 'id',
-  GITHUB_OAUTH_CLIENT_SECRET: 'secret',
   GITHUB_WEBHOOK_SECRET: 'whsec_bi_mat',
   KHOA_BI_MAT: 'a'.repeat(64),
 };
 
 describe('loadConfig', () => {
+  it('không còn đòi biến GitHub OAuth / ALLOWED_GITHUB_USER (MCP đăng nhập bằng tài khoản admin); GITHUB_TOKEN vẫn cần để lấy code build', () => {
+    const c = loadConfig(du) as unknown as Record<string, unknown>;
+    expect('allowedGithubUser' in c || 'githubOauthClientId' in c || 'githubOauthClientSecret' in c).toBe(false);
+    expect(() => loadConfig({ ...du, ALLOWED_GITHUB_USER: undefined, GITHUB_OAUTH_CLIENT_ID: undefined })).not.toThrow();
+  });
+
   it('đủ biến → trả Config, PORT mặc định 8091', () => {
     const c = loadConfig(du);
     expect(c.port).toBe(8091);

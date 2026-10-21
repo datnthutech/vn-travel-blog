@@ -42,7 +42,6 @@ function configTam(): Config {
     port: 8091,
     githubToken: TOKEN,
     githubRepo: 'chu/repo',
-    allowedGithubUser: 'chu-blog',
     publicBaseUrl: 'https://vntraveltips.monai.click',
     previewBaseUrl: 'https://nhap-vntraveltips.monai.click',
     anhDir: anhThu(),
@@ -52,8 +51,6 @@ function configTam(): Config {
     webhookSecret: 'whsec',
     buildEnv: { NOINDEX_ALL: 'true', GOATCOUNTER_CODE: 'gc' },
     sessionSecret: 'x'.repeat(32),
-    githubOauthClientId: 'id',
-    githubOauthClientSecret: 'secret',
     khoaBiMat: 'a'.repeat(64),
   };
 }

@@ -74,7 +74,7 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   app.use('/api/cong-khai', express.json({ limit: '16kb' }), express.urlencoded({ extended: false, limit: '16kb' }));
   app.use('/api/cong-khai', congKhaiRouter({ config, db, now: deps.now ?? Date.now, mail }), banTinCongKhaiRouter({ config, db, now: deps.now ?? Date.now, mail }));
 
-  const oauth = createOAuth(config, deps);
+  const oauth = createOAuth(config, db, { now: deps.now, cho: deps.cho });
   app.use(oauth.router);
 
   // /mcp: BẮT BUỘC có Bearer token hợp lệ (requireAuth chạy trước mọi thứ khác).
@@ -86,7 +86,7 @@ export function createApp(config: Config, deps: AppDeps = {}) {
     now: deps.now ?? Date.now,
     hangDoi,
   };
-  app.post('/mcp', oauth.requireAuth, express.json({ limit: '2mb' }), async (req, res) => {
+  app.post('/mcp', ...oauth.requireAuth, express.json({ limit: '2mb' }), async (req, res) => {
     const server = taoMcpServer(ctx);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless
@@ -105,8 +105,8 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   const khongHoTro: express.RequestHandler = (_req, res) => {
     res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null });
   };
-  app.get('/mcp', oauth.requireAuth, khongHoTro);
-  app.delete('/mcp', oauth.requireAuth, khongHoTro);
+  app.get('/mcp', ...oauth.requireAuth, khongHoTro);
+  app.delete('/mcp', ...oauth.requireAuth, khongHoTro);
 
   // Cuối cùng: mọi đường dẫn còn lại (nginx chuyển sang khi không có file tĩnh) → 301 theo redirects.json hoặc 404.
   app.use(chuyenHuongHandler(config));

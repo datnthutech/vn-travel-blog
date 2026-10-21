@@ -14,7 +14,7 @@ import type { DepsXacThuc } from './xac-thuc';
 const MA_SAI = 'Mã xác thực không đúng';
 
 // Thử mã (TOTP hoặc dự phòng) cho một người dùng. TOTP không dùng lại được trong cùng/ trước bước đã dùng (chống phát lại).
-function thuMa(db: Db, khoaBiMat: string, nguoiId: number, ma: string, now: number): boolean {
+export function thuMa(db: Db, khoaBiMat: string, nguoiId: number, ma: string, now: number): boolean {
   const u = db.prepare('SELECT totp_bi_mat, totp_buoc_cuoi FROM nguoi_dung WHERE id = ?').get(nguoiId) as { totp_bi_mat: string | null; totp_buoc_cuoi: number } | undefined;
   if (!u?.totp_bi_mat) return false;
   if (/^\d{6}$/.test(ma)) {

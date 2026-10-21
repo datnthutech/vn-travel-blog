@@ -131,7 +131,10 @@ export function taiKhoanRouter(d: Deps): Router {
     }
     d.db.transaction(() => {
       d.db.prepare('UPDATE nguoi_dung SET vai_tro = ?, bi_khoa = ? WHERE id = ?').run(moiVaiTro, moiKhoa ? 1 : 0, id);
-      if (moiKhoa && !dich.biKhoa) xoaMoiPhien(d.db, id); // khoá → đăng xuất mọi thiết bị ngay
+      if (moiKhoa && !dich.biKhoa) {
+        xoaMoiPhien(d.db, id); // khoá → đăng xuất mọi thiết bị ngay
+        d.db.prepare('DELETE FROM oauth_token WHERE nguoi_dung_id = ?').run(id); // và thu hồi token MCP của Claude
+      }
       if (moiVaiTro !== dich.vaiTro) ghiNhatKy(d.db, { nguoiDungId: req.nguoiDung!.id, loai: 'doi-vai-tro', ip: req.ip, chiTiet: { doi: id, tu: dich.vaiTro, sang: moiVaiTro } }, d.now);
       if (moiKhoa !== dich.biKhoa) ghiNhatKy(d.db, { nguoiDungId: req.nguoiDung!.id, loai: moiKhoa ? 'khoa' : 'mo-khoa', ip: req.ip, chiTiet: { doi: id } }, d.now);
     })();

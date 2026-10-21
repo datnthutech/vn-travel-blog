@@ -1,13 +1,13 @@
 // Đăng nhập OAuth 2.1 để Claude (claude.ai web + app iOS) kết nối MCP.
-// Vai trò: server MCP của ta là "authorization server" với Claude, còn việc xác minh CON NGƯỜI giao cho GitHub:
-//   Claude → /oauth/authorize → (chuyển sang) GitHub login → /oauth/github/callback → ta kiểm tra đúng tài khoản
-//   được phép (ALLOWED_GITHUB_USER) → cấp mã → Claude đổi mã lấy token ở /oauth/token (có PKCE) → gọi /mcp.
-// Mặc định đóng: không token hợp lệ thì /mcp trả 401. Token GitHub chỉ dùng một lần để hỏi "bạn là ai" rồi bỏ,
-// không lưu, không log.
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { readFileSync, writeFileSync, renameSync } from 'node:fs';
+// Vai trò: server MCP của ta là "authorization server" với Claude; việc xác minh CON NGƯỜI dùng chính TÀI KHOẢN ADMIN của blog
+// (email + mật khẩu + mã 2FA nếu có) qua form do server trả:
+//   Claude → /oauth/authorize (HTML form) → POST /oauth/dang-nhap (mật khẩu, rồi mã 2FA) → cấp mã → Claude đổi mã lấy token
+//   ở /oauth/token (có PKCE) → gọi /mcp. Token MCP gắn với `nguoi_dung_id`; khoá tài khoản / đổi mật khẩu → token bị xoá ngay.
+// Mặc định đóng: không token hợp lệ thì /mcp trả 401. Client đăng ký và token (chỉ lưu dạng băm) nằm trong SQLite.
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import express, { type RequestHandler, type Response, type Router } from 'express';
+import express, { type Request, type RequestHandler, type Response, type Router } from 'express';
 import { authorizationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/authorize.js';
 import { clientRegistrationHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/register.js';
 import { metadataHandler } from '@modelcontextprotocol/sdk/server/auth/handlers/metadata.js';
@@ -17,33 +17,33 @@ import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middlew
 import { InvalidClientMetadataError, InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
+import { thuMa } from '../admin-api/hai-lop';
+import { laHttps } from '../admin-api/xac-thuc';
 import type { Config } from '../config';
-import { dangNhapGithub } from './github-login';
+import type { Db } from '../db/ket-noi';
+import { taoChongDo, tuanTu } from '../tai-khoan/chong-do';
+import { bamMatKhau, kiemMatKhau } from '../tai-khoan/mat-khau';
+import { docMatKhauBam, timTheoEmail, timTheoId } from '../tai-khoan/nguoi-dung';
+import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 
 export interface OAuthDeps {
-  fetchFn?: typeof fetch;
   now?: () => number;
-  /** Test: không ghi trạng thái ra đĩa. */
-  khongLuuOAuth?: boolean;
+  /** Chờ ms mili giây (làm chậm IP bị dò); test truyền bản giả. */
+  cho?: (ms: number) => Promise<void>;
 }
 
 const PHUT = 60_000;
 const NGAY = 24 * 60 * PHUT;
-const TTL_STATE = 10 * PHUT; // thời gian để người dùng đăng nhập GitHub
+const TTL_STATE = 10 * PHUT; // thời gian để người dùng đăng nhập
 const TTL_MA = 5 * PHUT;
 const TTL_ACCESS = 60 * PHUT;
 const TTL_REFRESH = 30 * NGAY;
 const TOI_DA_CLIENT = 50;
+const COOKIE_OAUTH = 'vtt_oauth';
 
 const bam = (s: string) => createHash('sha256').update(s).digest('hex');
 const ngauNhien = () => randomBytes(32).toString('base64url');
-
-// So sánh tên tài khoản không phân biệt hoa thường, thời gian không phụ thuộc vị trí khác biệt.
-export function kiemTraNguoiDung(login: string, allowed: string): boolean {
-  const a = createHash('sha256').update(login.toLowerCase()).digest();
-  const b = createHash('sha256').update(allowed.toLowerCase()).digest();
-  return login !== '' && timingSafeEqual(a, b);
-}
+const escHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 const REDIRECT_CLAUDE = new Set([
   'https://claude.ai/api/mcp/auth_callback',
@@ -66,125 +66,117 @@ export function donHetHan(m: Map<string, { hetHan: number }>, now: number): void
   for (const [k, v] of m) if (v.hetHan < now) m.delete(k);
 }
 
-interface TokenLuu {
-  loai: 'access' | 'refresh';
-  clientId: string;
-  login: string;
-  hetHan: number;
-  scopes: string[];
-  resource?: string;
-}
-interface TrangThai {
-  clients: Record<string, OAuthClientInformationFull>;
-  tokens: Record<string, TokenLuu>; // khoá = SHA-256 của token
-}
 interface ChoDangNhap {
   client: OAuthClientInformationFull;
   params: AuthorizationParams;
   hetHan: number;
+  /** Đã nhập đúng mật khẩu, đang chờ mã 2FA. */
+  nguoiDungId?: number;
 }
 interface MaCap {
   clientId: string;
   codeChallenge: string;
   redirectUri: string;
-  login: string;
+  nguoiDungId: number;
   scopes: string[];
   resource?: string;
   hetHan: number;
 }
 
-export function createOAuth(config: Config, deps: OAuthDeps = {}) {
-  const now = deps.now ?? Date.now;
-  const fetchFn = deps.fetchFn ?? fetch;
-  const duongDanTrangThai = join(config.anhDir, '.oauth-state.json');
+const SAI_DANG_NHAP = 'Sai email hoặc mật khẩu';
+const CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
 
-  // --- Trạng thái bền (client đã đăng ký + token đã cấp, token chỉ lưu dạng băm) ---
-  let tt: TrangThai = { clients: {}, tokens: {} };
-  if (!deps.khongLuuOAuth) {
+function trangForm(o: { sid: string; buoc: 'mat-khau' | 'totp'; loi?: string; tenClient?: string }): string {
+  const noiDung =
+    o.buoc === 'mat-khau'
+      ? `<p>${escHtml(o.tenClient || 'Claude')} muốn kết nối với VNTravelTips. Đăng nhập bằng tài khoản quản trị của blog để cho phép.</p>
+<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required autofocus>
+<label for="mk">Mật khẩu</label><input id="mk" name="matKhau" type="password" autocomplete="current-password" required>`
+      : `<p>Nhập mã 6 số từ ứng dụng xác thực (hoặc một mã dự phòng).</p>
+<label for="ma">Mã xác thực</label><input id="ma" name="ma" type="text" inputmode="numeric" autocomplete="one-time-code" required autofocus>`;
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Kết nối Claude — VNTravelTips</title><style>body{font:18px/1.6 system-ui,sans-serif;max-width:26rem;margin:8vh auto;padding:0 1rem;color:#1f2937}label{display:block;margin-top:1rem}input{display:block;width:100%;box-sizing:border-box;min-height:44px;font:inherit;padding:.4rem .6rem}button{margin-top:1.2rem;min-height:44px;font:inherit;padding:0 1.2rem;background:#0f766e;color:#fff;border:0;border-radius:6px}.loi{color:#b91c1c}</style></head><body><h1>VNTravelTips</h1>${o.loi ? `<p class="loi" role="alert">${escHtml(o.loi)}</p>` : ''}<form method="post" action="/oauth/dang-nhap"><input type="hidden" name="state" value="${escHtml(o.sid)}">${noiDung}<button type="submit">${o.buoc === 'mat-khau' ? 'Đăng nhập và cho phép' : 'Xác nhận'}</button></form></body></html>`;
+}
+
+export function createOAuth(config: Config, db: Db, deps: OAuthDeps = {}) {
+  const now = deps.now ?? Date.now;
+  const cho = deps.cho ?? ((ms: number) => new Promise<void>((xong) => setTimeout(xong, ms)));
+  const chongDo = taoChongDo(db, now);
+
+  // Nhập client từ file cũ `.oauth-state.json` (trước đây lưu ở volume ảnh) rồi xoá file. Token cũ gắn với GitHub nên BỎ — Claude phải kết nối lại.
+  const fileCu = join(config.anhDir, '.oauth-state.json');
+  if (existsSync(fileCu)) {
     try {
-      tt = { ...tt, ...JSON.parse(readFileSync(duongDanTrangThai, 'utf8')) };
-    } catch {
-      /* chưa có file → bắt đầu trống */
+      const cu = JSON.parse(readFileSync(fileCu, 'utf8')) as { clients?: Record<string, OAuthClientInformationFull> };
+      const them = db.prepare('INSERT OR IGNORE INTO oauth_client (client_id, du_lieu, tao_luc) VALUES (?,?,?)');
+      for (const [id, c] of Object.entries(cu.clients ?? {})) them.run(id, JSON.stringify(c), now());
+      unlinkSync(fileCu);
+    } catch (e) {
+      console.error('Không nhập được .oauth-state.json cũ:', (e as Error).message);
     }
   }
-  const luu = () => {
-    if (deps.khongLuuOAuth) return;
-    try {
-      const tam = `${duongDanTrangThai}.tmp`;
-      writeFileSync(tam, JSON.stringify(tt), { mode: 0o600 });
-      renameSync(tam, duongDanTrangThai);
-    } catch (e) {
-      console.error('Không lưu được trạng thái OAuth:', (e as Error).message);
-    }
+
+  const layClient = (id: string): OAuthClientInformationFull | undefined => {
+    const r = db.prepare('SELECT du_lieu FROM oauth_client WHERE client_id = ?').get(id) as { du_lieu: string } | undefined;
+    return r ? (JSON.parse(r.du_lieu) as OAuthClientInformationFull) : undefined;
   };
-  // Tên riêng (không trùng donHetHan của module): trước đây trùng tên nên donHetHan(choDangNhap, …) gọi nhầm hàm này
-  // và không bao giờ dọn lượt đăng nhập/mã cấp đã hết hạn → bộ nhớ tăng mãi.
-  const donTokenHetHan = () => {
-    for (const [k, t] of Object.entries(tt.tokens)) if (t.hetHan < now()) delete tt.tokens[k];
-  };
+  const demClient = () => (db.prepare('SELECT count(*) AS n FROM oauth_client').get() as { n: number }).n;
+  const donTokenHetHan = () => void db.prepare('DELETE FROM oauth_token WHERE het_han_luc < ?').run(now());
   // Khi đã đủ chỗ: bỏ các client đăng ký quá 24 giờ mà chưa từng được cấp token → kẻ lạ không thể giữ kín 50 chỗ mãi.
-  const donClientBoHoang = () => {
-    const dangDung = new Set(Object.values(tt.tokens).map((t) => t.clientId));
-    for (const [id, c] of Object.entries(tt.clients)) {
-      const dangKyLuc = (c.client_id_issued_at ?? 0) * 1000;
-      if (!dangDung.has(id) && dangKyLuc < now() - NGAY) delete tt.clients[id];
-    }
-    luu();
-  };
+  const donClientBoHoang = () =>
+    void db.prepare('DELETE FROM oauth_client WHERE tao_luc < ? AND client_id NOT IN (SELECT client_id FROM oauth_token)').run(now() - NGAY);
 
   // --- Trạng thái tạm trong bộ nhớ ---
-  const choDangNhap = new Map<string, ChoDangNhap>(); // khoá = băm của sid gửi sang GitHub
+  const choDangNhap = new Map<string, ChoDangNhap>(); // khoá = băm của sid
   const maCap = new Map<string, MaCap>(); // khoá = băm của mã
 
   const goc = new URL(config.publicBaseUrl);
   const issuer = new URL('/', goc);
   const url = (p: string) => new URL(p, goc).href;
-  const callbackUrl = url('/oauth/github/callback');
   const resourceUrl = new URL('/mcp', goc);
 
-  function phatHanhToken(clientId: string, login: string, scopes: string[], resource?: URL): OAuthTokens {
+  function phatHanhToken(clientId: string, nguoiDungId: number, scopes: string[], resource?: URL): OAuthTokens {
     const access = ngauNhien();
     const refresh = ngauNhien();
-    const r = resource?.href;
-    tt.tokens[bam(access)] = { loai: 'access', clientId, login, hetHan: now() + TTL_ACCESS, scopes, resource: r };
-    tt.tokens[bam(refresh)] = { loai: 'refresh', clientId, login, hetHan: now() + TTL_REFRESH, scopes, resource: r };
+    const r = resource?.href ?? null;
+    const them = db.prepare('INSERT INTO oauth_token (token_bam, loai, client_id, nguoi_dung_id, het_han_luc, scopes, resource) VALUES (?,?,?,?,?,?,?)');
+    them.run(bam(access), 'access', clientId, nguoiDungId, now() + TTL_ACCESS, JSON.stringify(scopes), r);
+    them.run(bam(refresh), 'refresh', clientId, nguoiDungId, now() + TTL_REFRESH, JSON.stringify(scopes), r);
     donTokenHetHan();
-    luu();
     return { access_token: access, token_type: 'Bearer', expires_in: TTL_ACCESS / 1000, refresh_token: refresh, scope: scopes.join(' ') };
   }
+  interface DongToken { loai: 'access' | 'refresh'; client_id: string; nguoi_dung_id: number; het_han_luc: number; scopes: string; resource: string | null }
+  const layToken = (token: string) => db.prepare('SELECT loai, client_id, nguoi_dung_id, het_han_luc, scopes, resource FROM oauth_token WHERE token_bam = ?').get(bam(token)) as DongToken | undefined;
+  /** Người dùng của token còn dùng được không (tồn tại, chưa bị khoá). */
+  const nguoiConDung = (id: number) => {
+    const u = timTheoId(db, id);
+    return u !== null && !u.biKhoa;
+  };
 
   const provider: OAuthServerProvider = {
     clientsStore: {
-      getClient: (id) => tt.clients[id],
+      getClient: (id) => layClient(id),
       registerClient: (client) => {
         // Chỉ nhận redirect_uri của Claude (hoặc loopback cho Claude Code). Nếu không, kẻ lạ đăng ký client với
-        // redirect_uri của mình rồi gửi link /oauth/authorize cho chủ blog — GitHub tự chuyển tiếp (đã từng cấp quyền)
-        // và mã đăng nhập sẽ về tay kẻ lạ.
+        // redirect_uri của mình rồi gửi link /oauth/authorize cho chủ blog — mã đăng nhập sẽ về tay kẻ lạ.
         if (!client.redirect_uris.every((u) => redirectUriHopLe(String(u)))) {
           throw new InvalidClientMetadataError('redirect_uri must be a Claude callback URL or a loopback address');
         }
-        if (Object.keys(tt.clients).length >= TOI_DA_CLIENT) donClientBoHoang();
-        if (Object.keys(tt.clients).length >= TOI_DA_CLIENT) throw new Error('Đã đăng ký quá nhiều client');
+        if (demClient() >= TOI_DA_CLIENT) donClientBoHoang();
+        if (demClient() >= TOI_DA_CLIENT) throw new Error('Đã đăng ký quá nhiều client');
         const full = { ...client, client_id: randomUUID(), client_id_issued_at: Math.floor(now() / 1000) } as OAuthClientInformationFull;
-        tt.clients[full.client_id] = full;
-        luu();
+        db.prepare('INSERT INTO oauth_client (client_id, du_lieu, tao_luc) VALUES (?,?,?)').run(full.client_id, JSON.stringify(full), now());
         return full;
       },
     },
 
-    // Bước 1: chưa biết người dùng là ai → chuyển sang GitHub để đăng nhập.
+    // Bước 1: chưa biết người dùng là ai → trả form đăng nhập admin (cookie riêng + state trong form chống CSRF/đăng nhập chéo).
     async authorize(client, params, res: Response) {
       const sid = ngauNhien();
       donHetHan(choDangNhap, now());
       donHetHan(maCap, now());
       choDangNhap.set(bam(sid), { client, params, hetHan: now() + TTL_STATE });
-      const gh = new URL('https://github.com/login/oauth/authorize');
-      gh.searchParams.set('client_id', config.githubOauthClientId);
-      gh.searchParams.set('redirect_uri', callbackUrl);
-      gh.searchParams.set('scope', 'read:user');
-      gh.searchParams.set('state', sid);
-      gh.searchParams.set('allow_signup', 'false');
-      res.redirect(gh.href);
+      res.cookie(COOKIE_OAUTH, sid, { httpOnly: true, sameSite: 'lax', path: '/oauth', secure: laHttps(config), maxAge: TTL_STATE });
+      res.status(200).set({ 'Cache-Control': 'no-store', 'Content-Security-Policy': CSP, 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' }).type('html').send(trangForm({ sid, buoc: 'mat-khau', tenClient: client.client_name }));
     },
 
     async challengeForAuthorizationCode(client, code) {
@@ -199,32 +191,30 @@ export function createOAuth(config: Config, deps: OAuthDeps = {}) {
       maCap.delete(k); // dùng một lần — kể cả khi các bước sau thất bại
       if (!m || m.clientId !== client.client_id || m.hetHan < now()) throw new InvalidGrantError('Mã không hợp lệ hoặc đã hết hạn');
       if (redirectUri && redirectUri !== m.redirectUri) throw new InvalidGrantError('redirect_uri không khớp');
-      return phatHanhToken(m.clientId, m.login, m.scopes, resource ?? (m.resource ? new URL(m.resource) : undefined));
+      if (!nguoiConDung(m.nguoiDungId)) throw new InvalidGrantError('Tài khoản không còn dùng được');
+      return phatHanhToken(m.clientId, m.nguoiDungId, m.scopes, resource ?? (m.resource ? new URL(m.resource) : undefined));
     },
 
     async exchangeRefreshToken(client, refreshToken) {
-      const k = bam(refreshToken);
-      const t = tt.tokens[k];
-      delete tt.tokens[k]; // xoay vòng: mỗi refresh token chỉ dùng một lần
-      if (!t || t.loai !== 'refresh' || t.clientId !== client.client_id || t.hetHan < now() || !kiemTraNguoiDung(t.login, config.allowedGithubUser)) {
-        luu();
+      const t = layToken(refreshToken);
+      db.prepare('DELETE FROM oauth_token WHERE token_bam = ?').run(bam(refreshToken)); // xoay vòng: mỗi refresh token chỉ dùng một lần
+      if (!t || t.loai !== 'refresh' || t.client_id !== client.client_id || t.het_han_luc < now() || !nguoiConDung(t.nguoi_dung_id)) {
         throw new InvalidGrantError('Refresh token không hợp lệ');
       }
-      return phatHanhToken(t.clientId, t.login, t.scopes, t.resource ? new URL(t.resource) : undefined);
+      return phatHanhToken(t.client_id, t.nguoi_dung_id, JSON.parse(t.scopes) as string[], t.resource ? new URL(t.resource) : undefined);
     },
 
     async verifyAccessToken(token) {
-      const t = tt.tokens[bam(token)];
+      const t = layToken(token);
       // Lưu ý: thông điệp của InvalidTokenError được đưa vào header WWW-Authenticate → PHẢI là ASCII (có dấu sẽ làm Node văng lỗi 500).
-      if (!t || t.loai !== 'access' || t.hetHan < now()) throw new InvalidTokenError('Invalid or expired token');
-      // Kiểm tra lại allowlist mỗi lần: đổi ALLOWED_GITHUB_USER là thu hồi quyền ngay.
-      if (!kiemTraNguoiDung(t.login, config.allowedGithubUser)) throw new InvalidTokenError('Account is no longer allowed');
-      return { token, clientId: t.clientId, scopes: t.scopes, expiresAt: Math.floor(t.hetHan / 1000), resource: t.resource ? new URL(t.resource) : undefined, extra: { login: t.login } };
+      if (!t || t.loai !== 'access' || t.het_han_luc < now()) throw new InvalidTokenError('Invalid or expired token');
+      // Kiểm tra lại người dùng mỗi lần: khoá tài khoản là thu hồi quyền ngay (đổi mật khẩu/khoá còn xoá hẳn token).
+      if (!nguoiConDung(t.nguoi_dung_id)) throw new InvalidTokenError('Account is no longer allowed');
+      return { token, clientId: t.client_id, scopes: JSON.parse(t.scopes) as string[], expiresAt: Math.floor(t.het_han_luc / 1000), resource: t.resource ? new URL(t.resource) : undefined, extra: { nguoiDungId: t.nguoi_dung_id } };
     },
 
     async revokeToken(_client, request) {
-      delete tt.tokens[bam(request.token)];
-      luu();
+      db.prepare('DELETE FROM oauth_token WHERE token_bam = ?').run(bam(request.token));
     },
   };
 
@@ -256,46 +246,113 @@ export function createOAuth(config: Config, deps: OAuthDeps = {}) {
   router.use('/oauth/register', clientRegistrationHandler({ clientsStore: provider.clientsStore }));
   router.use('/oauth/revoke', revocationHandler({ provider }));
 
-  // Bước 2: GitHub gọi lại. Mọi nhánh lỗi trả thông báo chung, không lộ chi tiết nội bộ.
-  router.get('/oauth/github/callback', async (req, res) => {
-    const sid = typeof req.query.state === 'string' ? req.query.state : '';
-    const ma = typeof req.query.code === 'string' ? req.query.code : '';
-    const k = bam(sid);
-    const cho = choDangNhap.get(k);
-    choDangNhap.delete(k); // state chỉ dùng một lần
-    if (!cho || cho.hetHan < now() || !ma) {
-      return void res.status(400).type('text').send('Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Hãy kết nối lại từ Claude.');
-    }
-    try {
-      const kq = await dangNhapGithub(config, ma, callbackUrl, fetchFn);
-      if (!kq) return void res.status(502).type('text').send('Không đăng nhập được với GitHub.');
-      const login = kq.login;
-      if (!kiemTraNguoiDung(login, config.allowedGithubUser)) {
-        return void res.status(403).type('text').send('Tài khoản GitHub này không được phép dùng VNTravelTips.');
-      }
-      const code = ngauNhien();
-      maCap.set(bam(code), {
-        clientId: cho.client.client_id,
-        codeChallenge: cho.params.codeChallenge,
-        redirectUri: cho.params.redirectUri,
-        login,
-        scopes: cho.params.scopes?.length ? cho.params.scopes : ['mcp'],
-        resource: cho.params.resource?.href,
-        hetHan: now() + TTL_MA,
-      });
-      const dich = new URL(cho.params.redirectUri);
-      dich.searchParams.set('code', code);
-      if (cho.params.state) dich.searchParams.set('state', cho.params.state);
-      res.redirect(dich.href);
-    } catch {
-      res.status(502).type('text').send('Không đăng nhập được với GitHub.');
-    }
+  const traForm = (res: Response, status: number, sid: string, buoc: 'mat-khau' | 'totp', loi?: string, tenClient?: string) =>
+    void res.status(status).set({ 'Cache-Control': 'no-store', 'Content-Security-Policy': CSP, 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' }).type('html').send(trangForm({ sid, buoc, loi, tenClient }));
+
+  function cookieOauth(req: Request): string {
+    const m = /(?:^|;\s*)vtt_oauth=([^;]+)/.exec(req.headers.cookie ?? '');
+    return m ? decodeURIComponent(m[1]!) : '';
+  }
+
+  // Bước 2: form gửi về đây — lần 1 (email + mật khẩu), lần 2 (mã 2FA nếu tài khoản có). Sai thì hiện lại form; đúng thì cấp mã và về Claude.
+  router.post('/oauth/dang-nhap', express.urlencoded({ extended: false, limit: '8kb' }), (req, res, next) => {
+    tuanTu(req.ip ?? 'khong-ro', () => xuLyDangNhap(req, res)).catch(next);
   });
 
-  const requireAuth: RequestHandler = requireBearerAuth({
-    verifier: provider,
-    resourceMetadataUrl: url('/.well-known/oauth-protected-resource/mcp'),
-  });
+  async function xuLyDangNhap(req: Request, res: Response): Promise<void> {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const sid = typeof body.state === 'string' ? body.state : '';
+    // State trong form PHẢI khớp cookie của chính trình duyệt này (chống bị lừa đăng nhập vào phiên của người khác).
+    const k = bam(sid);
+    const cho_ = sid && cookieOauth(req) === sid ? choDangNhap.get(k) : undefined;
+    if (!cho_ || cho_.hetHan < now()) {
+      choDangNhap.delete(k);
+      res.status(400).type('text').send('Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Hãy kết nối lại từ Claude.');
+      return;
+    }
+    const ip = req.ip ?? 'khong-ro';
+
+    if (cho_.nguoiDungId === undefined) {
+      // --- Lần 1: email + mật khẩu (cùng bộ đếm chống dò với /api/admin/dang-nhap) ---
+      const email = typeof body.email === 'string' ? body.email : '';
+      const matKhau = typeof body.matKhau === 'string' ? body.matKhau : '';
+      if (!email || !matKhau) return void traForm(res, 400, sid, 'mat-khau', 'Cần nhập email và mật khẩu', cho_.client.client_name);
+      const kt = chongDo.kiemTra(ip, email);
+      if (!kt.choPhep) return void traForm(res, 429, sid, 'mat-khau', 'Đăng nhập sai quá nhiều lần. Hãy thử lại sau.', cho_.client.client_name);
+      if (kt.treMs > 0) await cho(kt.treMs);
+      const u = timTheoEmail(db, email);
+      let dung = false;
+      if (u && !u.biKhoa) dung = await kiemMatKhau(docMatKhauBam(db, u.id)!, matKhau);
+      else await kiemMatKhau(await bamGia(), matKhau); // tốn cùng thời gian khi email không có tài khoản
+      if (!u || !dung) {
+        chongDo.ghiThatBai(ip, email);
+        ghiNhatKy(db, { nguoiDungId: u?.id, loai: 'dang-nhap-oauth-that-bai', ip }, now);
+        return void traForm(res, 401, sid, 'mat-khau', SAI_DANG_NHAP, cho_.client.client_name);
+      }
+      if (u.coTotp) {
+        cho_.nguoiDungId = u.id; // đúng một nửa: chưa xoá bộ đếm sai, chờ mã 2FA
+        return void traForm(res, 200, sid, 'totp', undefined, cho_.client.client_name);
+      }
+      if (u.vaiTro === 'quan-tri') {
+        // Quản trị bắt buộc 2FA: chưa bật thì không cho kết nối Claude (mật khẩu đúng nhưng chưa đủ yếu tố).
+        return void traForm(res, 403, sid, 'mat-khau', 'Tài khoản quản trị cần bật xác thực 2 lớp trong trang quản trị trước khi kết nối Claude.', cho_.client.client_name);
+      }
+      chongDo.ghiThanhCong(ip, email);
+      return capMa(res, k, cho_, u.id, ip);
+    }
+
+    // --- Lần 2: mã 2FA ---
+    const u = timTheoId(db, cho_.nguoiDungId);
+    if (!u || u.biKhoa) {
+      choDangNhap.delete(k);
+      res.status(400).type('text').send('Phiên đăng nhập không hợp lệ. Hãy kết nối lại từ Claude.');
+      return;
+    }
+    const ma = typeof body.ma === 'string' ? body.ma.trim() : '';
+    const kt = chongDo.kiemTra(ip, u.email);
+    if (!kt.choPhep) return void traForm(res, 429, sid, 'totp', 'Nhập sai quá nhiều lần. Hãy thử lại sau.', cho_.client.client_name);
+    if (!thuMa(db, config.khoaBiMat, u.id, ma, now())) {
+      chongDo.ghiThatBai(ip, u.email);
+      ghiNhatKy(db, { nguoiDungId: u.id, loai: 'dang-nhap-oauth-totp-that-bai', ip }, now);
+      return void traForm(res, 401, sid, 'totp', 'Mã xác thực không đúng', cho_.client.client_name);
+    }
+    chongDo.ghiThanhCong(ip, u.email);
+    capMa(res, k, cho_, u.id, ip);
+  }
+
+  function capMa(res: Response, k: string, cho_: ChoDangNhap, nguoiDungId: number, ip: string): void {
+    choDangNhap.delete(k); // state chỉ dùng một lần
+    const code = ngauNhien();
+    maCap.set(bam(code), {
+      clientId: cho_.client.client_id,
+      codeChallenge: cho_.params.codeChallenge,
+      redirectUri: cho_.params.redirectUri,
+      nguoiDungId,
+      scopes: cho_.params.scopes?.length ? cho_.params.scopes : ['mcp'],
+      resource: cho_.params.resource?.href,
+      hetHan: now() + TTL_MA,
+    });
+    ghiNhatKy(db, { nguoiDungId, loai: 'dang-nhap-oauth', ip, chiTiet: { client: cho_.client.client_name ?? '' } }, now);
+    res.clearCookie(COOKIE_OAUTH, { path: '/oauth' });
+    const dich = new URL(cho_.params.redirectUri);
+    dich.searchParams.set('code', code);
+    if (cho_.params.state) dich.searchParams.set('state', cho_.params.state);
+    res.redirect(303, dich.href); // 303: trình duyệt chuyển sang GET, không gửi lại mật khẩu cho redirect_uri
+  }
+
+  const bearer = requireBearerAuth({ verifier: provider, resourceMetadataUrl: url('/.well-known/oauth-protected-resource/mcp') });
+  /** Sau khi token hợp lệ: gắn `req.nguoiDung` (người dùng admin của token) cho các tool kiểm quyền. */
+  const ganNguoiDung: RequestHandler = (req, res, next) => {
+    const id = (req as Request & { auth?: { extra?: { nguoiDungId?: unknown } } }).auth?.extra?.nguoiDungId;
+    const u = typeof id === 'number' ? timTheoId(db, id) : null;
+    if (!u || u.biKhoa) return void res.status(401).json({ error: 'invalid_token', error_description: 'Account is no longer allowed' });
+    req.nguoiDung = u;
+    next();
+  };
+  const requireAuth: RequestHandler[] = [bearer, ganNguoiDung];
 
   return { router, requireAuth, provider };
 }
+
+let bamGiaCache: Promise<string> | undefined;
+const bamGia = () => (bamGiaCache ??= bamMatKhau('khong-ai-dung-mat-khau-nay'));

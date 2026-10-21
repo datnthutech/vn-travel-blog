@@ -252,8 +252,9 @@ describe('mẫu biến môi trường deploy/.env.example', () => {
   const env = doc('deploy/.env.example');
   const bien = [...env.matchAll(/^([A-Z_]+)=/gm)].map((m) => m[1]);
 
-  it('có đủ biến bắt buộc mà deploy.sh kiểm tra (gồm GITHUB_WEBHOOK_SECRET)', () => {
-    for (const b of ['GITHUB_TOKEN', 'GITHUB_REPO', 'ALLOWED_GITHUB_USER', 'PUBLIC_BASE_URL', 'PREVIEW_BASE_URL', 'SESSION_SECRET', 'GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET', 'GITHUB_WEBHOOK_SECRET']) {
+  it('có đủ biến bắt buộc mà deploy.sh kiểm tra (gồm GITHUB_WEBHOOK_SECRET); KHÔNG còn biến GitHub OAuth / ALLOWED_GITHUB_USER', () => {
+    for (const b of ['ALLOWED_GITHUB_USER', 'GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET']) expect(bien).not.toContain(b);
+    for (const b of ['GITHUB_TOKEN', 'GITHUB_REPO', 'PUBLIC_BASE_URL', 'PREVIEW_BASE_URL', 'SESSION_SECRET', 'GITHUB_WEBHOOK_SECRET', 'KHOA_BI_MAT']) {
       expect(bien).toContain(b);
     }
   });

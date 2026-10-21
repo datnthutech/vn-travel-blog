@@ -68,6 +68,7 @@ export async function doiMatKhau(db: Db, id: number, mkMoi: string): Promise<voi
   db.transaction(() => {
     db.prepare('UPDATE nguoi_dung SET mat_khau_bam = ? WHERE id = ?').run(bam, id);
     db.prepare('DELETE FROM phien WHERE nguoi_dung_id = ?').run(id);
+    db.prepare('DELETE FROM oauth_token WHERE nguoi_dung_id = ?').run(id); // token MCP của Claude cũng hết hiệu lực ngay
   })();
 }
 

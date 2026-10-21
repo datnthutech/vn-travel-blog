@@ -4,7 +4,6 @@ export interface Config {
   port: number;
   githubToken: string;
   githubRepo: string; // "chu-so-huu/ten-repo"
-  allowedGithubUser: string;
   publicBaseUrl: string;
   previewBaseUrl: string;
   anhDir: string;
@@ -19,8 +18,6 @@ export interface Config {
   /** Biến build bổ sung (chỉ NOINDEX_ALL, GOATCOUNTER_CODE nếu có) — chỉ dùng cho bản production. */
   buildEnv: Record<string, string>;
   sessionSecret: string;
-  githubOauthClientId: string;
-  githubOauthClientSecret: string;
   /** Khoá AES-256-GCM (64 ký tự hex) mã hoá bí mật trong SQLite và ký token CSRF. KHÔNG bao giờ log hay trả ra API. */
   khoaBiMat: string;
 }
@@ -28,13 +25,10 @@ export interface Config {
 const BAT_BUOC = [
   'GITHUB_TOKEN',
   'GITHUB_REPO',
-  'ALLOWED_GITHUB_USER',
   'PUBLIC_BASE_URL',
   'PREVIEW_BASE_URL',
   'ANH_DIR',
   'SESSION_SECRET',
-  'GITHUB_OAUTH_CLIENT_ID',
-  'GITHUB_OAUTH_CLIENT_SECRET',
   'GITHUB_WEBHOOK_SECRET',
   'KHOA_BI_MAT',
 ] as const;
@@ -53,7 +47,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     port: Number(env.PORT ?? 8091),
     githubToken: env.GITHUB_TOKEN!,
     githubRepo: env.GITHUB_REPO!,
-    allowedGithubUser: env.ALLOWED_GITHUB_USER!,
     publicBaseUrl: env.PUBLIC_BASE_URL!.replace(/\/$/, ''),
     previewBaseUrl: env.PREVIEW_BASE_URL!.replace(/\/$/, ''),
     anhDir: env.ANH_DIR!,
@@ -64,8 +57,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     webhookSecret: env.GITHUB_WEBHOOK_SECRET!,
     buildEnv,
     sessionSecret: env.SESSION_SECRET!,
-    githubOauthClientId: env.GITHUB_OAUTH_CLIENT_ID!,
-    githubOauthClientSecret: env.GITHUB_OAUTH_CLIENT_SECRET!,
     khoaBiMat: env.KHOA_BI_MAT!.toLowerCase(),
   };
 }
