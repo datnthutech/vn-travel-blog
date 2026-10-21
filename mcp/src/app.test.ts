@@ -13,7 +13,7 @@ const env = {
   SESSION_SECRET: 'x'.repeat(32),
   GITHUB_OAUTH_CLIENT_ID: 'i',
   GITHUB_OAUTH_CLIENT_SECRET: 's',
-  GITHUB_WEBHOOK_SECRET: 'whsec',
+  GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
 };
 
 describe('createApp: hàng đợi build', () => {

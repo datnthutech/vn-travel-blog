@@ -18,11 +18,6 @@ beforeAll(() => {
     env: { ...process.env, BUILD_TARGET: 'production' },
     stdio: 'pipe',
   });
-  execFileSync('node', ['scripts/build-cms.mjs', out], {
-    cwd: __dirname + '/..',
-    env: { ...process.env, GITHUB_REPO: 'chu/blog', SITE_URL: 'https://vntraveltips.monai.click' },
-    stdio: 'pipe',
-  });
   execFileSync('npx', ['pagefind', '--site', out], { cwd: __dirname + '/..', stdio: 'pipe' });
   execFileSync('npx', ['astro', 'build', '--outDir', outPrev], {
     cwd: __dirname + '/..',
@@ -112,15 +107,6 @@ describe('build production', () => {
     expect(html).not.toContain('anh:demo-bien');
     expect(html).toContain('alt="Phòng khách căn hộ nhìn ra biển"');
     expect(html).toMatch(/<img[^>]*alt="Bé chơi cát[^>]*width="1600" height="1067"/);
-  });
-
-  it('/admin: có script CMS tự host và config.yml đã điền repo/site, không còn placeholder', () => {
-    expect(existsSync(join(out, 'admin/sveltia-cms.js'))).toBe(true);
-    expect(readFileSync(join(out, 'admin/index.html'), 'utf8')).toContain('/admin/sveltia-cms.js');
-    const cfg = readFileSync(join(out, 'admin/config.yml'), 'utf8');
-    expect(cfg).toContain('repo: chu/blog');
-    expect(cfg).toContain('base_url: https://vntraveltips.monai.click');
-    expect(cfg).not.toContain('__');
   });
 
   it('bài có affiliate (bản preview): nút đặt có rel đúng và có dòng tiết lộ dẫn tới chính sách; bài không có thì không', () => {

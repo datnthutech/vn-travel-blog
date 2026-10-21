@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { baiVietSchema } from '@vntraveltips/schema';
 import { parseBai, serializeBai } from '../bai/serialize';
 import { loadConfig } from '../config';
+import { moDb } from '../db/ket-noi';
 import { BAI_DIR, TINH_DIR, duongDanBai, type ToolCtx } from './ctx';
 import { FakeGithub } from './fake-github';
 import { dangBai, goBai, suaBai, taoBanNhap, xemTrangThai } from './ghi';
@@ -51,7 +52,7 @@ function setup(
   const config = loadConfig({
     GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
     PUBLIC_BASE_URL: 'https://vntraveltips.monai.click', PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
-    ANH_DIR: dir, SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec',
+    ANH_DIR: dir, SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
     DATA_DIR: dataDir,
   });
   const hangDoi = {
@@ -59,7 +60,7 @@ function setup(
     trangThai: () => ({ trangThai: 'roi' as const, dangCho: false, lanCuoi: lanCuoi && { ...lanCuoi, luc: '2026-10-20T08:00:00Z', sha: 'head0' } }),
     doiXong: async () => {},
   };
-  const ctx: ToolCtx = { config, github: gh.asClient(), now: () => Date.parse('2026-10-20T08:00:00Z'), hangDoi };
+  const ctx: ToolCtx = { config, db: moDb(':memory:'), github: gh.asClient(), now: () => Date.parse('2026-10-20T08:00:00Z'), hangDoi };
   return { gh, ctx, hangDoi };
 }
 

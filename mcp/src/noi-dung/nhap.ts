@@ -55,8 +55,15 @@ export function nhapTuThuMuc(db: Db, thuMuc: string, redirectsFile?: string): { 
   return { soBai, soTinh, soRedirect };
 }
 
-/** Chỉ nhập khi DB chưa có bài nào (dùng lúc khởi động container). Trả null nếu bỏ qua. */
+/**
+ * Chỉ nhập khi DB chưa có bài nào VÀ chưa từng nhập (dùng ở lần build đầu). Trả null nếu bỏ qua.
+ * Cờ `da_nhap_noi_dung_cu` ngăn nhập lại nội dung cũ nếu sau này chủ blog xoá hết bài.
+ */
 export function nhapNeuDbRong(db: Db, thuMuc: string, redirectsFile?: string) {
   const n = (db.prepare('SELECT count(*) AS n FROM bai').get() as { n: number }).n;
-  return n > 0 ? null : nhapTuThuMuc(db, thuMuc, redirectsFile);
+  const daNhap = db.prepare("SELECT 1 FROM he_thong WHERE khoa = 'da_nhap_noi_dung_cu'").get();
+  if (n > 0 || daNhap) return null;
+  const kq = nhapTuThuMuc(db, thuMuc, redirectsFile);
+  if (kq.soBai > 0) db.prepare("INSERT OR REPLACE INTO he_thong (khoa, gia_tri) VALUES ('da_nhap_noi_dung_cu', '1')").run();
+  return kq;
 }

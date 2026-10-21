@@ -10,7 +10,7 @@ export interface Config {
   anhDir: string;
   /** Bản production đang phục vụ (<dataDir>/site, symlink do build đổi) — đọc redirects.json và 404.html. */
   siteDir: string;
-  /** Thư mục dữ liệu chung của volume: repo/, builds/, anh/ (mặc định /data). */
+  /** Thư mục dữ liệu chung của volume: code/, db/, xuat-build/, builds/, anh/ (mặc định /data). */
   dataDir: string;
   /** Bản xem trước đang phục vụ (symlink do build đổi). */
   previewDir: string;
@@ -21,6 +21,8 @@ export interface Config {
   sessionSecret: string;
   githubOauthClientId: string;
   githubOauthClientSecret: string;
+  /** Khoá AES-256-GCM (64 ký tự hex) mã hoá bí mật trong SQLite và ký token CSRF. KHÔNG bao giờ log hay trả ra API. */
+  khoaBiMat: string;
 }
 
 const BAT_BUOC = [
@@ -34,6 +36,7 @@ const BAT_BUOC = [
   'GITHUB_OAUTH_CLIENT_ID',
   'GITHUB_OAUTH_CLIENT_SECRET',
   'GITHUB_WEBHOOK_SECRET',
+  'KHOA_BI_MAT',
 ] as const;
 
 const BIEN_BUILD_TUY_CHON = ['NOINDEX_ALL', 'GOATCOUNTER_CODE'] as const;
@@ -42,6 +45,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const thieu = BAT_BUOC.filter((k) => !env[k]);
   if (thieu.length) throw new Error(`Thiếu biến môi trường: ${thieu.join(', ')}`);
   if (env.SESSION_SECRET!.length < 32) throw new Error('SESSION_SECRET phải dài ít nhất 32 ký tự');
+  if (!/^[0-9a-fA-F]{64}$/.test(env.KHOA_BI_MAT!)) throw new Error('KHOA_BI_MAT phải gồm đúng 64 ký tự hex (tạo bằng: openssl rand -hex 32)');
   const dataDir = env.DATA_DIR || '/data';
   const buildEnv: Record<string, string> = {};
   for (const k of BIEN_BUILD_TUY_CHON) if (env[k]) buildEnv[k] = env[k]!;
@@ -62,5 +66,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     sessionSecret: env.SESSION_SECRET!,
     githubOauthClientId: env.GITHUB_OAUTH_CLIENT_ID!,
     githubOauthClientSecret: env.GITHUB_OAUTH_CLIENT_SECRET!,
+    khoaBiMat: env.KHOA_BI_MAT!.toLowerCase(),
   };
 }

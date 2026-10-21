@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../config';
+import { moDb } from '../db/ket-noi';
 import type { GithubClient } from '../github/client';
 import type { ToolCtx } from '../tools/ctx';
 import { taoMcpServer } from './server';
@@ -9,11 +10,11 @@ import { taoMcpServer } from './server';
 const config = loadConfig({
   GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
   PUBLIC_BASE_URL: 'https://vntraveltips.monai.click', PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
-  ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec',
+  ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
 });
 const github = { liet: async () => [], docFile: async () => null } as unknown as GithubClient;
 const hangDoi = { yeuCau() {}, trangThai: () => ({ trangThai: 'roi' as const, dangCho: false, lanCuoi: null }), doiXong: async () => {} };
-const ctx: ToolCtx = { config, github, now: Date.now, hangDoi };
+const ctx: ToolCtx = { config, db: moDb(':memory:'), github, now: Date.now, hangDoi };
 
 async function ketNoi() {
   const server = taoMcpServer(ctx);
@@ -63,5 +64,20 @@ describe('MCP server', () => {
     const r: any = await (await ketNoi()).callTool({ name: 'liet_ke_anh', arguments: {} });
     expect(r.isError).toBeFalsy();
     expect(r.content[0].type).toBe('text');
+  });
+
+  it('4 tool ghi bị tạm khoá: isError và chỉ sang /quan-tri', async () => {
+    const client = await ketNoi();
+    const dau: Record<string, Record<string, unknown>> = {
+      tao_ban_nhap: { bai: {}, noiDung: 'x' },
+      sua_bai: { slug: 'a' },
+      dang_bai: { slug: 'a' },
+      go_bai: { slug: 'a' },
+    };
+    for (const [name, args] of Object.entries(dau)) {
+      const r: any = await client.callTool({ name, arguments: args });
+      expect(r.isError, name).toBe(true);
+      expect(r.content[0].text, name).toContain('/quan-tri');
+    }
   });
 });

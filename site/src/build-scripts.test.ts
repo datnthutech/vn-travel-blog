@@ -34,26 +34,3 @@ describe('write-build-json', () => {
     expect(json.sha).toBe('local');
   });
 });
-
-describe('build-cms', () => {
-  it('điền repo từ GITHUB_REPO, không còn OWNER/REPO', () => {
-    const dist = mkdtempSync(join(tmpdir(), 'vtt-cms-'));
-    execFileSync('node', [script('build-cms.mjs'), dist], {
-      cwd: siteDir,
-      env: { PATH: process.env.PATH, GITHUB_REPO: 'chu/repo', SITE_URL: 'https://vntraveltips.monai.click' },
-    });
-    const yml = readFileSync(join(dist, 'admin/config.yml'), 'utf8');
-    expect(yml).toContain('chu/repo');
-    expect(yml).not.toContain('OWNER/REPO');
-  });
-});
-
-// Image mcp đặt NODE_ENV=production nên `npm ci` trong container bỏ qua devDependencies.
-// Gói nào script build dùng tới phải nằm trong dependencies, nếu không build trong container sẽ lỗi.
-describe('package.json của site', () => {
-  it('gói cần lúc build (@sveltia/cms cho build-cms.mjs) nằm trong dependencies', () => {
-    const pkg = JSON.parse(readFileSync(join(siteDir, 'package.json'), 'utf8'));
-    expect(pkg.dependencies).toHaveProperty('@sveltia/cms');
-    expect(pkg.devDependencies ?? {}).not.toHaveProperty('@sveltia/cms');
-  });
-});

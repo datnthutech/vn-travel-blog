@@ -13,7 +13,7 @@ const config = loadConfig({
   GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'Chu-Blog',
   PUBLIC_BASE_URL: `https://${HOST}`, PREVIEW_BASE_URL: 'https://y.test',
   ANH_DIR: '/khong/ghi/duoc', SESSION_SECRET: 'x'.repeat(32),
-  GITHUB_OAUTH_CLIENT_ID: 'gh-id', GITHUB_OAUTH_CLIENT_SECRET: 'gh-secret', GITHUB_WEBHOOK_SECRET: 'whsec',
+  GITHUB_OAUTH_CLIENT_ID: 'gh-id', GITHUB_OAUTH_CLIENT_SECRET: 'gh-secret', GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
 });
 
 // Giả GitHub: đổi code lấy token, rồi hỏi /user ra tài khoản `login`.

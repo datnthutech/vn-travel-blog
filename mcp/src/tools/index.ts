@@ -5,8 +5,9 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { CAC_LOAI, huongDanVietBai } from '../huong-dan';
 import type { ToolCtx } from './ctx';
-import { docBai, kiemTraBaiTool, lietKeAnh, lietKeBai, taoLinkTaiAnh } from './doc';
-import { dangBai, goBai, suaBai, taoBanNhap, xemTrangThai } from './ghi';
+import { lietKeAnh, taoLinkTaiAnh } from './doc';
+import { docBaiTuDb, kiemTraBaiToolTuDb, lietKeBaiTuDb } from './doc-db';
+import { xemTrangThai } from './ghi';
 
 // Dùng đúng kiểu kết quả của MCP SDK để tool đăng ký khớp kiểu (trước đây tự khai báo nên lệch với SDK).
 export type KetQuaTool = CallToolResult;
@@ -29,6 +30,10 @@ const boc = <A>(fn: (a: A) => Promise<KetQuaTool> | KetQuaTool) => async (a: A):
   }
 };
 
+// Tool ghi bài tạm khoá trong lúc chuyển sang trang quản trị (GĐ8 mở lại, ghi qua lớp nội dung DB).
+export const THONG_BAO_TAM_NGUNG = 'Tạm ngừng ghi bài qua Claude trong lúc chuyển sang trang quản trị — dùng /quan-tri.';
+const tamNgung = async (): Promise<KetQuaTool> => ({ isError: true, content: [{ type: 'text', text: THONG_BAO_TAM_NGUNG }] });
+
 export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
   server.registerTool(
     'tao_ban_nhap',
@@ -40,7 +45,7 @@ export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
         noiDung: z.string().describe('Thân bài Markdown; ảnh dạng ![mô tả](anh:MÃ_ẢNH)'),
       },
     },
-    boc(async (a) => json(await taoBanNhap(ctx, a))),
+    tamNgung,
   );
 
   server.registerTool(
@@ -54,7 +59,7 @@ export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
         noiDung: z.string().optional().describe('Thân bài mới (bỏ trống = giữ nguyên)'),
       },
     },
-    boc(async (a) => json(await suaBai(ctx, a))),
+    tamNgung,
   );
 
   server.registerTool(
@@ -74,7 +79,7 @@ export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
         'Đăng bài nháp lên site thật (draft:false). CHỈ gọi sau khi chủ blog đã xem bản xem trước và nói đồng ý. Từ chối nếu kiểm tra không đạt hoặc bản xem trước chưa build từ đúng commit hiện tại.',
       inputSchema: { slug: z.string().describe('Slug của bài nháp') },
     },
-    boc(async ({ slug }) => json(await dangBai(ctx, slug))),
+    tamNgung,
   );
 
   server.registerTool(
@@ -84,7 +89,7 @@ export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
         'Gỡ bài khỏi site chính (đặt draft:true), có hiệu lực khi build xong, không xoá file. Dùng khi cần gỡ khẩn cấp. CHÚ Ý: bản xem trước (nhap-vntraveltips…), các ảnh trên VPS và lịch sử GitHub VẪN còn nội dung — nếu gỡ vì lộ thông tin riêng tư, phải báo chủ blog xoá thêm ảnh/nội dung.',
       inputSchema: { slug: z.string().describe('Slug của bài cần gỡ') },
     },
-    boc(async ({ slug }) => json(await goBai(ctx, slug))),
+    tamNgung,
   );
 }
 
@@ -142,7 +147,7 @@ export function dangKyToolDoc(server: McpServer, ctx: ToolCtx): void {
         slugDangSua: z.string().optional().describe('Slug của bài đang sửa (để không báo trùng với chính nó)'),
       },
     },
-    boc(async (a) => json(await kiemTraBaiTool(ctx, a))),
+    boc(async (a) => json(await kiemTraBaiToolTuDb(ctx, a))),
   );
 
   server.registerTool(
@@ -154,7 +159,7 @@ export function dangKyToolDoc(server: McpServer, ctx: ToolCtx): void {
         draft: z.boolean().optional().describe('true = chỉ nháp, false = chỉ bài đã đăng'),
       },
     },
-    boc(async (a) => json(await lietKeBai(ctx, a))),
+    boc(async (a) => json(await lietKeBaiTuDb(ctx, a))),
   );
 
   server.registerTool(
@@ -164,7 +169,7 @@ export function dangKyToolDoc(server: McpServer, ctx: ToolCtx): void {
       inputSchema: { slug: z.string().describe('Slug của bài') },
     },
     boc(async ({ slug }) => {
-      const { bai, noiDung } = await docBai(ctx, slug);
+      const { bai, noiDung } = await docBaiTuDb(ctx, slug);
       return json({ bai, noiDung });
     }),
   );

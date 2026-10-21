@@ -302,10 +302,15 @@ describe('vntraveltips-web', () => {
     expect(site).toMatch(/location \/anh\/ \{[\s\S]*?expires 1y;[\s\S]*?immutable/);
   });
 
-  it('/admin/ không cache và noindex', () => {
-    const admin = site.slice(site.indexOf('location /admin/ {'), site.indexOf('}', site.indexOf('location /admin/ {')));
-    expect(admin).toMatch(/Cache-Control "no-store"/);
-    expect(admin).toMatch(/X-Robots-Tag "noindex, nofollow"/);
+  it('/admin/ trả 301 tới /quan-tri/ (Sveltia đã gỡ)', () => {
+    expect(site).toMatch(/location ~ \^\/admin\(\/\|\$\) \{[^}]*return 301 \/quan-tri\/;/);
+  });
+
+  it('không còn file Sveltia/CMS trong repo', () => {
+    for (const f of ['site/scripts/build-cms.mjs', 'site/admin/config.template.yml', 'site/public/admin/index.html', 'mcp/src/auth/cms-oauth.ts']) {
+      expect(existsSync(join(goc, f)), f).toBe(false);
+    }
+    expect(doc('site/package.json')).not.toContain('sveltia');
   });
 
   it('sau proxy của host (HTTP/1.0): vẫn gzip; redirect tự thêm "/" dùng đường dẫn tương đối (giữ https và cổng)', () => {

@@ -10,6 +10,7 @@ import { trangThaiToken } from '../anh/token';
 import { xuLyAnh } from '../anh/xu-ly';
 import { serializeBai } from '../bai/serialize';
 import { loadConfig } from '../config';
+import { moDb } from '../db/ket-noi';
 import type { GithubClient } from '../github/client';
 import { huongDanVietBai } from '../huong-dan';
 import { docBai, kiemTraBaiTool, lietKeAnh, lietKeBai, taoLinkTaiAnh } from './doc';
@@ -37,10 +38,10 @@ function ctxVoi(files: Record<string, string>): ToolCtx {
   const config = loadConfig({
     GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
     PUBLIC_BASE_URL: 'https://vntraveltips.monai.click', PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
-    ANH_DIR: dir, SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec',
+    ANH_DIR: dir, SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
   });
   const hangDoi = { yeuCau() {}, trangThai: () => ({ trangThai: 'roi' as const, dangCho: false, lanCuoi: null }), doiXong: async () => {} };
-  return { config, github, now: Date.now, hangDoi };
+  return { config, db: moDb(':memory:'), github, now: Date.now, hangDoi };
 }
 
 describe('huong_dan_viet_bai', () => {

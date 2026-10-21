@@ -1,10 +1,13 @@
 // Những thứ mọi tool cần dùng chung. Đưa vào qua tham số (thay vì import trực tiếp) để test được bằng đồ giả.
 import type { Config } from '../config';
 import type { HangDoiBuild } from '../build/hang-doi';
+import type { Db } from '../db/ket-noi';
 import type { GithubClient } from '../github/client';
 
 export interface ToolCtx {
   config: Config;
+  /** SQLite: nguồn sự thật của nội dung bài, tỉnh, redirect. */
+  db: Db;
   github: GithubClient;
   now: () => number;
   /** Hàng đợi build nội bộ: tool gọi yeuCau() sau khi commit để bản xem trước được build lại. */

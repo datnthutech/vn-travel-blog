@@ -5,15 +5,15 @@ import express from 'express';
 import { GithubClient } from './github/client';
 import type { ToolCtx } from './tools/ctx';
 import { taiAnhRouter, type TaiAnhDeps } from './anh/trang-tai';
-import { cmsOauthRouter } from './auth/cms-oauth';
 import { createOAuth, type OAuthDeps } from './auth/oauth';
 import type { HangDoiBuild } from './build/hang-doi';
 import { chuyenHuongHandler } from './chuyen-huong';
 import type { Config } from './config';
+import { moDb, type Db } from './db/ket-noi';
 import { taoMcpServer } from './mcp/server';
 import { webhookRouter } from './webhook/github';
 
-export type AppDeps = TaiAnhDeps & OAuthDeps & { github?: GithubClient; hangDoi?: HangDoiBuild };
+export type AppDeps = TaiAnhDeps & OAuthDeps & { github?: GithubClient; hangDoi?: HangDoiBuild; db?: Db };
 
 // Hàng đợi mặc định KHÔNG build gì: test dựng app không được kích hoạt build thật. server.ts truyền hàng đợi thật.
 const hangDoiKhongLam: HangDoiBuild = {
@@ -40,12 +40,12 @@ export function createApp(config: Config, deps: AppDeps = {}) {
 
   const oauth = createOAuth(config, deps);
   app.use(oauth.router);
-  app.use(cmsOauthRouter(config, deps));
 
   // /mcp: BẮT BUỘC có Bearer token hợp lệ (requireAuth chạy trước mọi thứ khác).
   const host = new URL(config.publicBaseUrl).host;
   const ctx: ToolCtx = {
     config,
+    db: deps.db ?? moDb(':memory:'),
     github: deps.github ?? new GithubClient(new Octokit({ auth: config.githubToken }), config.githubRepo),
     now: deps.now ?? Date.now,
     hangDoi,

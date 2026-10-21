@@ -14,6 +14,7 @@ const du = {
   GITHUB_OAUTH_CLIENT_ID: 'id',
   GITHUB_OAUTH_CLIENT_SECRET: 'secret',
   GITHUB_WEBHOOK_SECRET: 'whsec_bi_mat',
+  KHOA_BI_MAT: 'a'.repeat(64),
 };
 
 describe('loadConfig', () => {
@@ -54,6 +55,20 @@ describe('loadConfig', () => {
   it('thiếu biến → lỗi nêu tên mọi biến thiếu', () => {
     const { GITHUB_TOKEN: _a, SESSION_SECRET: _b, ...thieu } = du;
     expect(() => loadConfig(thieu)).toThrow(/GITHUB_TOKEN.*SESSION_SECRET|SESSION_SECRET.*GITHUB_TOKEN/);
+  });
+
+  it('KHOA_BI_MAT thiếu hoặc không đúng 64 hex → lỗi nêu tên biến, không in giá trị', () => {
+    const { KHOA_BI_MAT: _k, ...thieu } = du;
+    expect(() => loadConfig(thieu)).toThrow(/KHOA_BI_MAT/);
+    for (const sai of ['a'.repeat(63), 'z'.repeat(64), 'a'.repeat(65)]) {
+      expect(() => loadConfig({ ...du, KHOA_BI_MAT: sai })).toThrow(/KHOA_BI_MAT/);
+      try {
+        loadConfig({ ...du, KHOA_BI_MAT: sai });
+      } catch (e) {
+        expect(String((e as Error).message)).not.toContain(sai);
+      }
+    }
+    expect(loadConfig(du).khoaBiMat).toBe('a'.repeat(64));
   });
 
   it('SESSION_SECRET ngắn hơn 32 ký tự → lỗi', () => {

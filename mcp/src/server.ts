@@ -18,8 +18,8 @@ const saoLuuDinhKy = () =>
     .then(() => donSaoLuu(thuMucSaoLuu, Date.now()))
     .catch((e) => console.error('Sao lưu DB lỗi:', (e as Error).message));
 setInterval(() => void saoLuuDinhKy(), 3_600_000).unref();
-const hangDoi = taoHangDoiBuild(taoChayBuild(config));
-createApp(config, { hangDoi }).listen(config.port, '0.0.0.0', () => {
+const hangDoi = taoHangDoiBuild(taoChayBuild(config, db));
+createApp(config, { hangDoi, db }).listen(config.port, '0.0.0.0', () => {
   console.log(`vntraveltips-mcp đang chạy ở cổng ${config.port}`);
 });
 void khiKhoiDong(config, hangDoi);

@@ -1,12 +1,25 @@
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Config } from '../config';
+import { moDb, type Db } from '../db/ket-noi';
+import { luuBai } from '../noi-dung/bai';
+import { danhDauNoiDungDoi } from '../noi-dung/phien-noi-dung';
+import { parseBai } from '../bai/serialize';
 import { daCoBanBuild, taoChayBuild, type Exec } from './chay-build';
 
 const TOKEN = 'ghp_bi_mat_khong_duoc_lo_123456';
 const SHA = 'c'.repeat(40);
+
+// DB mẫu: một bài đã đăng và một bài nháp (để kiểm tra production không có nháp).
+const BAI_MAU = parseBai(readFileSync(join(import.meta.dirname, '../../../site/src/content/bai-viet/vung-tau-can-ho-banh-canh.md'), 'utf8'));
+let db: Db;
+beforeEach(() => {
+  db = moDb(':memory:');
+  luuBai(db, { ngonNgu: 'vi', bai: BAI_MAU.bai, noiDung: BAI_MAU.noiDung, trangThai: 'da-dang' });
+  luuBai(db, { ngonNgu: 'vi', bai: { ...BAI_MAU.bai, slug: 'bai-nhap', tieuDe: 'Nháp' }, noiDung: 'x', trangThai: 'nhap' });
+});
 
 function configTam(): Config {
   return {
@@ -25,6 +38,7 @@ function configTam(): Config {
     sessionSecret: 'x'.repeat(32),
     githubOauthClientId: 'id',
     githubOauthClientSecret: 'secret',
+    khoaBiMat: 'a'.repeat(64),
   };
 }
 
@@ -54,7 +68,7 @@ describe('taoChayBuild', () => {
   it('lần đầu clone bằng token trong env, token không xuất hiện trong lệnh, log hay kết quả', async () => {
     const config = configTam();
     const { exec, goi } = execGia({ inToken: true });
-    const kq = await taoChayBuild(config, exec)();
+    const kq = await taoChayBuild(config, db, exec)();
     const clone = goi.find((g) => g.lenh === 'git' && g.args[0] === 'clone')!;
     expect(clone).toBeDefined();
     expect(JSON.stringify(goi.map((g) => g.args))).not.toContain(TOKEN);
@@ -66,7 +80,7 @@ describe('taoChayBuild', () => {
   it('thành công: build production rồi preview, mỗi lần một process, đúng env', async () => {
     const config = configTam();
     const { exec, goi } = execGia();
-    const kq = await taoChayBuild(config, exec)();
+    const kq = await taoChayBuild(config, db, exec)();
     expect(kq).toEqual({ ok: true, sha: SHA });
     const builds = goi.filter((g) => g.lenh === 'npm' && g.args[0] === 'run');
     expect(builds.map((g) => g.env.BUILD_TARGET)).toEqual(['production', 'preview']);
@@ -86,7 +100,7 @@ describe('taoChayBuild', () => {
 
   it('sau thành công: site và preview là symlink tương đối tới builds/<id>/<target>', async () => {
     const config = configTam();
-    await taoChayBuild(config, execGia().exec)();
+    await taoChayBuild(config, db, execGia().exec)();
     for (const ten of ['site', 'preview']) {
       const duong = join(config.dataDir, ten);
       expect(lstatSync(duong).isSymbolicLink()).toBe(true);
@@ -99,10 +113,10 @@ describe('taoChayBuild', () => {
 
   it('build lỗi → symlink không đổi, thư mục build hỏng bị xoá, ok:false, log ≤ 2000 ký tự', async () => {
     const config = configTam();
-    await taoChayBuild(config, execGia().exec)(); // bản tốt đầu tiên
+    await taoChayBuild(config, db, execGia().exec)(); // bản tốt đầu tiên
     const cu = readlinkSync(join(config.dataDir, 'site'));
     const { exec } = execGia({ hongBuild: 'preview', sha: 'd'.repeat(40) });
-    const kq = await taoChayBuild(config, exec)();
+    const kq = await taoChayBuild(config, db, exec)();
     expect(kq.ok).toBe(false);
     if (!kq.ok) expect(kq.log.length).toBeLessThanOrEqual(2000);
     expect(readlinkSync(join(config.dataDir, 'site'))).toBe(cu);
@@ -112,7 +126,7 @@ describe('taoChayBuild', () => {
     const config = configTam();
     const builds = join(config.dataDir, 'builds');
     for (let i = 1; i <= 5; i++) mkdirSync(join(builds, `00000000000${i}-old`), { recursive: true });
-    await taoChayBuild(config, execGia().exec)();
+    await taoChayBuild(config, db, execGia().exec)();
     const con = readdirSync(builds);
     expect(con).toHaveLength(3);
     expect(existsSync(join(config.dataDir, 'site', 'index.html'))).toBe(true);
@@ -120,14 +134,14 @@ describe('taoChayBuild', () => {
 
   it('chỉ npm ci khi package-lock.json đổi', async () => {
     const config = configTam();
-    const run = taoChayBuild(config, execGia().exec);
+    const run = taoChayBuild(config, db, execGia().exec);
     await run();
     const { exec, goi } = execGia();
-    await taoChayBuild(config, exec)();
+    await taoChayBuild(config, db, exec)();
     expect(goi.some((g) => g.lenh === 'npm' && g.args[0] === 'ci')).toBe(false);
-    writeFileSync(join(config.dataDir, 'repo', 'package-lock.json'), '{"doi":1}');
+    writeFileSync(join(config.dataDir, 'code', 'package-lock.json'), '{"doi":1}');
     const lanNay = execGia({ sha: 'd'.repeat(40) });
-    await taoChayBuild(config, lanNay.exec)();
+    await taoChayBuild(config, db, lanNay.exec)();
     const ci = lanNay.goi.find((g) => g.lenh === 'npm' && g.args[0] === 'ci');
     // Chỉ phụ thuộc chạy của site (+ packages/schema); không cài công cụ test của gốc repo lên VPS.
     expect(ci?.args).toEqual(['ci', '--workspace', 'site', '--omit=dev']);
@@ -135,10 +149,10 @@ describe('taoChayBuild', () => {
 
   it('cùng commit và cùng cấu hình với lần thành công trước → bỏ qua, không build lại', async () => {
     const config = configTam();
-    await taoChayBuild(config, execGia().exec)();
+    await taoChayBuild(config, db, execGia().exec)();
     const cu = readlinkSync(join(config.dataDir, 'site'));
     const lan2 = execGia();
-    const kq = await taoChayBuild(config, lan2.exec)();
+    const kq = await taoChayBuild(config, db, lan2.exec)();
     expect(kq).toEqual({ ok: true, sha: SHA });
     expect(lan2.goi.some((g) => g.lenh === 'npm')).toBe(false);
     expect(lan2.goi.some((g) => g.lenh === 'git' && g.args[0] === 'fetch')).toBe(true); // vẫn hỏi GitHub commit mới
@@ -147,17 +161,17 @@ describe('taoChayBuild', () => {
 
   it('đổi cấu hình build (NOINDEX_ALL) dù cùng commit → build lại', async () => {
     const config = configTam();
-    await taoChayBuild(config, execGia().exec)();
+    await taoChayBuild(config, db, execGia().exec)();
     const lan2 = execGia();
-    await taoChayBuild({ ...config, buildEnv: { NOINDEX_ALL: 'false' } }, lan2.exec)();
+    await taoChayBuild({ ...config, buildEnv: { NOINDEX_ALL: 'false' } }, db, lan2.exec)();
     expect(lan2.goi.filter((g) => g.lenh === 'npm' && g.args[0] === 'run')).toHaveLength(2);
   });
 
   it('lần trước lỗi → lần sau cùng commit vẫn build (chỉ ghi dấu khi thành công)', async () => {
     const config = configTam();
-    await taoChayBuild(config, execGia({ hongBuild: 'production' }).exec)();
+    await taoChayBuild(config, db, execGia({ hongBuild: 'production' }).exec)();
     const lan2 = execGia();
-    const kq = await taoChayBuild(config, lan2.exec)();
+    const kq = await taoChayBuild(config, db, lan2.exec)();
     expect(kq.ok).toBe(true);
     expect(lan2.goi.filter((g) => g.lenh === 'npm' && g.args[0] === 'run')).toHaveLength(2);
   });
@@ -166,10 +180,70 @@ describe('taoChayBuild', () => {
     for (const revParse of [{ code: 128, out: 'fatal: bad object HEAD' }, { code: 0, out: '\n' }]) {
       const config = configTam();
       const { exec, goi } = execGia({ revParse });
-      const kq = await taoChayBuild(config, exec)();
+      const kq = await taoChayBuild(config, db, exec)();
       expect(kq.ok).toBe(false);
       expect(goi.some((g) => g.lenh === 'npm')).toBe(false);
     }
+  });
+});
+
+describe('taoChayBuild — nội dung từ DB', () => {
+  // Exec giả ghi lại NOI_DUNG_DIR và liệt kê file bài đang có ở đó tại thời điểm build.
+  function execXem() {
+    const thay: Array<{ target: string; dir: string; baiViet: string[] }> = [];
+    const co = execGia();
+    const exec: Exec = async (lenh, args, o) => {
+      if (lenh === 'npm' && args[0] === 'run') {
+        thay.push({ target: o.env.BUILD_TARGET, dir: o.env.NOI_DUNG_DIR, baiViet: readdirSync(join(o.env.NOI_DUNG_DIR, 'bai-viet')) });
+      }
+      return co.exec(lenh, args, o);
+    };
+    return { exec, thay, goi: co.goi };
+  }
+
+  it('mỗi target xuất nội dung trước rồi build với NOI_DUNG_DIR đúng thư mục; production không có bài nháp', async () => {
+    const config = configTam();
+    const { exec, thay } = execXem();
+    expect((await taoChayBuild(config, db, exec)()).ok).toBe(true);
+    expect(thay.map((t) => t.target)).toEqual(['production', 'preview']);
+    expect(thay[0].dir.startsWith(join(config.dataDir, 'xuat-build') + '/')).toBe(true);
+    expect(thay[0].dir.endsWith('/production')).toBe(true);
+    expect(thay[1].dir.endsWith('/preview')).toBe(true);
+    expect(thay[0].baiViet).toEqual([`${BAI_MAU.bai.slug}.md`]);
+    expect(thay[1].baiViet.sort()).toEqual(['bai-nhap.md', `${BAI_MAU.bai.slug}.md`]);
+  });
+
+  it('xuat-build/<id> bị xoá sau build, cả khi thành công lẫn thất bại', async () => {
+    const config = configTam();
+    await taoChayBuild(config, db, execGia().exec)();
+    expect(readdirSync(join(config.dataDir, 'xuat-build'))).toEqual([]);
+    const hong = await taoChayBuild(config, db, execGia({ hongBuild: 'preview', sha: 'd'.repeat(40) }).exec)();
+    expect(hong.ok).toBe(false);
+    expect(readdirSync(join(config.dataDir, 'xuat-build'))).toEqual([]);
+  });
+
+  it('cùng commit + cùng cấu hình nhưng noi_dung_phien tăng → build lại; không đổi → bỏ qua', async () => {
+    const config = configTam();
+    await taoChayBuild(config, db, execGia().exec)();
+    const yen = execGia();
+    await taoChayBuild(config, db, yen.exec)();
+    expect(yen.goi.some((g) => g.lenh === 'npm')).toBe(false);
+    danhDauNoiDungDoi(db);
+    const lai = execGia();
+    await taoChayBuild(config, db, lai.exec)();
+    expect(lai.goi.filter((g) => g.lenh === 'npm' && g.args[0] === 'run')).toHaveLength(2);
+  });
+
+  it('volume cũ có repo/ → đổi tên thành code/ (không clone lại)', async () => {
+    const config = configTam();
+    mkdirSync(join(config.dataDir, 'repo', '.git'), { recursive: true });
+    writeFileSync(join(config.dataDir, 'repo', 'package-lock.json'), '{}');
+    const { exec, goi } = execGia();
+    expect((await taoChayBuild(config, db, exec)()).ok).toBe(true);
+    expect(existsSync(join(config.dataDir, 'repo'))).toBe(false);
+    expect(existsSync(join(config.dataDir, 'code', '.git'))).toBe(true);
+    expect(goi.some((g) => g.args[0] === 'clone')).toBe(false);
+    expect(goi.some((g) => g.args[0] === 'fetch')).toBe(true);
   });
 });
 
@@ -177,7 +251,7 @@ describe('daCoBanBuild', () => {
   it('false khi chưa có site, true sau build thành công', async () => {
     const config = configTam();
     expect(await daCoBanBuild(config)).toBe(false);
-    await taoChayBuild(config, execGia().exec)();
+    await taoChayBuild(config, db, execGia().exec)();
     expect(await daCoBanBuild(config)).toBe(true);
     expect(readFileSync(join(config.dataDir, 'site', 'index.html'), 'utf8')).toBe('production');
   });

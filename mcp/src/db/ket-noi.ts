@@ -1,4 +1,6 @@
 // Mở SQLite (better-sqlite3), bật WAL + khoá ngoại và chạy các migration chưa áp dụng.
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
 import { MIGRATIONS, type Migration } from './migrations';
 
@@ -6,6 +8,7 @@ export type Db = Database.Database;
 
 /** Mở (hoặc tạo) DB tại `duongDan` (hoặc ':memory:'). Mỗi migration chạy trong một transaction riêng. */
 export function moDb(duongDan: string, migrations: Migration[] = MIGRATIONS): Db {
+  if (duongDan !== ':memory:') mkdirSync(dirname(duongDan), { recursive: true });
   const db = new Database(duongDan);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');

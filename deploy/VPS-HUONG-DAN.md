@@ -55,6 +55,7 @@ File `.env` chứa bí mật. Git đã bỏ qua nó, đừng commit. Điền cá
 | `GITHUB_OAUTH_CLIENT_ID` | Client ID ở bước 2 |
 | `GITHUB_OAUTH_CLIENT_SECRET` | Client secret ở bước 2 |
 | `SESSION_SECRET` | chạy `openssl rand -hex 32` và dán kết quả |
+| `KHOA_BI_MAT` | đúng 64 ký tự hex: chạy `openssl rand -hex 32` và dán kết quả (khoá mã hoá bí mật trong cơ sở dữ liệu; giữ cố định, đổi là mất bí mật đã lưu) |
 | `GITHUB_WEBHOOK_SECRET` | chuỗi ngẫu nhiên (`openssl rand -hex 24`), dán cùng giá trị vào ô Secret của webhook |
 | `NOINDEX_ALL` | để `true`. Chặn Google cho tới khi sẵn sàng |
 | `GOATCOUNTER_CODE` | mã GoatCounter. Để trống nếu chưa dùng |
