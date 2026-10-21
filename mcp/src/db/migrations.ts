@@ -308,4 +308,42 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE nguoi_dung ADD COLUMN nhan_mail_binh_luan INTEGER NOT NULL DEFAULT 1;
     `,
   },
+  {
+    phienBan: 13,
+    sql: `
+      CREATE TABLE nguoi_dang_ky (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        ngon_ngu TEXT NOT NULL DEFAULT 'vi',
+        trang_thai TEXT NOT NULL CHECK (trang_thai IN ('cho-xac-nhan', 'da-xac-nhan', 'da-huy')),
+        token_xac_nhan_bam TEXT NOT NULL,
+        token_huy TEXT NOT NULL,
+        tao_luc INTEGER NOT NULL,
+        xac_nhan_luc INTEGER,
+        huy_luc INTEGER,
+        gui_xac_nhan_cuoi_luc INTEGER NOT NULL
+      );
+      CREATE INDEX nguoi_dang_ky_token_xn ON nguoi_dang_ky(token_xac_nhan_bam);
+      CREATE UNIQUE INDEX nguoi_dang_ky_token_huy ON nguoi_dang_ky(token_huy);
+      CREATE TABLE ban_tin (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tieu_de TEXT NOT NULL,
+        noi_dung TEXT NOT NULL,
+        ngon_ngu TEXT NOT NULL DEFAULT 'vi',
+        loai TEXT NOT NULL CHECK (loai IN ('tu-soan', 'bai-moi')),
+        bai_id INTEGER REFERENCES bai(id) ON DELETE SET NULL,
+        trang_thai TEXT NOT NULL DEFAULT 'nhap' CHECK (trang_thai IN ('nhap', 'dang-gui', 'da-gui')),
+        tao_luc INTEGER NOT NULL,
+        gui_luc INTEGER,
+        nguoi_gui_id INTEGER
+      );
+      CREATE TABLE ban_tin_gui (
+        ban_tin_id INTEGER NOT NULL REFERENCES ban_tin(id) ON DELETE CASCADE,
+        nguoi_dang_ky_id INTEGER NOT NULL REFERENCES nguoi_dang_ky(id) ON DELETE CASCADE,
+        mail_id INTEGER,
+        PRIMARY KEY (ban_tin_id, nguoi_dang_ky_id)
+      );
+      CREATE INDEX ban_tin_gui_mail ON ban_tin_gui(mail_id);
+    `,
+  },
 ];
