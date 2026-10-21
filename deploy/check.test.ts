@@ -113,6 +113,11 @@ describe('sao lưu ảnh', () => {
     for (const loai of ['.upload-tmp', '.tmp-', '.oauth-state.json']) expect(sh, loai).toContain(loai);
   });
 
+  it('cũng sao chép bản sao lưu SQLite (db/sao-luu) theo cùng luật: chỉ đọc, chỉ thêm', () => {
+    expect(sh).toMatch(/rclone\/rclone\S* copy \/data\/db\/sao-luu/);
+    expect(sh.match(/vntraveltips_data:\/data:ro/g)).toHaveLength(2);
+  });
+
   it('nguồn là thư mục anh/ trong volume vntraveltips_data; không còn đường dẫn /srv', () => {
     expect(sh).toContain('/data/anh');
     expect(sh).not.toContain('/srv/vntraveltips');

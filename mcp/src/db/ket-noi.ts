@@ -29,3 +29,6 @@ export function moDb(duongDan: string, migrations: Migration[] = MIGRATIONS): Db
   }
   return db;
 }
+
+/** Đường dẫn file DB trong thư mục dữ liệu chung (volume /data). */
+export const duongDanDb = (dataDir: string): string => `${dataDir}/db/vntraveltips.sqlite`;
