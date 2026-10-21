@@ -208,4 +208,47 @@ export const MIGRATIONS: Migration[] = [
         ('luu-tru', 'Lưu trú', 3), ('di-chuyen', 'Di chuyển', 4);
     `,
   },
+  {
+    phienBan: 8,
+    sql: `
+      CREATE TABLE trang (
+        slug TEXT PRIMARY KEY,
+        tieu_de TEXT NOT NULL,
+        mo_ta TEXT NOT NULL DEFAULT '',
+        noi_dung TEXT NOT NULL DEFAULT '',
+        trang_thai TEXT NOT NULL DEFAULT 'nhap' CHECK (trang_thai IN ('nhap', 'da-dang')),
+        co_dinh INTEGER NOT NULL DEFAULT 0,
+        sua_luc INTEGER NOT NULL,
+        nguoi_sua_cuoi_id INTEGER,
+        phien_so INTEGER NOT NULL DEFAULT 1,
+        nhap_tu_luu TEXT
+      );
+      -- Ba trang cố định giữ URL cũ, có sẵn nội dung mặc định (chủ blog sửa lại cho đúng thực tế).
+      INSERT INTO trang (slug, tieu_de, mo_ta, noi_dung, trang_thai, co_dinh, sua_luc) VALUES
+        ('gioi-thieu', 'Giới thiệu', 'Nhật ký du lịch thật của một gia đình nhỏ và gợi ý cho các gia đình có bé nhỏ.',
+         'VNTravelTips là nhật ký du lịch của một gia đình nhỏ có con nhỏ. Mỗi bài đặt thông tin tiện lợi lên trước — đi có tiện không, tốn bao nhiêu, cần lưu ý gì với bé — rồi mới kể chuyện.' || char(10) || char(10) || 'Mọi trải nghiệm trong blog đều do gia đình tự đi và tự trả tiền, trừ khi bài có ghi nhãn “Bài hợp tác”.',
+         'da-dang', 1, 0),
+        ('chinh-sach-lien-ket', 'Chính sách liên kết', 'Cách VNTravelTips sử dụng liên kết giới thiệu (affiliate) và nhận hoa hồng.',
+         'Một số bài có liên kết giới thiệu tới Agoda, Klook, Traveloka, Booking hoặc Shopee. Nếu bạn đặt dịch vụ qua các liên kết này, VNTravelTips có thể nhận một khoản hoa hồng nhỏ, bạn không phải trả thêm đồng nào.' || char(10) || char(10) || 'Hoa hồng không ảnh hưởng đến nhận xét: chúng tôi chỉ giới thiệu nơi gia đình đã thật sự trải nghiệm.',
+         'da-dang', 1, 0),
+        ('lien-he', 'Liên hệ', 'Cách liên hệ với VNTravelTips.',
+         'Bạn có thắc mắc, góp ý hoặc muốn hợp tác? Hãy nhắn cho chúng tôi qua các trang mạng xã hội ở chân trang. Chúng tôi đọc mọi tin nhắn và trả lời sớm nhất có thể.',
+         'da-dang', 1, 0);
+      -- Lịch sử phiên bản dùng chung cho bài và trang tĩnh: bai_id cho phép rỗng, trang_slug cho trang.
+      CREATE TABLE phien_ban_moi (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bai_id INTEGER REFERENCES bai(id) ON DELETE CASCADE,
+        trang_slug TEXT,
+        ngon_ngu TEXT NOT NULL,
+        nguoi_dung_id INTEGER,
+        luc INTEGER NOT NULL,
+        du_lieu TEXT NOT NULL,
+        noi_dung TEXT NOT NULL
+      );
+      INSERT INTO phien_ban_moi (id, bai_id, ngon_ngu, nguoi_dung_id, luc, du_lieu, noi_dung)
+        SELECT id, bai_id, ngon_ngu, nguoi_dung_id, luc, du_lieu, noi_dung FROM phien_ban;
+      DROP TABLE phien_ban;
+      ALTER TABLE phien_ban_moi RENAME TO phien_ban;
+    `,
+  },
 ];

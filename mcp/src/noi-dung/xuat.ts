@@ -1,7 +1,7 @@
 // Xuất nội dung từ DB ra file đúng định dạng cũ (bai-viet/*.md, tinh/*.md, redirects.json) để Astro build đọc qua NOI_DUNG_DIR.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { urlBai, urlChuyenMuc, urlTinh } from '@vntraveltips/schema';
+import { urlBai, urlChuyenMuc, urlTinh, urlTrang } from '@vntraveltips/schema';
 import { stringify } from 'yaml';
 import { serializeBai } from '../bai/serialize';
 import type { Db } from '../db/ket-noi';
@@ -31,6 +31,15 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
     writeFileSync(join(dich, 'tinh', `${r.slug}.md`), `---\n${stringify(JSON.parse(r.du_lieu), { lineWidth: 0 })}---\n`);
   }
 
+  // Trang tĩnh: bản đã đăng (và cả nháp ở preview) → trang/<slug>.md với frontmatter tieuDe, moTa. Trang nháp không có ở production.
+  mkdirSync(join(dich, 'trang'), { recursive: true });
+  const trangXuat = (db.prepare("SELECT slug, tieu_de, mo_ta, noi_dung, trang_thai FROM trang ORDER BY slug").all() as { slug: string; tieu_de: string; mo_ta: string; noi_dung: string; trang_thai: string }[]).filter(
+    (t) => t.tieu_de.trim() && (target === 'preview' || t.trang_thai === 'da-dang'),
+  );
+  for (const t of trangXuat) {
+    writeFileSync(join(dich, 'trang', `${t.slug}.md`), `---\n${stringify({ tieuDe: t.tieu_de, moTa: t.mo_ta }, { lineWidth: 0 })}---\n\n${t.noi_dung}\n`);
+  }
+
   // Cài đặt site: chỉ ghi khi đã có (server khởi tạo lần đầu từ env); thiếu thì site dùng mặc định + env.
   const caiDat = docCaiDat(db, 'site');
   if (caiDat) writeFileSync(join(dich, 'cai-dat.json'), JSON.stringify(caiDat, null, 2) + '\n');
@@ -45,8 +54,9 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
   const urlHub = [
     ...new Set(bai.flatMap((b) => b.bai.chuyenMuc ?? [])).values(),
   ].map(urlChuyenMuc).concat((db.prepare('SELECT slug FROM tinh').all() as { slug: string }[]).map((t) => urlTinh(t.slug)));
-  const urlDaDang = new Set([...bai.filter((b) => b.trangThai === 'da-dang').map((b) => urlBai(b.bai)), ...urlHub]);
-  const urlTatCa = new Set([...bai.map((b) => urlBai(b.bai)), ...urlHub]);
+  const urlTrangXuat = trangXuat.map((t) => urlTrang(t.slug));
+  const urlDaDang = new Set([...bai.filter((b) => b.trangThai === 'da-dang').map((b) => urlBai(b.bai)), ...urlHub, ...urlTrangXuat]);
+  const urlTatCa = new Set([...bai.map((b) => urlBai(b.bai)), ...urlHub, ...urlTrangXuat]);
   writeFileSync(
     join(dich, 'chuyen-muc.json'),
     JSON.stringify(

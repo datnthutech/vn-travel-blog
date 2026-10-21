@@ -1,0 +1,14 @@
+---
+// Giao diện chung của một trang tĩnh: tiêu đề + nội dung Markdown.
+import { render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import type { TrangTinh } from '../lib/trang';
+interface Props { trang: TrangTinh }
+const { trang } = Astro.props;
+const { Content } = await render(trang.entry);
+---
+
+<Base title={`${trang.tieuDe} — VNTravelTips`} moTa={trang.moTa || undefined}>
+  <h1>{trang.tieuDe}</h1>
+  <div class="noi-dung"><Content /></div>
+</Base>

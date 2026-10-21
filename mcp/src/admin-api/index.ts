@@ -12,6 +12,7 @@ import { chuyenMucRouter } from './chuyen-muc';
 import { tinhRouter } from './tinh-tag';
 import { menuRouter } from './menu';
 import { caiDatRouter } from './cai-dat';
+import { trangRouter } from './trang';
 import { haiLopRouter } from './hai-lop';
 import { buildRouter } from './build';
 import { mailRouter } from './mail';
@@ -45,6 +46,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(xacThucDaDangNhap(d));
   r.use(haiLopRouter(d));
   r.use(baiRouter({ config: d.config, db: d.db, now: d.now, hangDoi: deps.hangDoi }));
+  r.use(trangRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(caiDatRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(menuRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(tinhRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));

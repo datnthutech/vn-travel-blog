@@ -230,4 +230,17 @@ describe('build với NOI_DUNG_DIR', () => {
     expect(trang(prevChan)[0]).not.toContain('goatcounter'); // preview không đếm lượt xem
     expect(trang(prodChan)[0]).toContain('Blog Thử'); // tên site lấy từ Cài đặt
   }, 360_000);
+
+  it('trang tĩnh: sửa gioi-thieu có nội dung mới; trang tự tạo ở /trang/<slug>/ (nháp chỉ ở preview); trang không có file thì dùng mẫu', () => {
+    const nd = taoThuMuc((_f, t) => t);
+    writeFileSync(join(nd, 'trang/gioi-thieu.md'), '---\ntieuDe: Về chúng tôi\nmoTa: Mô tả mới\n---\n\nNội dung giới thiệu **mới tinh**.\n');
+    writeFileSync(join(nd, 'trang/hop-tac.md'), '---\ntieuDe: Hợp tác\nmoTa: ""\n---\n\nChúng tôi nhận hợp tác.\n');
+    const prod = buildPreview(nd, 'production');
+    const gt = readFileSync(join(prod, 'gioi-thieu/index.html'), 'utf8');
+    expect(gt).toContain('Về chúng tôi');
+    expect(gt).toContain('<strong>mới tinh</strong>');
+    expect(readFileSync(join(prod, 'trang/hop-tac/index.html'), 'utf8')).toContain('Chúng tôi nhận hợp tác.');
+    expect(existsSync(join(prod, 'lien-he/index.html'))).toBe(true);
+    expect(existsSync(join(prod, 'chinh-sach-lien-ket/index.html'))).toBe(true);
+  }, 240_000);
 });

@@ -4,7 +4,8 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { kiemTraRedirects, urlChuyenMuc, urlTinh, type Redirect } from '@vntraveltips/schema';
+import { kiemTraRedirects, urlChuyenMuc, urlTinh, urlTrang, type Redirect } from '@vntraveltips/schema';
+import { layTrang } from '../lib/trang';
 import { layChuyenMuc } from '../lib/chuyen-muc';
 import { layBaiViet, layTinh } from '../lib/bai';
 
@@ -19,6 +20,7 @@ export async function GET() {
   const urlKhac = [
     ...layChuyenMuc().filter((c) => tatCa.some((b) => b.chuyenMuc.includes(c.slug))).map((c) => urlChuyenMuc(c.slug)),
     ...(await layTinh()).map((t) => urlTinh(t.slug)),
+    ...(await layTrang()).map((t) => urlTrang(t.slug)),
   ];
   return new Response(JSON.stringify(kiemTraRedirects(daDang, redirects, urlKhac)) + '\n', {
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
