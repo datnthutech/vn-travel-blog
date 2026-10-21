@@ -16,7 +16,7 @@ Thêm hai bản ghi A cùng trỏ về IP VPS:
 **OAuth App** (Settings → Developer settings → OAuth Apps → New OAuth App):
 - Homepage URL: `https://vntraveltips.monai.click`
 - Authorization callback URL: `https://vntraveltips.monai.click/oauth/`
-  (OAuth App chỉ cho một callback, nhưng GitHub chấp nhận mọi đường dẫn con của nó — nên một URL này dùng được cho cả đăng nhập MCP `/oauth/github/callback` lẫn `/admin` `/oauth/cms/callback`.)
+  (OAuth App hiện chỉ dùng cho đăng nhập MCP `/oauth/github/callback`, sẽ bỏ ở giai đoạn 8. Trang quản trị `/quan-tri/` KHÔNG dùng GitHub: có tài khoản riêng, tạo bằng CLI ở mục 5b.)
 - Sau khi tạo, lấy **Client ID** và tạo **Client secret**. Lấy cả hai ở bước 4.
 
 **Fine-grained token** (Settings → Developer settings → Fine-grained tokens):
@@ -85,9 +85,22 @@ curl -s http://127.0.0.1:8091/healthz     # → {"ok":true}
 docker stats --no-stream vntraveltips-mcp  # RAM dưới 768 MiB
 ```
 
+## 5b. Tạo quản trị đầu tiên, sao lưu và khôi phục
+
+```bash
+docker exec -it vntraveltips-mcp npm run cli -w @vntraveltips/mcp -- tao-quan-tri --email ban@example.com --ten "Tên bạn"
+```
+
+Mật khẩu (≥ 12 ký tự) được hỏi qua bàn phím, không đưa vào tham số. Đăng nhập tại `https://vntraveltips.monai.click/quan-tri/`, bắt buộc bật xác thực 2 lớp. Nội dung nằm trong SQLite (`/data/db`), tự sao lưu mỗi giờ vào `/data/db/sao-luu/`. Khôi phục:
+
+```bash
+docker exec -it vntraveltips-mcp npm run cli -w @vntraveltips/mcp -- khoi-phuc --file /data/db/sao-luu/<file>   # gõ KHOI-PHUC
+docker compose -p vntraveltips -f deploy/docker-compose.yml restart vntraveltips-mcp
+```
+
 ## 6. nginx trên host (tự cấu hình)
 
-Mẫu nằm ở `deploy/nginx-host.conf.example`. Mẫu này **chỉ proxy**, không phục vụ file tĩnh.
+Mẫu nằm ở `deploy/nginx-host.conf.example`. Mẫu này **chỉ proxy**, không phục vụ file tĩnh. Mẫu có `location /quan-tri/` và `location /api/` trỏ tới cổng 8091 (trang quản trị) — nếu bạn đã có file cũ, hãy thêm hai khối đó rồi `nginx -t`.
 
 ```bash
 sudo cp deploy/nginx-host.conf.example /etc/nginx/sites-available/vntraveltips
@@ -113,9 +126,9 @@ git pull
 
 Khi `.env` không đổi, chạy lại `deploy.sh` là đủ. Nếu `package-lock.json` đổi, container tự `npm ci` khi build.
 
-## 9. Sao lưu ảnh
+## 9. Sao lưu ảnh và cơ sở dữ liệu
 
-Bật cron sao lưu ảnh ra ngoài VPS theo [deploy/backup/README.md](backup/README.md).
+Bật cron sao lưu ảnh và bản sao lưu DB ra ngoài VPS theo [deploy/backup/README.md](backup/README.md).
 
 ## 10. Gỡ ra
 

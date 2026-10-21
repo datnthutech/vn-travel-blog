@@ -62,7 +62,7 @@ docker exec -it vntraveltips-mcp npm run cli -w @vntraveltips/mcp -- tao-quan-tr
 
 Quên mật khẩu: dùng liên kết "Quên mật khẩu?" ở trang đăng nhập (cần cấu hình mail trong *Cài đặt mail*) hoặc `... -- dat-lai-mat-khau --email ban@example.com`. Nội dung bài nằm trong SQLite; dịch vụ tự sao lưu mỗi giờ (xem `deploy/backup/README.md` để khôi phục).
 
-**Sửa nhanh bài đã có — `/admin` (cũ, sẽ được thay):** mở https://vntraveltips.monai.click/admin, đăng nhập GitHub (đúng tài khoản được phép). Sửa xong lưu là commit thẳng vào `main`; build chạy lại trong container, kiểm tra luật dữ liệu, lỗi thì site giữ bản cũ. `/admin` **không tạo bài mới** và **không đổi trạng thái đăng** — hai việc đó đi qua Claude. Nút "📷 Tải ảnh" ở góc phải dưới mở trang tải ảnh.
+**`/admin` cũ (Sveltia) đã gỡ:** đường dẫn này nay chuyển 301 sang `/quan-tri/`. Trong lúc chuyển đổi, các tool ghi bài của Claude (`tao_ban_nhap`, `sua_bai`, `dang_bai`, `go_bai`) tạm khoá; giao diện viết bài và nút "Tải ảnh" mới sẽ có ở các giai đoạn sau (trang tải ảnh `/tai-anh/` vẫn dùng được qua `tao_link_tai_anh`).
 
 Ảnh trong thân bài viết là `![mô tả ảnh](anh:MÃ_ẢNH)` (mã lấy từ `liet_ke_anh`); alt không được để trống.
 
@@ -72,7 +72,7 @@ claude.ai → Settings → **Connectors** → Add custom connector → URL `http
 
 ## Webhook GitHub
 
-Khi bạn sửa bài qua `/admin` (commit thẳng vào `main`), container mcp cần biết để build lại. Đăng ký webhook trong repo:
+Khi bạn đẩy code site lên `main` trên GitHub, container mcp cần biết để build lại. Đăng ký webhook trong repo:
 
 1. Repo → Settings → Webhooks → **Add webhook**.
 2. Payload URL: `https://vntraveltips.monai.click/webhook/github`
@@ -80,7 +80,7 @@ Khi bạn sửa bài qua `/admin` (commit thẳng vào `main`), container mcp c�
 4. Secret: đúng giá trị `GITHUB_WEBHOOK_SECRET` trong `deploy/.env` trên VPS.
 5. Events: chỉ chọn **Just the push event**.
 
-Webhook sai chữ ký hoặc không phải push vào `main` đều bị bỏ qua, không build. Mọi lần ghi qua MCP đã tự báo build, nên webhook chỉ cần cho `/admin`.
+Webhook sai chữ ký hoặc không phải push vào `main` đều bị bỏ qua, không build. Mọi lần ghi qua MCP đã tự báo build, nên webhook chỉ cần khi bạn đẩy code site.
 
 ## Triển khai và vận hành
 
@@ -88,7 +88,7 @@ Webhook sai chữ ký hoặc không phải push vào `main` đều bị bỏ qua
 - Cổng đang dùng: `vntraveltips-web` ở `127.0.0.1:8090`, `vntraveltips-mcp` ở `127.0.0.1:8091`. Không dùng cổng nào khác.
 - **Mở cho Google lập chỉ mục** (mặc định site đang chặn bằng `NOINDEX_ALL=true`): trong `deploy/.env` đặt `NOINDEX_ALL=false` rồi chạy lại `./deploy.sh`. Compose thấy `.env` đổi nên tạo lại container mcp, và mỗi lần khởi động mcp tự build lại site với cấu hình mới (site vẫn phục vụ bản cũ trong lúc build; theo dõi `docker logs -f vntraveltips-mcp`). **Đừng** dùng `docker restart` — lệnh đó không đọc lại `.env`. Sau đó gửi `https://vntraveltips.monai.click/sitemap-index.xml` lên Google Search Console.
 - **Đếm lượt xem không cookie:** tạo site miễn phí ở goatcounter.com, rồi đặt `GOATCOUNTER_CODE` = tên site trong `deploy/.env` rồi chạy lại `./deploy.sh` (chỉ có script ở bản production). Để trống thì không có script bên thứ ba nào.
-- **Bảo mật `/admin` và script bên thứ ba:** khi đăng nhập `/admin`, token GitHub của bạn (quyền `repo`) được Sveltia lưu trong `localStorage` của trang `vntraveltips.monai.click` — cùng origin với mọi bài viết. Nếu bật GoatCounter hoặc AdSense thì script của họ cũng chạy trên origin này và về nguyên tắc đọc được `localStorage`. Vì vậy: chỉ đăng nhập `/admin` khi cần sửa, **đăng xuất (hoặc xoá dữ liệu trang) ngay sau khi dùng**, dùng trình duyệt riêng/ẩn danh nếu có thể; và cân nhắc kỹ trước khi bật AdSense.
+- **Bảo mật trang quản trị và script bên thứ ba:** phiên đăng nhập `/quan-tri/` dùng cookie `HttpOnly` (không để trong `localStorage`) nên script GoatCounter/AdSense không đọc được; vẫn nên đăng xuất khi dùng máy lạ. Quản trị bắt buộc bật 2FA; sai mật khẩu 5 lần thì IP bị chặn 15 phút (tăng dần).
 - **Redirect khi đổi tỉnh của bài đã đăng:** làm qua Claude (`sua_bai`), nó tự thêm vào `site/redirects.json`. Build sinh redirect đã kiểm tra, và container web chuyển URL cũ sang dịch vụ MCP, nên không cần reload nginx.
 - **Affiliate:** link đặt phòng (`linkDat`) và đồ cho bé (`doMangChoBe[].link`) tự có `rel="sponsored nofollow noopener"` và dòng tiết lộ dẫn tới `/chinh-sach-lien-ket/`.
 - **Quảng cáo:** tắt mặc định. Bật sau khi có AdSense: sửa [site/src/config/ads.ts](site/src/config/ads.ts) (`enabled`, `client`, `slots`). Mỗi ô giữ sẵn chiều cao; script tải chậm.
