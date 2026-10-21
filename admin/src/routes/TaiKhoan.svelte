@@ -22,6 +22,7 @@
       await tai();
     } catch (e) {
       loi = thongBaoLoi(e);
+      await tai().catch(() => {}); // đồng bộ lại để ô chọn vai trò không hiện giá trị chưa được lưu
     }
   }
   const moi = (e: SubmitEvent) => {

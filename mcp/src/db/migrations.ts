@@ -272,4 +272,12 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX loi_moi_email ON loi_moi(email);
     `,
   },
+  {
+    phienBan: 11,
+    sql: `
+      ALTER TABLE mail_hang_doi ADD COLUMN nhay_cam INTEGER NOT NULL DEFAULT 0; -- 1 = chứa liên kết có hiệu lực (đặt lại mật khẩu, lời mời): xoá nội dung sau khi gửi
+      CREATE INDEX loi_moi_nguoi_moi ON loi_moi(nguoi_moi_id, tao_luc);
+      CREATE INDEX nhat_ky_nguoi_loai ON nhat_ky(nguoi_dung_id, loai, luc);
+    `,
+  },
 ];

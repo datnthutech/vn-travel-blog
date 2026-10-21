@@ -58,7 +58,7 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('POST', '/anh', 'anh.tai-len'),
   L('GET', '/anh', 'chi-dang-nhap'),
   L('GET', '/o-dia', 'chi-dang-nhap'),
-  L('PATCH', '/anh/:ma', 'anh.tai-len'),
+  L('PATCH', '/anh/:ma', 'anh.xoa'), // sửa alt mặc định: cùng luật sở hữu với xoá ảnh
   L('GET', '/anh/:ma/dung-o', 'chi-dang-nhap'),
   L('DELETE', '/anh/:ma', 'anh.xoa'),
   // Cấu trúc site: người dùng nào cũng ĐỌC được (cần cho trình soạn bài), chỉ quản lý trở lên mới SỬA

@@ -1,7 +1,7 @@
 // Mời người dùng qua email và quản lý tài khoản. Lời mời: token 32 byte (DB chỉ lưu băm), sống 48 giờ, dùng một lần,
 // tối đa 5 lời mời/giờ/người mời. Người nhận lời mời tự đặt tên + mật khẩu (≥ 12 ký tự), tài khoản `quan-tri` bị bắt bật 2FA ngay.
 import { randomBytes } from 'node:crypto';
-import { CAC_VAI_TRO, type VaiTro } from '@vntraveltips/schema';
+import { CAC_VAI_TRO, coQuyen, type VaiTro } from '@vntraveltips/schema';
 import { Router } from 'express';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
@@ -21,10 +21,13 @@ const escHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<'
 
 interface Deps { config: Config; db: Db; mail: DichVuMail; now: () => number }
 
-interface LoiMoi { email: string; vai_tro: VaiTro; het_han_luc: number; da_dung: number }
+interface LoiMoi { email: string; vai_tro: VaiTro; het_han_luc: number; da_dung: number; nguoi_moi_id: number }
+/** Lời mời còn dùng được: chưa dùng, chưa hết hạn VÀ người mời còn hoạt động với quyền mời (bị khoá/hạ vai trò thì lời mời chưa dùng của họ vô hiệu). */
 function docLoiMoi(db: Db, token: string, now: number): LoiMoi | null {
-  const r = db.prepare('SELECT email, vai_tro, het_han_luc, da_dung FROM loi_moi WHERE token_bam = ?').get(bamToken(token)) as LoiMoi | undefined;
-  return r && r.da_dung === 0 && r.het_han_luc >= now ? r : null;
+  const r = db.prepare('SELECT email, vai_tro, het_han_luc, da_dung, nguoi_moi_id FROM loi_moi WHERE token_bam = ?').get(bamToken(token)) as LoiMoi | undefined;
+  if (!r || r.da_dung !== 0 || r.het_han_luc < now) return null;
+  const nguoiMoi = timTheoId(db, r.nguoi_moi_id);
+  return nguoiMoi && !nguoiMoi.biKhoa && coQuyen(nguoiMoi, 'tai-khoan.quan-ly') ? r : null;
 }
 
 /** Route công khai (chưa đăng nhập): xem và nhận lời mời. */
@@ -50,7 +53,13 @@ export function loiMoiCongKhaiRouter(d: Deps): Router {
     if (d.db.prepare('UPDATE loi_moi SET da_dung = 1 WHERE token_bam = ? AND da_dung = 0').run(bamToken(token)).changes === 0) {
       return void res.status(410).json({ loi: 'Lời mời không hợp lệ hoặc đã hết hạn' });
     }
-    const u = await taoNguoiDung(d.db, { email: m.email, ten, vaiTro: m.vai_tro, matKhau }, d.now);
+    let u;
+    try {
+      u = await taoNguoiDung(d.db, { email: m.email, ten, vaiTro: m.vai_tro, matKhau }, d.now);
+    } catch (e) {
+      d.db.prepare('UPDATE loi_moi SET da_dung = 0 WHERE token_bam = ?').run(bamToken(token)); // tạo thất bại: trả lại lời mời để thử lại
+      throw e;
+    }
     const tokenPhien = taoPhien(d.db, u.id, { ghiNho: false, ip: req.ip, thietBi: req.get('user-agent') ?? '' }, d.now);
     datCookiePhien(res, d.config, tokenPhien, false);
     ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'nhan-loi-moi', ip: req.ip, chiTiet: { vaiTro: u.vaiTro } }, d.now);
@@ -66,13 +75,13 @@ export function taiKhoanRouter(d: Deps): Router {
 
   r.post('/tai-khoan/moi', yeuCauQuyen('tai-khoan.quan-ly'), (req, res) => {
     const { email, vaiTro } = (req.body ?? {}) as { email?: unknown; vaiTro?: unknown };
-    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return void res.status(400).json({ loi: 'Email không hợp lệ' });
+    const den = typeof email === 'string' ? email.trim() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(den)) return void res.status(400).json({ loi: 'Email không hợp lệ' });
     if (typeof vaiTro !== 'string' || !CAC_VAI_TRO.includes(vaiTro as VaiTro)) return void res.status(400).json({ loi: 'Vai trò phải là quan-tri, quan-ly hoặc writer' });
     const nguoiMoi = req.nguoiDung!;
     const dem = (d.db.prepare('SELECT count(*) AS n FROM loi_moi WHERE nguoi_moi_id = ? AND tao_luc > ?').get(nguoiMoi.id, d.now() - GIO) as { n: number }).n;
     if (dem >= TOI_DA_MOI_GIO) return void res.status(429).json({ loi: `Mỗi giờ chỉ mời được tối đa ${TOI_DA_MOI_GIO} người. Hãy thử lại sau.` });
-    if (timTheoEmail(d.db, email)) return void res.status(409).json({ loi: 'Email này đã có tài khoản' });
-    const den = email.trim();
+    if (timTheoEmail(d.db, den)) return void res.status(409).json({ loi: 'Email này đã có tài khoản' });
     const token = randomBytes(32).toString('base64url');
     d.db.transaction(() => {
       d.db.prepare('UPDATE loi_moi SET da_dung = 1 WHERE email = ? COLLATE NOCASE AND da_dung = 0').run(den); // mời lại → lời mời cũ vô hiệu
@@ -81,6 +90,7 @@ export function taiKhoanRouter(d: Deps): Router {
     const link = `${d.config.publicBaseUrl}/quan-tri/nhan-loi-moi?token=${token}`;
     d.mail.gui({
       loai: 'quan-trong',
+      nhayCam: true,
       den,
       tieuDe: 'Lời mời tham gia quản trị VNTravelTips',
       text: `${nguoiMoi.ten} mời bạn tham gia trang quản trị VNTravelTips với vai trò ${TEN_VAI_TRO[vaiTro as VaiTro]}.\n\nMở liên kết sau để đặt tên và mật khẩu (hiệu lực 48 giờ, dùng một lần):\n${link}`,

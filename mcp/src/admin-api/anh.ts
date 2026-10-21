@@ -147,7 +147,12 @@ export function anhRouter(d: DepsAnh): Router {
 
   const layMa = (ma: string): string | null => (MA_ANH.test(ma) ? ma : null);
 
-  r.patch('/anh/:ma', yeuCauQuyen('anh.tai-len'), (req, res) => {
+  // Writer chỉ xoá được ảnh do chính mình tải lên (nguoi_dung_id); ảnh cũ không rõ người tải thì chỉ quản trị/quản lý xoá.
+  const chuAnh = (req: import('express').Request) => {
+    const r = d.db.prepare('SELECT nguoi_dung_id FROM anh WHERE ma = ?').get(String(req.params.ma)) as { nguoi_dung_id: number | null } | undefined;
+    return r ? { tacGiaId: r.nguoi_dung_id } : ('khong-ton-tai' as const);
+  };
+  r.patch('/anh/:ma', yeuCauQuyen('anh.xoa', chuAnh), (req, res) => {
     const ma = layMa(String(req.params.ma));
     const alt = (req.body as { altMacDinh?: unknown } | undefined)?.altMacDinh;
     if (typeof alt !== 'string' || alt.length > 300) return void res.status(400).json({ loi: 'altMacDinh phải là chuỗi (tối đa 300 ký tự)' });
@@ -162,10 +167,6 @@ export function anhRouter(d: DepsAnh): Router {
     res.json({ bai: tieuDeBai(dung.bai.get(ma) ?? []), tinh: dung.tinh.get(ma) ?? [] });
   });
 
-  // Writer chỉ xoá được ảnh do chính mình tải lên (nguoi_dung_id); ảnh cũ không rõ người tải thì chỉ quản trị/quản lý xoá.
-  const chuAnh = (req: import('express').Request) => ({
-    tacGiaId: (d.db.prepare('SELECT nguoi_dung_id FROM anh WHERE ma = ?').get(String(req.params.ma)) as { nguoi_dung_id: number | null } | undefined)?.nguoi_dung_id ?? null,
-  });
   r.delete('/anh/:ma', yeuCauQuyen('anh.xoa', chuAnh), async (req, res) => {
     const ma = layMa(String(req.params.ma));
     if (!ma || !d.db.prepare('SELECT 1 FROM anh WHERE ma = ?').get(ma)) return void res.status(404).json({ loi: 'Không tìm thấy ảnh' });

@@ -30,7 +30,7 @@
   let thungRac = $state(false);
   // Người viết mở bài của người khác: chỉ xem (server vẫn chặn mọi thao tác ghi bằng 403).
   let tacGia = $state<{ id: number; ten: string } | null>(null);
-  let chiXem = $derived(id !== null && tacGia !== null && phien.nguoiDung !== null && !coQuyen(phien.nguoiDung, 'bai.sua', { tacGiaId: tacGia.id }));
+  let chiXem = $derived(id !== null && daTai && phien.nguoiDung !== null && !coQuyen(phien.nguoiDung, 'bai.sua', { tacGiaId: tacGia?.id ?? null })); // bài không rõ tác giả: writer chỉ xem (khớp máy chủ)
   let phienSo = $state(1);
   let tinhDs = $state<{ slug: string; ten: string }[]>([]);
   let chuyenMucDs = $state<{ slug: string; ten: string }[]>([]);

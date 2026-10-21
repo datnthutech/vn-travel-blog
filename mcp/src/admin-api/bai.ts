@@ -39,9 +39,10 @@ export function idTuUrl(v: string): number {
 export function baiRouter(d: DepsBai): Router {
   const r = Router();
   // Chủ sở hữu bài (tác giả) lấy từ DB theo :id — writer chỉ sửa/đăng/xoá được bài của chính mình.
-  const chuBai = (req: Request) => ({
-    tacGiaId: (d.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(idTuUrl(String(req.params.id))) as { tac_gia_id: number | null } | undefined)?.tac_gia_id ?? null,
-  });
+  const chuBai = (req: Request) => {
+    const r = d.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(idTuUrl(String(req.params.id))) as { tac_gia_id: number | null } | undefined;
+    return r ? { tacGiaId: r.tac_gia_id } : ('khong-ton-tai' as const); // bài không có → route trả 404 (không phải 403)
+  };
 
   /** Lấy bài theo :id; trả null (đã trả 404) nếu không có. */
   const layBai = (req: Request, res: Response): BaiDoc | null => {

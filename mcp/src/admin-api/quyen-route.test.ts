@@ -10,6 +10,15 @@ type Moi = Awaited<ReturnType<typeof dungAdmin>>;
 let m: Moi;
 let vaiTro: Record<VaiTro, PhienThu>;
 let baiId: number;
+let maAnh: string;
+
+let dem = 0;
+/** Ảnh MỚI của quản trị cho mỗi lần gọi (vì route DELETE ảnh xoá mất ảnh dùng làm mẫu). */
+async function taoAnhQuanTri(): Promise<string> {
+  const sharp = (await import('sharp')).default;
+  const jpeg = await sharp({ create: { width: 30, height: 30, channels: 3, background: { r: ++dem % 255, g: 20, b: 40 } } }).jpeg().toBuffer();
+  return (await m.chinh.gui('post', '/anh').attach('files', jpeg, 'q.jpg')).body.ok[0].ma;
+}
 
 beforeAll(async () => {
   m = await dungAdmin();
@@ -20,6 +29,7 @@ beforeAll(async () => {
     writer: await m.dangNhap('w@x.vn', 'Writer', 'writer'),
   };
   baiId = (await m.chinh.gui('post', '/bai', { bai: baiDayDu('bai-cua-quan-tri'), noiDung: 'x' })).body.id; // bài của quản trị
+  maAnh = await taoAnhQuanTri();
 });
 
 describe('(a) mọi route đều được khai báo quyền', () => {
@@ -40,7 +50,7 @@ describe('(a) mọi route đều được khai báo quyền', () => {
 });
 
 const dienDuongDan = (duongDan: string): string =>
-  duongDan.replace(':id', duongDan.startsWith('/bai') ? String(baiId) : '999').replace(':pid', '999').replace(':slug', 'khong-co').replace(':ma', 'khongco');
+  duongDan.replace(':id', duongDan.startsWith('/bai') ? String(baiId) : '999').replace(':pid', '999').replace(':slug', 'khong-co').replace(':ma', maAnh);
 
 const kiemTuDong = QUYEN_ROUTE.filter((x) => x.hanhDong !== 'cong-khai' && !x.doiPhien);
 
@@ -51,6 +61,7 @@ describe('(b) từng route × từng vai trò', () => {
         const phien = vaiTro[vt];
         // Chủ sở hữu giả định là QUẢN TRỊ (bài/ảnh của người khác đối với writer).
         const duocPhep = x.hanhDong === 'chi-dang-nhap' || x.hanhDong === 'cong-khai' || coQuyen({ id: phien.nguoi.id, vaiTro: vt }, x.hanhDong, { tacGiaId: vaiTro['quan-tri'].nguoi.id });
+        if (x.duongDan.includes(':ma')) maAnh = await taoAnhQuanTri();
         const r = await phien.gui(x.phuongThuc.toLowerCase() as 'get', dienDuongDan(x.duongDan), x.phuongThuc === 'GET' ? undefined : {});
         if (duocPhep) {
           expect(r.status, `${vt} được phép nhưng nhận ${r.status}: ${JSON.stringify(r.body).slice(0, 120)}`).not.toBe(403);

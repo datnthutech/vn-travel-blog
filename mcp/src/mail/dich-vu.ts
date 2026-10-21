@@ -19,6 +19,8 @@ export interface MailGui {
   html: string;
   text: string;
   headers?: Record<string, string>;
+  /** true = nội dung có liên kết còn hiệu lực (đặt lại mật khẩu, lời mời): sau khi gửi xong sẽ xoá html/text khỏi hàng đợi để DB/bản sao lưu bị lộ cũng không lộ liên kết. */
+  nhayCam?: boolean;
 }
 
 export interface Transport {
@@ -109,8 +111,8 @@ export function taoDichVuMail(
   return {
     gui(m) {
       return Number(
-        db.prepare('INSERT INTO mail_hang_doi (loai, den, tieu_de, html, text, headers, tao_luc) VALUES (?,?,?,?,?,?,?)').run(
-          m.loai, m.den, m.tieuDe, m.html, m.text, m.headers ? JSON.stringify(m.headers) : null, now(),
+        db.prepare('INSERT INTO mail_hang_doi (loai, den, tieu_de, html, text, headers, tao_luc, nhay_cam) VALUES (?,?,?,?,?,?,?,?)').run(
+          m.loai, m.den, m.tieuDe, m.html, m.text, m.headers ? JSON.stringify(m.headers) : null, now(), m.nhayCam ? 1 : 0,
         ).lastInsertRowid,
       );
     },
@@ -136,7 +138,7 @@ export function taoDichVuMail(
           }
           ghiThanhCong(ncc);
           tangDem(ncc.id);
-          db.prepare("UPDATE mail_hang_doi SET trang_thai = 'da-gui', loi_cuoi = NULL WHERE id = ?").run(r.id);
+          db.prepare("UPDATE mail_hang_doi SET trang_thai = 'da-gui', loi_cuoi = NULL, html = CASE WHEN nhay_cam = 1 THEN '' ELSE html END, text = CASE WHEN nhay_cam = 1 THEN '' ELSE text END WHERE id = ?").run(r.id);
           nhatKy({ mailId: r.id, nccId: ncc.id, den: r.den, loai: r.loai, ketQua: 'ok' });
           if (chinh && ncc.id !== chinh.id) {
             nhatKy({ mailId: r.id, nccId: ncc.id, den: r.den, loai: r.loai, ketQua: 'chuyen-nha-cung-cap', loi: `Chuyển từ ${chinh.ten} sang ${ncc.ten}` });

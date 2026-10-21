@@ -105,6 +105,7 @@ export function xacThucCongKhai(d: DepsXacThuc): Router {
       const link = `${d.config.publicBaseUrl}/quan-tri/dat-lai?token=${token}`;
       d.mail.gui({
         loai: 'quan-trong',
+        nhayCam: true,
         den: u.email,
         tieuDe: 'Đặt lại mật khẩu VNTravelTips',
         text: `Xin chào ${u.ten},\n\nMở liên kết sau để đặt lại mật khẩu (có hiệu lực 1 giờ, dùng một lần):\n${link}\n\nNếu bạn không yêu cầu, hãy bỏ qua thư này.`,
