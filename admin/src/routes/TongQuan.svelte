@@ -1,5 +1,6 @@
 <!-- Bảng tổng quan: số bài theo trạng thái, build, sao lưu (trong/ngoài VPS), ổ đĩa, mail hôm nay. -->
 <script lang="ts">
+  import { coQuyen } from '@vntraveltips/schema';
   import { onMount } from 'svelte';
   import { goiApi } from '../lib/api';
   import { bamLienKet, GOC } from '../lib/dieu-huong.svelte';
@@ -17,12 +18,20 @@
   let loi = $state('');
   const gio = (ms: number) => new Date(ms).toLocaleString('vi-VN');
   const GB = (b: number) => `${(b / 1024 ** 3).toFixed(1)} GB`;
-  onMount(() => void goiApi<Tq>('GET', '/tong-quan').then((r) => (tq = r)).catch((e) => (loi = thongBaoLoi(e))));
+  // Bảng tổng quan (sao lưu, mail, build…) chỉ dành cho quản lý trở lên; người viết thấy lối tắt.
+  let xemDuoc = $derived(phien.nguoiDung !== null && coQuyen(phien.nguoiDung, 'cau-truc.sua'));
+  onMount(() => void (xemDuoc ? goiApi<Tq>('GET', '/tong-quan') : Promise.resolve(null))  .then((r) => (tq = r)).catch((e) => (loi = thongBaoLoi(e))));
 </script>
 
 <h1>Tổng quan</h1>
 {#if loi}<p class="thong-bao-loi" role="alert">{loi}</p>{/if}
 <p class="nhat">Xin chào <strong>{phien.nguoiDung?.ten}</strong> · {phien.nguoiDung?.email}</p>
+{#if !xemDuoc}
+  <section class="the">
+    <p>Tài khoản người viết: bạn viết, đăng và quản lý bài của chính mình.</p>
+    <div class="hang-nut"><a class="nut" href="{GOC}/bai/moi" onclick={bamLienKet}>＋ Viết bài mới</a><a class="nut" href="{GOC}/bai" onclick={bamLienKet}>Bài viết</a></div>
+  </section>
+{/if}
 {#if tq}
   {#if tq.saoLuu.canhBao}
     <p class="thong-bao-loi" role="alert">

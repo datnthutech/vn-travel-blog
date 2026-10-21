@@ -1,5 +1,6 @@
 <!-- Trang soạn bài: form có cấu trúc + trình soạn thảo thân bài + SEO + tự lưu + đăng/gỡ/hẹn giờ/thùng rác/nhân bản. -->
 <script lang="ts">
+  import { coQuyen } from '@vntraveltips/schema';
   import { onMount, untrack } from 'svelte';
   import { goiApi, LoiApi } from '../lib/api';
   import { di, GOC } from '../lib/dieu-huong.svelte';
@@ -27,6 +28,9 @@
   let trangThai = $state<'nhap' | 'da-dang' | 'hen-gio'>('nhap');
   let henGio = $state<string | undefined>();
   let thungRac = $state(false);
+  // Người viết mở bài của người khác: chỉ xem (server vẫn chặn mọi thao tác ghi bằng 403).
+  let tacGia = $state<{ id: number; ten: string } | null>(null);
+  let chiXem = $derived(id !== null && tacGia !== null && phien.nguoiDung !== null && !coQuyen(phien.nguoiDung, 'bai.sua', { tacGiaId: tacGia.id }));
   let phienSo = $state(1);
   let tinhDs = $state<{ slug: string; ten: string }[]>([]);
   let chuyenMucDs = $state<{ slug: string; ten: string }[]>([]);
@@ -81,6 +85,7 @@
     trangThai = r.trangThai as typeof trangThai;
     henGio = typeof r.henGio === 'number' ? new Date(r.henGio + 7 * 3600_000).toISOString().slice(0, 16) : undefined;
     thungRac = r.thungRac === true;
+    tacGia = (r.tacGia as { id: number; ten: string } | null) ?? null;
     phienSo = r.phienSo as number;
     const bt = r.banNhapTuLuu as { bai: Record<string, unknown>; noiDung: string } | undefined;
     banTuLuu = bt ? { bai: tuApi(bt.bai), noiDung: bt.noiDung } : null;
@@ -134,7 +139,7 @@
   // Mọi thay đổi → tự lưu (bỏ qua lần nạp ban đầu và khi đang khoá vì xung đột).
   $effect(() => {
     const dl = { bai: lamSach(bai), noiDung };
-    if (!daTai || khoiTao || khoaLuu || thungRac || JSON.stringify(dl) === moc) return;
+    if (!daTai || khoiTao || khoaLuu || thungRac || chiXem || JSON.stringify(dl) === moc) return;
     tuLuu.doi(dl);
   });
   // Đổi loại bài sang nhật ký/review thì mở sẵn khối Tra nhanh.
@@ -329,6 +334,8 @@
   {#if loiChung}<p class="thong-bao-loi" role="alert">{loiChung}</p>{/if}
   {#if thongBao}<p class="thong-bao-ok" role="status">{thongBao}</p>{/if}
 
+  {#if chiXem}<p class="thong-bao-loi" role="status">Bài của <strong>{tacGia?.ten ?? 'người khác'}</strong>: bạn chỉ xem được, không sửa được.</p>{/if}
+
   {#if banLocal}
     <div class="the" role="status">
       <p>Lần trước có thay đổi chưa lưu được lên máy chủ (mất mạng?). Khôi phục lại chúng?</p>
@@ -359,6 +366,7 @@
     <p class="thong-bao-loi">Đang giữ bản của bạn chưa lưu: hãy chép phần cần giữ, rồi <button type="button" class="phu" onclick={taiBanMoi}>Tải bản mới</button> để tiếp tục sửa (nút Lưu đang bị khoá để không ghi đè người khác).</p>
   {/if}
 
+  <fieldset class="khong-vien" disabled={chiXem}>
   <section class="the">
     <label for="tieu-de">Tiêu đề</label>
     <input id="tieu-de" type="text" bind:value={bai.tieuDe} disabled={thungRac} />
@@ -387,7 +395,7 @@
 
   <section class="the">
     <h2>Nội dung bài</h2>
-    <TrinhSoanThao bind:this={trinh} bind:markdown={noiDung} {anhBaseUrl} onChenAnh={taiAnhVaChen} disabled={thungRac} />
+    <TrinhSoanThao bind:this={trinh} bind:markdown={noiDung} {anhBaseUrl} onChenAnh={taiAnhVaChen} disabled={thungRac || chiXem} />
     {#each loiTruong._chung ?? [] as l}<p class="thong-bao-loi">{l}</p>{/each}
   </section>
 
@@ -396,11 +404,13 @@
   <Faq bind:ds={bai.faq} />
   <OSeo tieuDe={bai.tieuDe} bind:slug={bai.slug} bind:moTa={bai.moTa} tinh={bai.tinh} publicBaseUrl={anhBaseUrl} slugDaDang={trangThai === 'da-dang'} loi={loiTruong} />
 
+  </fieldset>
+
   {#if id !== null}
     <p class="nhat"><a href="{GOC}/bai/{id}/lich-su">Xem lịch sử phiên bản</a></p>
-    <NutTrangThai {trangThai} {henGio} {thungRac} {dangBan} tuLuu={tuLuuTT} {xemTruoc}
+    {#if !chiXem}<NutTrangThai {trangThai} {henGio} {thungRac} {dangBan} tuLuu={tuLuuTT} {xemTruoc}
       khiLuu={luu} khiXemTruoc={xemTruocBai} khiDang={dang} khiGo={go} khiHenGio={henGioDang} khiHuyHen={huyHen}
-      khiThungRac={thungRacBai} khiNhanBan={nhanBan} khiKhoiPhuc={khoiPhuc} />
+      khiThungRac={thungRacBai} khiNhanBan={nhanBan} khiKhoiPhuc={khoiPhuc} />{/if}
   {:else}
     <div class="hang-nut"><button type="button" onclick={luu} disabled={dangBan || !bai.tieuDe.trim()}>Lưu nháp</button></div>
     <p class="nhat">Bài sẽ tự lưu nháp sau khi bạn nhập tiêu đề.</p>
@@ -411,4 +421,5 @@
   .hop-xung-dot { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); z-index: 30; display: grid; place-items: center; padding: 16px; }
   .hop-xung-dot .the { max-width: 460px; }
   fieldset { border: 1px solid var(--vien); border-radius: 8px; margin: 12px 0; }
+  fieldset.khong-vien { border: 0; padding: 0; margin: 0; min-width: 0; }
 </style>

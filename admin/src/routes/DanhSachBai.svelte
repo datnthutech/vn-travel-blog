@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { goiApi } from '../lib/api';
   import { bamLienKet, GOC } from '../lib/dieu-huong.svelte';
-  import { thongBaoLoi } from '../lib/phien.svelte';
+  import { phien, thongBaoLoi } from '../lib/phien.svelte';
 
   interface Tom { id: number; tieuDe: string; slug: string; trangThai: 'nhap' | 'da-dang' | 'hen-gio'; henGio?: number; tinh?: string; tacGia: { ten: string } | null; nguoiSuaCuoi: { ten: string } | null; suaLuc: number }
   let ds = $state<Tom[]>([]);
@@ -12,6 +12,7 @@
   let q = $state('');
   let trangThai = $state('');
   let tinh = $state('');
+  let cuaToi = $state(false);
   let tinhDs = $state<{ slug: string; ten: string }[]>([]);
   let loi = $state('');
   let dangTai = $state(false);
@@ -30,6 +31,7 @@
       if (q.trim()) qs.set('q', q.trim());
       if (trangThai) qs.set('trangThai', trangThai);
       if (tinh) qs.set('tinh', tinh);
+      if (cuaToi && phien.nguoiDung) qs.set('tacGia', String(phien.nguoiDung.id));
       const r = await goiApi<{ bai: Tom[]; tong: number }>('GET', `/bai?${qs}`);
       if (luot !== seq) return;
       ds = r.bai;
@@ -60,6 +62,7 @@
 <div class="the">
   <label for="q">Tìm theo tiêu đề hoặc slug</label>
   <input id="q" type="text" bind:value={q} oninput={loc} />
+  <label class="hang-chon"><input type="checkbox" bind:checked={cuaToi} onchange={loc} /> Chỉ bài của tôi</label>
   <div class="hang-loc">
     <div><label for="tt">Trạng thái</label>
       <select id="tt" bind:value={trangThai} onchange={loc}>

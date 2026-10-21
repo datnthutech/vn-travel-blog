@@ -18,7 +18,7 @@ interface MoiTruong {
 
 const DUONG_DANG_NHAP = '/quan-tri/dang-nhap';
 // Hàm chuyển trang mặc định: không chuyển nếu đang đứng ở một trang không cần đăng nhập (tránh vòng lặp).
-const CONG_KHAI = ['/quan-tri/dang-nhap', '/quan-tri/quen-mat-khau', '/quan-tri/dat-lai'];
+const CONG_KHAI = ['/quan-tri/dang-nhap', '/quan-tri/quen-mat-khau', '/quan-tri/dat-lai', '/quan-tri/nhan-loi-moi'];
 let moi: MoiTruong = {
   fetch: (...a) => fetch(...a),
   chuyenTrang: (duong) => {
@@ -38,6 +38,7 @@ export const xoaCsrf = (): void => {
 
 // Các API chưa cần phiên → không cần CSRF.
 const KHONG_CAN_CSRF = new Set(['/dang-nhap', '/quen-mat-khau', '/dat-lai-mat-khau']);
+const khongCanCsrf = (duongDan: string) => KHONG_CAN_CSRF.has(duongDan) || duongDan.startsWith('/loi-moi/'); // nhận lời mời: chưa có phiên
 
 async function layCsrf(): Promise<string> {
   if (csrf) return csrf;
@@ -62,7 +63,7 @@ export async function goiApi<T = unknown>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (phuongThuc !== 'GET' && !KHONG_CAN_CSRF.has(duongDan)) headers['X-CSRF-Token'] = await layCsrf();
+  if (phuongThuc !== 'GET' && !khongCanCsrf(duongDan)) headers['X-CSRF-Token'] = await layCsrf();
 
   let r: Response;
   try {

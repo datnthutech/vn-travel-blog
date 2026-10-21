@@ -51,6 +51,12 @@ describe('goiApi', () => {
     expect(goi[0]!.headers['X-CSRF-Token']).toBeUndefined();
   });
 
+  it('nhận lời mời (/loi-moi/:token/nhan, chưa có phiên) không cần CSRF và không gọi /toi', async () => {
+    await goiApi('POST', '/loi-moi/abc/nhan', { ten: 'A', matKhau: 'x' }, { khongChuyenTrang: true });
+    expect(goi).toHaveLength(1);
+    expect(goi[0]!.headers['X-CSRF-Token']).toBeUndefined();
+  });
+
   it('401 → gọi hàm chuyển sang trang đăng nhập và ném LoiApi', async () => {
     tra = () => ({ status: 401, body: { loi: 'Chưa đăng nhập' } });
     await expect(goiApi('GET', '/phien')).rejects.toMatchObject({ status: 401, loi: 'Chưa đăng nhập' });

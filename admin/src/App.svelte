@@ -1,5 +1,6 @@
 <!-- Khung ứng dụng: thanh điều hướng + chọn trang theo đường dẫn + chặn trang cần đăng nhập. -->
 <script lang="ts">
+  import { coQuyen, type HanhDong } from '@vntraveltips/schema';
   import { goiApi } from './lib/api';
   import { bamLienKet, dieuHuong, di, GOC } from './lib/dieu-huong.svelte';
   import { phien, taiPhien } from './lib/phien.svelte';
@@ -7,6 +8,9 @@
   import DangNhap from './routes/DangNhap.svelte';
   import DatLai from './routes/DatLai.svelte';
   import Mail from './routes/Mail.svelte';
+  import NhanLoiMoi from './routes/NhanLoiMoi.svelte';
+  import NhatKy from './routes/NhatKy.svelte';
+  import TaiKhoan from './routes/TaiKhoan.svelte';
   import Menu from './routes/Menu.svelte';
   import Redirect from './routes/Redirect.svelte';
   import SoanTrang from './routes/SoanTrang.svelte';
@@ -25,22 +29,26 @@
   import TongQuan from './routes/TongQuan.svelte';
   import Totp from './routes/Totp.svelte';
 
-  const CONG_KHAI = [`${GOC}/dang-nhap`, `${GOC}/quen-mat-khau`, `${GOC}/dat-lai`];
-  const MUC = [
+  const CONG_KHAI = [`${GOC}/dang-nhap`, `${GOC}/quen-mat-khau`, `${GOC}/dat-lai`, `${GOC}/nhan-loi-moi`];
+  // `hd`: hành động cần có để THẤY mục này (chỉ để ẩn/hiện — máy chủ mới là nơi quyết định quyền).
+  const MUC: { duong: string; ten: string; hd?: HanhDong }[] = [
     { duong: GOC, ten: 'Tổng quan' },
     { duong: `${GOC}/bai`, ten: 'Bài viết' },
     { duong: `${GOC}/anh`, ten: 'Ảnh' },
     { duong: `${GOC}/thung-rac`, ten: 'Thùng rác' },
-    { duong: `${GOC}/chuyen-muc`, ten: 'Chuyên mục' },
-    { duong: `${GOC}/tinh`, ten: 'Tỉnh' },
-    { duong: `${GOC}/tag`, ten: 'Tag' },
-    { duong: `${GOC}/trang`, ten: 'Trang tĩnh' },
-    { duong: `${GOC}/menu`, ten: 'Menu' },
-    { duong: `${GOC}/redirect`, ten: 'Chuyển hướng' },
-    { duong: `${GOC}/cai-dat`, ten: 'Cài đặt site' },
-    { duong: `${GOC}/thiet-bi`, ten: 'Tài khoản & thiết bị' },
-    { duong: `${GOC}/mail`, ten: 'Cài đặt mail' },
+    { duong: `${GOC}/chuyen-muc`, ten: 'Chuyên mục', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/tinh`, ten: 'Tỉnh', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/tag`, ten: 'Tag', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/trang`, ten: 'Trang tĩnh', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/menu`, ten: 'Menu', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/redirect`, ten: 'Chuyển hướng', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/cai-dat`, ten: 'Cài đặt site', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/mail`, ten: 'Cài đặt mail', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/tai-khoan`, ten: 'Tài khoản', hd: 'tai-khoan.quan-ly' },
+    { duong: `${GOC}/nhat-ky`, ten: 'Nhật ký', hd: 'nhat-ky.xem' },
+    { duong: `${GOC}/thiet-bi`, ten: 'Của tôi' },
   ];
+  const hienMuc = (m: { hd?: HanhDong }) => !m.hd || (phien.nguoiDung !== null && coQuyen(phien.nguoiDung, m.hd));
 
   // Mỗi lần đổi trang: kiểm tra phiên rồi điều hướng nếu chưa đủ điều kiện vào trang đó.
   $effect(() => {
@@ -74,7 +82,7 @@
   <header class="thanh">
     <nav class="thanh-trong" aria-label="Điều hướng quản trị">
       <span class="nhan-hieu">VNTravelTips</span>
-      {#each MUC as m}
+      {#each MUC.filter(hienMuc) as m}
         <a href={m.duong} class:dang-o={dieuHuong.duong === m.duong} onclick={bamLienKet}>{m.ten}</a>
       {/each}
       <button class="lien-ket" onclick={dangXuat}>Đăng xuất</button>
@@ -90,6 +98,8 @@
   <QuenMatKhau />
 {:else if dieuHuong.duong === `${GOC}/dat-lai`}
   <DatLai />
+{:else if dieuHuong.duong === `${GOC}/nhan-loi-moi`}
+  <NhanLoiMoi />
 {:else if phien.choTotp || dieuHuong.duong === `${GOC}/totp`}
   <Totp />
 {:else if phien.nguoiDung}
@@ -104,6 +114,10 @@
       <Tinh />
     {:else if dieuHuong.duong === `${GOC}/tag`}
       <Tag />
+    {:else if dieuHuong.duong === `${GOC}/tai-khoan`}
+      <TaiKhoan />
+    {:else if dieuHuong.duong === `${GOC}/nhat-ky`}
+      <NhatKy />
     {:else if dieuHuong.duong === `${GOC}/menu`}
       <Menu />
     {:else if dieuHuong.duong === `${GOC}/redirect`}
