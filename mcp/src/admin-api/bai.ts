@@ -5,7 +5,8 @@ import type { HangDoiBuild } from '../build/hang-doi';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import { gioVN } from '../mail/ngay-vn';
-import { docBai, luuBai, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
+import { taoSlug } from '@vntraveltips/schema';
+import { docBai, luuBai, slugKhongTrung, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
 import { kiemTraDayDu, layDanhSachTinh } from '../noi-dung/kiem-tra';
 
 export interface DepsBai {
@@ -143,6 +144,11 @@ export function baiRouter(d: DepsBai): Router {
   r.post('/bai', (req, res) => {
     const g = lay(req, res);
     if (!g) return;
+    // Không gửi slug → gợi ý từ tiêu đề (bỏ dấu, đ→d) và tự thêm -2, -3… nếu trùng.
+    const b0 = g.bai as { slug?: unknown; tieuDe?: unknown };
+    if ((b0.slug === undefined || b0.slug === '') && typeof b0.tieuDe === 'string') {
+      b0.slug = slugKhongTrung(d.db, 'vi', taoSlug(b0.tieuDe));
+    }
     try {
       const { id, phienSo } = luuBai(d.db, { ngonNgu: 'vi', bai: g.bai as never, noiDung: g.noiDung, trangThai: 'nhap', nguoiId: req.nguoiDung!.id, kiemTra: 'co-ban' }, d.now);
       d.hangDoi.yeuCau();

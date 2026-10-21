@@ -4,7 +4,7 @@ import type { Tinh } from './tinh';
 
 // Đường dẫn cấp 1 do hệ thống dùng; slug tỉnh trùng sẽ đè lên các trang này (vì /[tinh]/ là route động).
 export const SLUG_HE_THONG = [
-  'kinh-nghiem', 'chu-de', 'loai', 'admin', 'anh', 'mcp', 'tai-anh', 'oauth',
+  'kinh-nghiem', 'chu-de', 'loai', 'admin', 'quan-tri', 'api', 'anh', 'mcp', 'tai-anh', 'oauth',
   'tim-kiem', 'gioi-thieu', 'chinh-sach-lien-ket', 'rss.xml', 'sitemap-index.xml', 'robots.txt', '404',
 ];
 

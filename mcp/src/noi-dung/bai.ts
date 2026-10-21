@@ -1,7 +1,7 @@
 // Lưu và đọc bài trong SQLite. Một bài (bảng `bai`) có nhiều bản dịch (`ban_dich`, hiện chỉ 'vi') và lịch sử (`phien_ban`).
 // Dữ liệu frontmatter lưu JSON trong `ban_dich.du_lieu` (không có `draft`: trạng thái nằm ở cột `trang_thai`).
 // Bản nháp được phép thiếu trường (kiểm tra cơ bản); bài đã đăng phải đạt `baiVietSchema` đầy đủ.
-import { baiVietSchema, type BaiViet } from '@vntraveltips/schema';
+import { baiVietSchema, SLUG_HE_THONG, urlBai, type BaiViet } from '@vntraveltips/schema';
 import type { Db } from '../db/ket-noi';
 import { danhDauNoiDungDoi } from './phien-noi-dung';
 
@@ -97,13 +97,17 @@ export function luuBai(db: Db, input: LuuBaiInput, now: () => number = Date.now)
     } else {
       const cu = db
         .prepare(
-          `SELECT d.dang_luc, d.phien_so, d.sua_luc, u.ten AS nguoi_sua FROM ban_dich d JOIN bai b ON b.id = d.bai_id
+          `SELECT d.dang_luc, d.phien_so, d.sua_luc, d.slug AS slug_cu, d.trang_thai AS trang_thai_cu, b.tinh AS tinh_cu, u.ten AS nguoi_sua FROM ban_dich d JOIN bai b ON b.id = d.bai_id
            LEFT JOIN nguoi_dung u ON u.id = b.nguoi_sua_cuoi_id WHERE d.bai_id = ? AND d.ngon_ngu = ?`,
         )
-        .get(id, input.ngonNgu) as { dang_luc: number | null; phien_so: number; sua_luc: number; nguoi_sua: string | null } | undefined;
+        .get(id, input.ngonNgu) as { dang_luc: number | null; phien_so: number; sua_luc: number; slug_cu: string; trang_thai_cu: TrangThaiBan; tinh_cu: string | null; nguoi_sua: string | null } | undefined;
       if (!cu) throw new Error(`Không có bài id ${id}`);
       if (input.phienSo !== undefined && input.phienSo !== cu.phien_so) throw new XungDotPhienBan(cu.nguoi_sua, cu.sua_luc);
       phienSo = cu.phien_so + 1;
+      // Đổi slug/tỉnh của bài ĐÃ ĐĂNG làm đổi URL → thêm 301 từ URL cũ sang URL mới (bài nháp thì không cần).
+      if (cu.trang_thai_cu === 'da-dang') {
+        themRedirectKhiDoiUrl(db, urlBai({ slug: cu.slug_cu, tinh: cu.tinh_cu ?? undefined }), urlBai({ slug: bai.slug, tinh: bai.tinh }));
+      }
       db.prepare('UPDATE bai SET tinh = ?, loai = ?, nguoi_sua_cuoi_id = ?, sua_luc = ? WHERE id = ?').run(bai.tinh ?? null, bai.loai ?? '', input.nguoiId ?? null, t, id);
       db.prepare(
         'UPDATE ban_dich SET slug = ?, trang_thai = ?, hen_gio = ?, du_lieu = ?, noi_dung = ?, dang_luc = ?, sua_luc = ?, phien_so = ?, nhap_tu_luu = NULL, phien_ban_cuoi_luc = ? WHERE bai_id = ? AND ngon_ngu = ?',
@@ -115,6 +119,27 @@ export function luuBai(db: Db, input: LuuBaiInput, now: () => number = Date.now)
     danhDauNoiDungDoi(db);
     return { id, phienSo };
   })();
+}
+
+/**
+ * Ghi redirect URL cũ → mới. Các redirect đang trỏ vào URL cũ được trỏ thẳng sang URL mới (không có chuỗi 301);
+ * redirect nào có nguồn trùng URL thật mới thì bỏ (kẻo đè lên bài đang có).
+ */
+export function themRedirectKhiDoiUrl(db: Db, urlCu: string, urlMoi: string): void {
+  if (urlCu === urlMoi) return;
+  db.prepare('UPDATE redirect SET den = ? WHERE den = ?').run(urlMoi, urlCu);
+  db.prepare('DELETE FROM redirect WHERE tu = ?').run(urlMoi);
+  db.prepare('DELETE FROM redirect WHERE tu = den');
+  db.prepare('INSERT OR REPLACE INTO redirect (tu, den) VALUES (?, ?)').run(urlCu, urlMoi);
+}
+
+/** Thêm "-2", "-3"… cho tới khi slug không trùng bài nào (và không trùng đường dẫn hệ thống). `truBaiId`: bỏ qua chính bài đang sửa. */
+export function slugKhongTrung(db: Db, ngonNgu: string, slug: string, truBaiId?: number): string {
+  const dung = (x: string) =>
+    !SLUG_HE_THONG.includes(x) &&
+    db.prepare('SELECT 1 FROM ban_dich WHERE ngon_ngu = ? AND slug = ? AND bai_id IS NOT ?').get(ngonNgu, x, truBaiId ?? null) === undefined;
+  if (dung(slug)) return slug;
+  for (let n = 2; ; n++) if (dung(`${slug}-${n}`)) return `${slug}-${n}`;
 }
 
 interface Dong {
