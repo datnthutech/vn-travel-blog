@@ -65,8 +65,9 @@ export function xacThucCongKhai(d: DepsXacThuc): Router {
       res.status(401).json({ loi: SAI_DANG_NHAP });
       return;
     }
-    chongDo.ghiThanhCong(ip, email);
-    const token = taoPhien(d.db, u.id, { ghiNho: ghiNho === true, ip, thietBi: req.get('user-agent') ?? '' }, d.now);
+    // Có 2FA: chưa xoá bộ đếm lần sai (mới đúng một nửa); phiên ở trạng thái "chờ TOTP" tới khi nhập đúng mã.
+    if (!u.coTotp) chongDo.ghiThanhCong(ip, email);
+    const token = taoPhien(d.db, u.id, { ghiNho: ghiNho === true, ip, thietBi: req.get('user-agent') ?? '', choTotp: u.coTotp }, d.now);
     datCookiePhien(res, d.config, token, ghiNho === true);
     ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'dang-nhap', ip }, d.now);
     res.json({ canTotp: u.coTotp });
@@ -79,7 +80,10 @@ export function xacThucDaDangNhap(d: DepsXacThuc): Router {
   const r = Router();
 
   r.get('/toi', (req, res) => {
-    res.json({ nguoiDung: req.nguoiDung, csrf: taoCsrf(d.config.khoaBiMat, req.phienId!) });
+    const csrf = taoCsrf(d.config.khoaBiMat, req.phienId!);
+    // Phiên chờ TOTP chưa được biết người dùng là ai.
+    if (req.choTotp) res.json({ choTotp: true, csrf });
+    else res.json({ nguoiDung: req.nguoiDung, csrf });
   });
 
   r.post('/dang-xuat', (req, res) => {

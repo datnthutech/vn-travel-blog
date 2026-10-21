@@ -27,7 +27,7 @@ beforeEach(async () => {
   db = moDb(':memory:');
   t = Date.UTC(2026, 9, 21, 3, 0, 0);
   cho = [];
-  await taoNguoiDung(db, { email: 'chu@x.vn', ten: 'Chủ', vaiTro: 'quan-tri', matKhau: MK }, () => t);
+  await taoNguoiDung(db, { email: 'chu@x.vn', ten: 'Chủ', vaiTro: 'quan-ly', matKhau: MK }, () => t);
 });
 
 const dangNhap = (app: ReturnType<typeof dung>, mk = MK, ip = '1.1.1.1', email = 'chu@x.vn', ghiNho = false) =>
@@ -180,7 +180,7 @@ describe('CSRF', () => {
     const app = dung();
     const c = cookie(await dangNhap(app)).split(';')[0]!;
     const toi = await gui(app, c);
-    expect(toi.body.nguoiDung).toMatchObject({ email: 'chu@x.vn', vaiTro: 'quan-tri' });
+    expect(toi.body.nguoiDung).toMatchObject({ email: 'chu@x.vn', vaiTro: 'quan-ly' });
     const csrf = toi.body.csrf as string;
     expect(csrf).toMatch(/^[0-9a-f]{64}$/);
     expect((await request(app).post('/api/admin/dang-xuat-moi-noi').set('Cookie', c)).status).toBe(403);

@@ -156,4 +156,12 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    phienBan: 3,
+    sql: `
+      ALTER TABLE phien ADD COLUMN cho_totp INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE nguoi_dung ADD COLUMN totp_tam TEXT;
+      ALTER TABLE nguoi_dung ADD COLUMN totp_buoc_cuoi INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

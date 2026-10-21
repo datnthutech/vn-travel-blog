@@ -27,7 +27,7 @@ beforeEach(async () => {
   });
   const mail = taoDichVuMail(db, { khoaBiMat: KHOA, taoTransport: () => ({ sendMail: async (o) => void daGui.push(o.to) }) });
   app = createApp(config, { db, mail });
-  await taoNguoiDung(db, { email: 'chu@x.vn', ten: 'Chủ', vaiTro: 'quan-tri', matKhau: MK });
+  await taoNguoiDung(db, { email: 'chu@x.vn', ten: 'Chủ', vaiTro: 'quan-ly', matKhau: MK });
   const dn = await request(app).post('/api/admin/dang-nhap').send({ email: 'chu@x.vn', matKhau: MK });
   c = (dn.headers['set-cookie'] as unknown as string[])[0]!.split(';')[0]!;
   csrf = (await request(app).get('/api/admin/toi').set('Cookie', c)).body.csrf;
