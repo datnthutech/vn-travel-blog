@@ -257,4 +257,19 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE redirect ADD COLUMN tu_dong INTEGER NOT NULL DEFAULT 0; -- 1 = hệ thống tự thêm khi đổi slug/tỉnh
     `,
   },
+  {
+    phienBan: 10,
+    sql: `
+      CREATE TABLE loi_moi (
+        token_bam TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        vai_tro TEXT NOT NULL,
+        het_han_luc INTEGER NOT NULL,
+        nguoi_moi_id INTEGER NOT NULL,
+        tao_luc INTEGER NOT NULL,
+        da_dung INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX loi_moi_email ON loi_moi(email);
+    `,
+  },
 ];

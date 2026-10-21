@@ -28,6 +28,9 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('POST', '/2fa/bat-dau', 'chi-dang-nhap', true),
   L('POST', '/2fa/xac-nhan', 'chi-dang-nhap', true),
   L('POST', '/2fa/tat', 'chi-dang-nhap', true),
+  L('GET', '/loi-moi/:token', 'cong-khai'),
+  L('POST', '/loi-moi/:token/nhan', 'cong-khai'),
+  L('POST', '/tai-khoan/moi', 'tai-khoan.quan-ly'),
   // Bài viết
   L('GET', '/bai', 'bai.xem'),
   L('GET', '/bai/:id', 'bai.xem'),
