@@ -105,6 +105,14 @@ Ba vai trò, áp lên **mọi** API quản trị (server kiểm tra; giao diện
 - Khoá tài khoản = đăng xuất họ ngay mọi thiết bị (không xoá cứng, để giữ tác giả bài). Mất điện thoại: quản trị khác bấm **Đặt lại 2FA**.
 - **Nhật ký** (`/quan-tri/nhat-ky`): đăng nhập, đổi vai trò, khoá/mở khoá, mời, đặt lại 2FA, đăng/xoá bài… (chỉ quản trị xem).
 
+## Bình luận
+
+Người đọc bình luận bằng **tên + email** (email không bao giờ hiển thị), bình luận **hiện ngay**. Bật ở `/quan-tri/cai-dat` → "Cho phép người đọc bình luận" (mặc định tắt). Trang bài vẫn là HTML tĩnh: một script nhỏ (< 5 KB) chỉ nạp bình luận khi khung còn cách màn hình 600 px, không làm trang chậm hay nhảy bố cục; bản xem trước (`nhap-…`) không có form.
+
+- **Chống spam tự động:** tối đa 3 bình luận/10 phút/IP (IP chỉ lưu dạng băm), ô bẫy ẩn, thời gian gửi tối thiểu 3 giây, bình luận có hơn 2 liên kết hoặc chứa **từ cấm** (đặt trong Cài đặt site; không phân biệt hoa/thường/dấu) vào hàng **chờ xem**. Nội dung hiển thị bằng chữ thuần, không chạy được HTML/script.
+- **Kiểm duyệt** (`/quan-tri/binh-luan`): ẩn/hiện, xoá (kèm trả lời), trả lời một cấp với nhãn "Tác giả", chặn email/IP. Quản trị/quản lý làm với mọi bài; người viết chỉ với bài của mình.
+- **Báo mail:** tác giả bài nhận mail khi có bình luận mới (kể cả chờ xem); tắt trong "Của tôi".
+
 ## Thêm connector MCP vào Claude
 
 claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → đăng nhập GitHub. App Claude trên iPhone tự đồng bộ connector. Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).
