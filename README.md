@@ -113,6 +113,14 @@ Người đọc bình luận bằng **tên + email** (email không bao giờ hi�
 - **Kiểm duyệt** (`/quan-tri/binh-luan`): ẩn/hiện, xoá (kèm trả lời), trả lời một cấp với nhãn "Tác giả", chặn email/IP. Quản trị/quản lý làm với mọi bài; người viết chỉ với bài của mình.
 - **Báo mail:** tác giả bài nhận mail khi có bình luận mới (kể cả chờ xem); tắt trong "Của tôi".
 
+## Newsletter
+
+Người đọc đăng ký nhận tin bằng form ở chân mọi trang và cuối mỗi bài (form chạy cả khi tắt JavaScript; bản xem trước không có form). **Xác nhận 2 bước:** đăng ký → mail có liên kết (hiệu lực 7 ngày) → bấm mới tính là đã xác nhận. Một người bấm đăng ký nhiều lần chỉ có 1 dòng và tối đa 1 mail xác nhận mỗi 10 phút; tối đa 5 lần đăng ký/giờ/IP. Mọi mail có liên kết huỷ và header `List-Unsubscribe` (Gmail hiện nút "Huỷ đăng ký"). Danh sách email không bao giờ ra API công khai.
+
+- **Gửi bản tin** (`/quan-tri/ban-tin`, chỉ Quản trị): soạn bản tin hoặc bấm "Gửi thông báo bài này" ở danh sách bài, **Gửi thử cho tôi**, rồi **Gửi** — luôn bằng tay (đăng bài không tự gửi). Chỉ gửi người đã xác nhận cùng ngôn ngữ. Mail đi qua service mail chung: hạn mức Gmail/Brevo theo ngày (giờ Việt Nam), tự chuyển nhà cung cấp, phần chưa gửi hết sẽ tự gửi tiếp sau 0 giờ; không ai nhận trùng; người huỷ giữa chừng bị bỏ khỏi đợt gửi.
+- **Người đăng ký** (`/quan-tri/nguoi-dang-ky`): lọc, tìm, xoá, tải CSV (chỉ Quản trị).
+- **Gmail:** dùng "Mật khẩu ứng dụng" (không dùng mật khẩu Gmail): bật xác minh 2 bước cho tài khoản Google → vào myaccount.google.com/apppasswords → tạo mật khẩu cho "Mail" → dán vào "Cài đặt mail" (SMTP `smtp.gmail.com`, cổng 465, SSL). Gmail miễn phí gửi tối đa khoảng 500 mail/ngày.
+
 ## Thêm connector MCP vào Claude
 
 claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → đăng nhập GitHub. App Claude trên iPhone tự đồng bộ connector. Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).
