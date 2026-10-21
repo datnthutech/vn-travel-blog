@@ -6,8 +6,7 @@ import { coBiMat, luuBiMat, xoaBiMat } from '../bi-mat';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import { LoiAi, type DichVuAi } from '../ai/dich-vu';
-import { slugKhongTrung } from '../noi-dung/bai';
-import { truongChuBanGoc } from '../noi-dung/ban-dich';
+import { slugBanDich, truongChuBanGoc } from '../noi-dung/ban-dich';
 import { lietKeNgonNgu } from '../noi-dung/ngon-ngu';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { yeuCauQuyen } from '../tai-khoan/quyen';
@@ -47,8 +46,7 @@ export function aiRouter(d: { config: Config; db: Db; dichVu: DichVuAi; now: () 
         return void res.json({ ketQua: { [k]: ketQua[k] ?? '' }, canhBao: [] });
       }
       const kq = await d.dichVu.dichBai(goc, den);
-      // Tiêu đề ngôn ngữ không dùng chữ Latin (ja, zh, ru…) → taoSlug trả slug mặc định vô nghĩa ('bai-viet'): dùng '<mã>-<id bài>' thay thế.
-      const ketQua = { ...kq.ketQua, slug: slugKhongTrung(d.db, den.ma, /[a-z0-9]/i.test(kq.ketQua.tieuDe.normalize('NFD').replace(/[\u0300-\u036f]/g, '')) ? kq.ketQua.slug : `${den.ma}-${baiId}`, baiId) };
+      const ketQua = { ...kq.ketQua, slug: slugBanDich(d.db, den.ma, baiId, kq.ketQua.tieuDe, kq.ketQua.slug) };
       nhatKy(req, 'dich-ai', { baiId, ngonNgu: den.ma, tokenVao: kq.soToken.vao, tokenRa: kq.soToken.ra });
       res.json({ ketQua, canhBao: kq.canhBao });
     } catch (e) {

@@ -39,7 +39,6 @@ const TTL_MA = 5 * PHUT;
 const TTL_ACCESS = 60 * PHUT;
 const TTL_REFRESH = 30 * NGAY;
 const TOI_DA_CLIENT = 50;
-const COOKIE_OAUTH = 'vtt_oauth';
 
 const bam = (s: string) => createHash('sha256').update(s).digest('hex');
 const ngauNhien = () => randomBytes(32).toString('base64url');
@@ -84,7 +83,10 @@ interface MaCap {
 }
 
 const SAI_DANG_NHAP = 'Sai email hoặc mật khẩu';
-const CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+// form-action: trình duyệt kiểm cả ĐÍCH CHUYỂN HƯỚNG sau khi gửi form → phải cho phép nơi nhận mã (claude.ai/claude.com, hoặc loopback cho Claude Code).
+const CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://claude.ai https://claude.com http://localhost:* http://127.0.0.1:*; frame-ancestors 'none'; base-uri 'none'";
+/** Mỗi lượt đăng nhập một cookie riêng (tên theo sid) → nhiều lượt song song (web + app iOS, thử lại) không đè nhau. */
+const tenCookie = (sid: string) => `vtt_oauth_${bam(sid).slice(0, 16)}`;
 
 function trangForm(o: { sid: string; buoc: 'mat-khau' | 'totp'; loi?: string; tenClient?: string }): string {
   const noiDung =
@@ -175,7 +177,7 @@ export function createOAuth(config: Config, db: Db, deps: OAuthDeps = {}) {
       donHetHan(choDangNhap, now());
       donHetHan(maCap, now());
       choDangNhap.set(bam(sid), { client, params, hetHan: now() + TTL_STATE });
-      res.cookie(COOKIE_OAUTH, sid, { httpOnly: true, sameSite: 'lax', path: '/oauth', secure: laHttps(config), maxAge: TTL_STATE });
+      res.cookie(tenCookie(sid), sid, { httpOnly: true, sameSite: 'lax', path: '/oauth', secure: laHttps(config), maxAge: TTL_STATE });
       res.status(200).set({ 'Cache-Control': 'no-store', 'Content-Security-Policy': CSP, 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' }).type('html').send(trangForm({ sid, buoc: 'mat-khau', tenClient: client.client_name }));
     },
 
@@ -249,9 +251,13 @@ export function createOAuth(config: Config, db: Db, deps: OAuthDeps = {}) {
   const traForm = (res: Response, status: number, sid: string, buoc: 'mat-khau' | 'totp', loi?: string, tenClient?: string) =>
     void res.status(status).set({ 'Cache-Control': 'no-store', 'Content-Security-Policy': CSP, 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' }).type('html').send(trangForm({ sid, buoc, loi, tenClient }));
 
-  function cookieOauth(req: Request): string {
-    const m = /(?:^|;\s*)vtt_oauth=([^;]+)/.exec(req.headers.cookie ?? '');
-    return m ? decodeURIComponent(m[1]!) : '';
+  function cookieOauth(req: Request, sid: string): string {
+    const m = new RegExp(`(?:^|;\\s*)${tenCookie(sid)}=([^;]+)`).exec(req.headers.cookie ?? '');
+    try {
+      return m ? decodeURIComponent(m[1]!) : '';
+    } catch {
+      return ''; // cookie hỏng: coi như không có
+    }
   }
 
   // Bước 2: form gửi về đây — lần 1 (email + mật khẩu), lần 2 (mã 2FA nếu tài khoản có). Sai thì hiện lại form; đúng thì cấp mã và về Claude.
@@ -264,7 +270,7 @@ export function createOAuth(config: Config, db: Db, deps: OAuthDeps = {}) {
     const sid = typeof body.state === 'string' ? body.state : '';
     // State trong form PHẢI khớp cookie của chính trình duyệt này (chống bị lừa đăng nhập vào phiên của người khác).
     const k = bam(sid);
-    const cho_ = sid && cookieOauth(req) === sid ? choDangNhap.get(k) : undefined;
+    const cho_ = sid && cookieOauth(req, sid) === sid ? choDangNhap.get(k) : undefined;
     if (!cho_ || cho_.hetHan < now()) {
       choDangNhap.delete(k);
       res.status(400).type('text').send('Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Hãy kết nối lại từ Claude.');
@@ -333,7 +339,7 @@ export function createOAuth(config: Config, db: Db, deps: OAuthDeps = {}) {
       hetHan: now() + TTL_MA,
     });
     ghiNhatKy(db, { nguoiDungId, loai: 'dang-nhap-oauth', ip, chiTiet: { client: cho_.client.client_name ?? '' } }, now);
-    res.clearCookie(COOKIE_OAUTH, { path: '/oauth' });
+    res.clearCookie(`vtt_oauth_${k.slice(0, 16)}`, { path: '/oauth' });
     const dich = new URL(cho_.params.redirectUri);
     dich.searchParams.set('code', code);
     if (cho_.params.state) dich.searchParams.set('state', cho_.params.state);

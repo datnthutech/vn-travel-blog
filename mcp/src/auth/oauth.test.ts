@@ -123,7 +123,9 @@ describe('form đăng nhập admin', () => {
     expect(r.headers['cache-control']).toBe('no-store');
     expect(r.headers['x-frame-options']).toBe('DENY');
     expect(r.headers['content-security-policy']).toContain("frame-ancestors 'none'");
-    expect((r.headers['set-cookie'] as unknown as string[]).join(';')).toMatch(/vtt_oauth=.*HttpOnly/i);
+    // trình duyệt kiểm cả đích chuyển hướng sau khi gửi form: phải cho phép nơi nhận mã
+    expect(r.headers['content-security-policy']).toMatch(/form-action [^;]*https:\/\/claude\.ai/);
+    expect((r.headers['set-cookie'] as unknown as string[]).join(';')).toMatch(/vtt_oauth_[0-9a-f]{16}=.*HttpOnly/i);
     expect(sid.length).toBeGreaterThan(20);
     expect(cookie).toContain(sid);
   });
@@ -196,6 +198,21 @@ describe('form đăng nhập admin', () => {
     const { r: form } = await mo(r.body.client_id, pkce().challenge, '6.6.6.6');
     expect(form.text).not.toContain('<script>alert(1)</script>');
     expect(form.text).toContain('&lt;script&gt;');
+  });
+});
+
+describe('nhiều lượt đăng nhập song song', () => {
+  it('mở authorize hai lần (web + app, hoặc thử lại): form của lượt ĐẦU vẫn đăng nhập được — cookie không đè nhau; cookie hỏng không gây 500', async () => {
+    await taoUser('ql@x.vn');
+    const clientId = await dangKy();
+    const a = await mo(clientId, pkce().challenge, '1.2.3.4');
+    const b = await mo(clientId, pkce().challenge, '1.2.3.5');
+    const chung = `${a.cookie}; ${b.cookie}`; // trình duyệt giữ cả hai cookie
+    expect((await dn(a.sid, chung, '1.2.3.4', { email: 'ql@x.vn', matKhau: MK })).status).toBe(303);
+    expect((await dn(b.sid, chung, '1.2.3.5', { email: 'ql@x.vn', matKhau: MK })).status).toBe(303);
+    const c = await mo(clientId, pkce().challenge, '1.2.3.6');
+    const hong = `${c.cookie.split('=')[0]}=%E0%A4%A`;
+    expect((await dn(c.sid, hong, '1.2.3.6', { email: 'ql@x.vn', matKhau: MK })).status).toBe(400);
   });
 });
 

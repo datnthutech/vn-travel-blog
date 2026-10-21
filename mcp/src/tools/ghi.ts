@@ -9,6 +9,10 @@ import { docBuildJson } from '../admin-api/build';
 import type { TrangThaiBuild } from '../build/hang-doi';
 import { ngayVN } from '../mail/ngay-vn';
 import { luuBai, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
+import { slugBanDich, truongChuBanGoc } from '../noi-dung/ban-dich';
+import { lietKeNgonNgu } from '../noi-dung/ngon-ngu';
+import { docNoiDungPhien } from '../noi-dung/phien-noi-dung';
+import { LoiAi } from '../ai/dich-vu';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import type { ToolCtx } from './ctx';
 import { kiemTraBaiToolTuDb, timBai, type ThamChieuBai } from './doc-db';
@@ -21,6 +25,11 @@ export function canQuyen(ctx: ToolCtx, hd: HanhDong, tacGiaId?: number | null): 
   if (!coQuyen(ctx.nguoiDung, hd, { tacGiaId })) {
     throw new Error(`Tài khoản của bạn không có quyền ${MO_TA_QUYEN[hd] ?? hd}${hd === 'bai.tao' ? '' : ' (người viết chỉ làm được với bài của chính mình)'}.`);
   }
+}
+/** Kiểm quyền trên MỘT bài: tác giả lấy từ DB (writer chỉ làm được với bài của mình). */
+export function canQuyenBai(ctx: ToolCtx, hd: HanhDong, baiId: number): void {
+  const tacGia = (ctx.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(baiId) as { tac_gia_id: number | null } | undefined)?.tac_gia_id;
+  canQuyen(ctx, hd, tacGia);
 }
 const nhatKy = (ctx: ToolCtx, loai: string, chiTiet: object) =>
   ghiNhatKy(ctx.db, { nguoiDungId: ctx.nguoiDung.id, loai, chiTiet: { qua: 'mcp', ...chiTiet } }, ctx.now);
@@ -63,8 +72,7 @@ export async function suaBai(
   input: ThamChieuBai & { bai?: Record<string, unknown>; noiDung?: string },
 ): Promise<{ id: number; slug: string; ghiChu: string[] }> {
   const cu = timBai(ctx, input);
-  const tacGia = (ctx.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(cu.id) as { tac_gia_id: number | null }).tac_gia_id;
-  canQuyen(ctx, 'bai.sua', tacGia);
+  canQuyenBai(ctx, 'bai.sua', cu.id);
   const patch = { ...(input.bai ?? {}) };
   if ('draft' in patch) throw new Error('Không đổi trạng thái đăng qua sua_bai. Dùng dang_bai (đăng) hoặc go_bai (gỡ).');
   if (patch.slug !== undefined && patch.slug !== cu.bai.slug) throw new Error('Không đổi slug của bài đã tạo (URL không được đổi).');
@@ -103,12 +111,13 @@ export interface TrangThai {
   previewNoiDungPhien: number | null;
   productionNoiDungPhien: number | null;
   linkXemTruoc: string;
-  bai?: { id: number; slug: string; trangThai: string; noiDungPhienLuu: number | null; previewDaCoBanNay: boolean; linkXemTruoc: string };
+  bai?: { id: number; slug: string; trangThai: string; noiDungPhienLuu: number; previewDaCoBanNay: boolean; linkXemTruoc: string };
   ghiChu?: string;
 }
 
-const phienLuu = (ctx: ToolCtx, id: number): number | null =>
-  (ctx.db.prepare("SELECT noi_dung_phien_luu AS p FROM ban_dich WHERE bai_id = ? AND ngon_ngu = 'vi'").get(id) as { p: number | null }).p;
+// Bài chưa có mốc (dữ liệu cũ trước migration 16 mà chưa được backfill) → dùng phiên nội dung HIỆN TẠI: phải build lại một lần mới đăng được.
+const phienLuu = (ctx: ToolCtx, id: number): number =>
+  (ctx.db.prepare("SELECT noi_dung_phien_luu AS p FROM ban_dich WHERE bai_id = ? AND ngon_ngu = 'vi'").get(id) as { p: number | null }).p ?? docNoiDungPhien(ctx.db);
 
 // build.json do bản build ghi lúc build (noiDungPhien); đọc thẳng từ volume (cùng đĩa với container web).
 export async function xemTrangThai(ctx: ToolCtx, ref?: ThamChieuBai): Promise<TrangThai> {
@@ -120,7 +129,7 @@ export async function xemTrangThai(ctx: ToolCtx, ref?: ThamChieuBai): Promise<Tr
     const p = phienLuu(ctx, d.id);
     tt.bai = {
       id: d.id, slug: d.bai.slug, trangThai: d.trangThai, noiDungPhienLuu: p,
-      previewDaCoBanNay: previewNoiDungPhien !== null && p !== null && previewNoiDungPhien >= p,
+      previewDaCoBanNay: previewNoiDungPhien !== null && previewNoiDungPhien >= p,
       linkXemTruoc: `${ctx.config.previewBaseUrl}${urlBai(d.bai)}`,
     };
   }
@@ -130,8 +139,7 @@ export async function xemTrangThai(ctx: ToolCtx, ref?: ThamChieuBai): Promise<Tr
 // ---------- dang_bai ----------
 export async function dangBai(ctx: ToolCtx, ref: ThamChieuBai): Promise<{ id: number; slug: string; linkBai: string; ghiChu: string }> {
   const d: BaiDoc = timBai(ctx, ref);
-  const tacGia = (ctx.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(d.id) as { tac_gia_id: number | null }).tac_gia_id;
-  canQuyen(ctx, 'bai.dang', tacGia);
+  canQuyenBai(ctx, 'bai.dang', d.id);
   if (d.trangThai === 'da-dang') throw new Error(`Bài "${d.bai.slug}" đã được đăng rồi.`);
 
   const bai = { ...d.bai, ngayDang: d.bai.ngayDang ?? ngayVN(ctx.now()), draft: false } as BaiViet;
@@ -162,11 +170,10 @@ export async function dangBai(ctx: ToolCtx, ref: ThamChieuBai): Promise<{ id: nu
 // ---------- go_bai ----------
 export async function goBai(ctx: ToolCtx, ref: ThamChieuBai): Promise<{ id: number; slug: string; ghiChu: string }> {
   const d = timBai(ctx, ref);
-  const tacGia = (ctx.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(d.id) as { tac_gia_id: number | null }).tac_gia_id;
-  canQuyen(ctx, 'bai.dang', tacGia);
+  canQuyenBai(ctx, 'bai.dang', d.id);
   if (d.trangThai === 'nhap') return { id: d.id, slug: d.bai.slug, ghiChu: 'Bài này đã là nháp (đã gỡ khỏi site).' };
   try {
-    luuBai(ctx.db, { id: d.id, ngonNgu: 'vi', bai: d.bai, noiDung: d.noiDung, trangThai: 'nhap', nguoiId: ctx.nguoiDung.id }, ctx.now);
+    luuBai(ctx.db, { id: d.id, ngonNgu: 'vi', bai: d.bai, noiDung: d.noiDung, trangThai: 'nhap', nguoiId: ctx.nguoiDung.id, phienSo: d.phienSo }, ctx.now); // phienSo: có người sửa chen thì báo lỗi thay vì ghi đè bằng bản cũ
   } catch (e) {
     throw loiLuu(e);
   }
@@ -184,24 +191,25 @@ export async function goBai(ctx: ToolCtx, ref: ThamChieuBai): Promise<{ id: numb
 }
 
 // ---------- dich_ai_ban_dich ----------
-import { slugKhongTrung } from '../noi-dung/bai';
-import { truongChuBanGoc } from '../noi-dung/ban-dich';
-import { lietKeNgonNgu } from '../noi-dung/ngon-ngu';
-
 /** Dịch bằng AI và TRẢ bản dịch để Claude đưa người dùng xem — KHÔNG lưu, KHÔNG đăng. */
 export async function dichAiBanDich(ctx: ToolCtx, input: ThamChieuBai & { ngonNgu: string }): Promise<{ ketQua: unknown; canhBao: string[]; ghiChu: string }> {
   if (!ctx.dichVuAi) throw new Error('Chưa cấu hình AI dịch bài (chủ blog nhập API key ở /quan-tri/cai-dat-ai).');
   const d = timBai(ctx, input);
-  const tacGia = (ctx.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(d.id) as { tac_gia_id: number | null }).tac_gia_id;
-  canQuyen(ctx, 'bai.sua', tacGia);
+  canQuyenBai(ctx, 'bai.sua', d.id);
   const den = lietKeNgonNgu(ctx.db).find((n) => n.ma === input.ngonNgu && n.ma !== 'vi' && n.bat);
   if (!den) throw new Error(`Chưa có ngôn ngữ "${input.ngonNgu}" đang bật (thêm ở /quan-tri/ngon-ngu).`);
   const goc = truongChuBanGoc(ctx.db, d.id);
   if (!goc) throw new Error('Bản tiếng Việt chưa đủ trường theo luật bài viết nên chưa dịch được.');
-  const kq = await ctx.dichVuAi.dichBai(goc, den);
+  let kq;
+  try {
+    kq = await ctx.dichVuAi.dichBai(goc, den);
+  } catch (e) {
+    if (e instanceof LoiAi) nhatKy(ctx, 'dich-ai-loi', { ngonNgu: den.ma, maLoi: e.maLoi }); // như API admin: ghi mã lỗi, không ghi nội dung
+    throw e;
+  }
   nhatKy(ctx, 'dich-ai', { baiId: d.id, ngonNgu: den.ma, tokenVao: kq.soToken.vao, tokenRa: kq.soToken.ra });
   return {
-    ketQua: { ...kq.ketQua, slug: slugKhongTrung(ctx.db, den.ma, kq.ketQua.slug, d.id) },
+    ketQua: { ...kq.ketQua, slug: slugBanDich(ctx.db, den.ma, d.id, kq.ketQua.tieuDe, kq.ketQua.slug) },
     canhBao: kq.canhBao,
     ghiChu: `CHƯA LƯU gì cả. Hãy đưa bản dịch cho người dùng đọc; họ lưu/đăng ở ${ctx.config.publicBaseUrl}/quan-tri/bai/${d.id}/ban-dich/${den.ma}.`,
   };

@@ -2,7 +2,7 @@
 // khi xuất/đăng thì ghép với phần không phải chữ của bản tiếng Việt (ghepBanDich). `ban_goc_bam` = băm bản vi lúc lưu → biết bản dịch có "cũ hơn bản gốc".
 import { bamBanGoc, ghepBanDich, tachTruongChu, urlBai, type BaiViet, type BanDichChu } from '@vntraveltips/schema';
 import type { Db } from '../db/ket-noi';
-import { docBai, themRedirectKhiDoiUrl, XungDotPhienBan, type TrangThaiBan } from './bai';
+import { docBai, slugKhongTrung, themRedirectKhiDoiUrl, XungDotPhienBan, type TrangThaiBan } from './bai';
 import { danhDauNoiDungDoi } from './phien-noi-dung';
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -72,6 +72,12 @@ export function ghepDayDu(db: Db, ban: BanDichDoc): { bai: BaiViet; noiDung: str
   if (!g) throw new Error('Bản tiếng Việt chưa đủ trường nên chưa ghép được bản dịch');
   const bai = ghepBanDich(g.bai, { ...(ban.dich as BanDichChu), noiDung: ban.noiDung, diaDiem: (ban.dich.diaDiem ?? []) as BanDichChu['diaDiem'], doMangChoBe: ban.dich.doMangChoBe ?? [], faq: ban.dich.faq ?? [] });
   return { bai, noiDung: ban.noiDung };
+}
+
+/** Slug cho bản dịch do AI sinh: tiêu đề không có chữ Latin (ja, zh, ru…) thì `taoSlug` chỉ ra slug mặc định vô nghĩa → dùng `<mã>-<id bài>`; rồi chống trùng trong ngôn ngữ. */
+export function slugBanDich(db: Db, ngonNgu: string, baiId: number, tieuDe: string, slugAi: string): string {
+  const coLatin = /[a-z0-9]/i.test(tieuDe.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+  return slugKhongTrung(db, ngonNgu, coLatin ? slugAi : `${ngonNgu}-${baiId}`, baiId);
 }
 
 export interface LuuBanDichInput {

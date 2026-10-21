@@ -395,6 +395,7 @@ export const MIGRATIONS: Migration[] = [
     phienBan: 16,
     sql: `
       ALTER TABLE ban_dich ADD COLUMN noi_dung_phien_luu INTEGER; -- bộ đếm "phiên nội dung" ngay sau lần lưu cuối của bản này: cổng dang_bai (MCP) so với bản xem trước đã build
+          UPDATE ban_dich SET noi_dung_phien_luu = (SELECT CAST(gia_tri AS INTEGER) FROM he_thong WHERE khoa = 'noi_dung_phien'); -- bài có sẵn: coi như lưu ở phiên hiện tại
     `,
   },
 ];

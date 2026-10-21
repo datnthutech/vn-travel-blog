@@ -10,6 +10,7 @@ import type { Db } from '../db/ket-noi';
 import { conDungLuong as conDungLuongThat } from './dung-luong';
 import { ghiNhanAnh } from './gan-day';
 import { dungLuongThuMuc } from '../admin-api/anh';
+import { timTheoId } from '../tai-khoan/nguoi-dung';
 import { dongToken, nguoiDungCuaToken, trangThaiToken } from './token';
 import { AnhKhongHopLe, xuLyAnh } from './xu-ly';
 
@@ -117,6 +118,11 @@ export function taiAnhRouter(config: Config, db: Db, deps: TaiAnhDeps = {}) {
     async (req, res, next) => {
       try {
         const nguoiId = nguoiDungCuaToken(String(req.params.token));
+        // Link do một tài khoản xin: tài khoản đã bị khoá/xoá sau đó thì link cũng hết tác dụng.
+        if (nguoiId !== null) {
+          const u = timTheoId(db, nguoiId);
+          if (!u || u.biKhoa) return void res.status(403).json({ loi: 'Tài khoản đã xin link này không còn dùng được. Hãy nhờ Claude tạo link mới.' });
+        }
         const files = (req.files as Express.Multer.File[] | undefined) ?? [];
         if (!files.length) return void res.status(400).json({ loi: 'Chưa chọn ảnh nào.' });
         const ketQua: { ten: string; ok: boolean; ma?: string; loi?: string }[] = [];

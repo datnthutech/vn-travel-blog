@@ -32,7 +32,10 @@ export interface AnhLietKe {
 // Ảnh vừa tải, kèm thumbnail nhỏ để Claude NHÌN ảnh rồi viết alt text / chọn ảnh bìa.
 export async function lietKeAnh(ctx: ToolCtx, gioiHan = 8): Promise<AnhLietKe[]> {
   const n = Math.min(TOI_DA_ANH, Math.max(1, Math.floor(gioiHan)));
-  const ds = await layAnhGanDay(ctx.config.anhDir, n);
+  // Người viết chỉ thấy ảnh do CHÍNH MÌNH tải lên (danh sách gần đây là chung toàn site); quản trị/quản lý thấy tất cả.
+  const tatCa = await layAnhGanDay(ctx.config.anhDir, ctx.nguoiDung.vaiTro === 'writer' ? 200 : n);
+  const cuaToi = ctx.nguoiDung.vaiTro === 'writer' ? new Set((ctx.db.prepare('SELECT ma FROM anh WHERE nguoi_dung_id = ?').all(ctx.nguoiDung.id) as { ma: string }[]).map((r) => r.ma)) : null;
+  const ds = (cuaToi ? tatCa.filter((a) => cuaToi.has(a.ma)) : tatCa).slice(0, n);
   const kq: AnhLietKe[] = [];
   for (const a of ds) {
     const muc: AnhLietKe = { ...a };
