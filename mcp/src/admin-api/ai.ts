@@ -47,7 +47,8 @@ export function aiRouter(d: { config: Config; db: Db; dichVu: DichVuAi; now: () 
         return void res.json({ ketQua: { [k]: ketQua[k] ?? '' }, canhBao: [] });
       }
       const kq = await d.dichVu.dichBai(goc, den);
-      const ketQua = { ...kq.ketQua, slug: slugKhongTrung(d.db, den.ma, kq.ketQua.slug, baiId) };
+      // Tiêu đề ngôn ngữ không dùng chữ Latin (ja, zh, ru…) → taoSlug trả slug mặc định vô nghĩa ('bai-viet'): dùng '<mã>-<id bài>' thay thế.
+      const ketQua = { ...kq.ketQua, slug: slugKhongTrung(d.db, den.ma, /[a-z0-9]/i.test(kq.ketQua.tieuDe.normalize('NFD').replace(/[\u0300-\u036f]/g, '')) ? kq.ketQua.slug : `${den.ma}-${baiId}`, baiId) };
       nhatKy(req, 'dich-ai', { baiId, ngonNgu: den.ma, tokenVao: kq.soToken.vao, tokenRa: kq.soToken.ra });
       res.json({ ketQua, canhBao: kq.canhBao });
     } catch (e) {

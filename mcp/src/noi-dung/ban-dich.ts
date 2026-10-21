@@ -34,7 +34,8 @@ interface Dong {
 }
 
 const CHON = `SELECT d.bai_id, d.ngon_ngu, d.slug, d.trang_thai, d.hen_gio, d.du_lieu, d.noi_dung, d.dang_luc, d.sua_luc, d.phien_so, d.nhap_tu_luu,
-  d.ban_goc_bam, d.da_kiem_tra, d.ghi_chu_kiem_tra, d.nguoi_kiem_tra_id, d.kiem_tra_luc, b.nguoi_sua_cuoi_id
+  d.ban_goc_bam, d.da_kiem_tra, d.ghi_chu_kiem_tra, d.nguoi_kiem_tra_id, d.kiem_tra_luc,
+  (SELECT p.nguoi_dung_id FROM phien_ban p WHERE p.bai_id = d.bai_id AND p.ngon_ngu = d.ngon_ngu ORDER BY p.luc DESC, p.id DESC LIMIT 1) AS nguoi_sua_cuoi_id
   FROM ban_dich d JOIN bai b ON b.id = d.bai_id`;
 
 const toDoc = (r: Dong): BanDichDoc => ({
@@ -105,7 +106,8 @@ export function luuBanDich(db: Db, input: LuuBanDichInput, now: () => number = D
     const cu = db
       .prepare(
         `SELECT d.slug, d.trang_thai, d.phien_so, d.sua_luc, d.dang_luc, u.ten AS nguoi_sua FROM ban_dich d JOIN bai b ON b.id = d.bai_id
-         LEFT JOIN nguoi_dung u ON u.id = b.nguoi_sua_cuoi_id WHERE d.bai_id = ? AND d.ngon_ngu = ?`,
+         LEFT JOIN nguoi_dung u ON u.id = (SELECT p.nguoi_dung_id FROM phien_ban p WHERE p.bai_id = d.bai_id AND p.ngon_ngu = d.ngon_ngu ORDER BY p.luc DESC, p.id DESC LIMIT 1)
+         WHERE d.bai_id = ? AND d.ngon_ngu = ?`,
       )
       .get(input.baiId, input.ngonNgu) as { slug: string; trang_thai: TrangThaiBan; phien_so: number; sua_luc: number; dang_luc: number | null; nguoi_sua: string | null } | undefined;
     let phienSo = 1;
@@ -126,7 +128,7 @@ export function luuBanDich(db: Db, input: LuuBanDichInput, now: () => number = D
       ).run(du.slug, input.trangThai, input.henGio ?? null, json, input.noiDung, input.trangThai === 'da-dang' ? (cu.dang_luc ?? t) : cu.dang_luc, t, phienSo, t, bam, input.baiId, input.ngonNgu);
     }
     db.prepare('INSERT INTO phien_ban (bai_id, ngon_ngu, nguoi_dung_id, luc, du_lieu, noi_dung) VALUES (?,?,?,?,?,?)').run(input.baiId, input.ngonNgu, input.nguoiId ?? null, t, json, input.noiDung);
-    db.prepare('UPDATE bai SET nguoi_sua_cuoi_id = ?, sua_luc = ? WHERE id = ?').run(input.nguoiId ?? null, t, input.baiId);
+    // Không đụng tới hàng `bai` (người sửa cuối/thời điểm sửa của BẢN TIẾNG VIỆT): người sửa bản dịch lấy từ phien_ban của đúng ngôn ngữ.
     danhDauNoiDungDoi(db);
     return { phienSo };
   })();

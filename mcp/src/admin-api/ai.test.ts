@@ -98,6 +98,13 @@ describe('dịch bài bằng AI', () => {
     expect((await dich(b)).body.ketQua.slug).toBe('translated-title-2');
   });
 
+  it('tiêu đề dịch không dùng chữ Latin (taoSlug ra rỗng) → slug dự phòng "<mã>-<id bài>", không để trống', async () => {
+    await datKey();
+    const id = await taoBai();
+    traVe = (p) => ({ parsed_output: { ...dichTot(JSON.parse(String(p.messages[0].content.split('\n\n').slice(1).join('\n\n')))), tieuDe: 'Привет, мир' }, stop_reason: 'end_turn' });
+    expect((await dich(id)).body.ketQua.slug).toBe(`en-${id}`);
+  });
+
   it('bản dịch làm MẤT ảnh anh:MÃ → canhBao nêu mã ảnh (Review Focus), vẫn trả ketQua để người dùng xem', async () => {
     await datKey();
     const id = await taoBai();

@@ -19,7 +19,8 @@ export function congKhaiRouter(d: Deps): Router {
   // Bài phải tồn tại, đã đăng, chưa vào thùng rác.
   const layBai = (baiId: number, ngonNgu: string) =>
     d.db
-      .prepare("SELECT b.id FROM bai b JOIN ban_dich x ON x.bai_id = b.id WHERE b.id = ? AND x.ngon_ngu = ? AND x.trang_thai = 'da-dang' AND b.xoa_luc IS NULL")
+      // Bản dịch chỉ có trang khi bản tiếng Việt cũng đang đăng (giống xuatNoiDung): vi bị gỡ/vào thùng rác thì trang dịch hết nhận bình luận.
+      .prepare("SELECT b.id FROM bai b JOIN ban_dich x ON x.bai_id = b.id JOIN ban_dich v ON v.bai_id = b.id AND v.ngon_ngu = 'vi' AND v.trang_thai = 'da-dang' WHERE b.id = ? AND x.ngon_ngu = ? AND x.trang_thai = 'da-dang' AND b.xoa_luc IS NULL")
       .get(baiId, ngonNgu) as { id: number } | undefined;
 
   r.get('/binh-luan', (req, res) => {

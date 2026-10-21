@@ -128,6 +128,41 @@ describe('đăng bản dịch', () => {
   });
 });
 
+describe('review GĐ7', () => {
+  it('đổi slug/tỉnh bài tiếng Việt đã đăng → URL bản dịch /en/… cũng có redirect (Review: mất SEO bản dịch)', async () => {
+    const id = await taoBai('bai-a');
+    await luuEn(id, await dichEn(id, { slug: 'en-a' }));
+    await m.chinh.gui('post', `/bai/${id}/ban-dich/en/dang`);
+    const vi = (await m.chinh.gui('get', `/bai/${id}`)).body;
+    expect((await m.chinh.gui('put', `/bai/${id}`, { bai: { ...vi.bai, slug: 'bai-a-moi' }, noiDung: vi.noiDung, phienSo: vi.phienSo })).status).toBe(200);
+    const rd = Object.fromEntries((m.db.prepare('SELECT tu, den FROM redirect').all() as { tu: string; den: string }[]).map((r) => [r.tu, r.den]));
+    expect(rd['/kinh-nghiem/bai-a/']).toBe('/kinh-nghiem/bai-a-moi/');
+    expect(rd['/en/kinh-nghiem/bai-a/']).toBe('/en/kinh-nghiem/bai-a-moi/'); // URL cũ của bản dịch (chưa đổi slug dịch) trỏ sang URL mới theo bài gốc
+    expect(Object.keys(rd).some((k) => k.startsWith('/en/en/'))).toBe(false);
+  });
+
+  it('lưu bản dịch KHÔNG đổi người sửa cuối / thời điểm sửa của bản tiếng Việt; người sửa bản dịch lấy từ lịch sử của chính ngôn ngữ đó', async () => {
+    const id = await taoBai('bai-a');
+    const truoc = m.db.prepare('SELECT nguoi_sua_cuoi_id, sua_luc FROM bai WHERE id = ?').get(id);
+    const w = await m.dangNhap('w@x.vn', 'Dịch giả', 'quan-ly');
+    m.dongHo.v += 60_000;
+    expect((await w.gui('put', `/bai/${id}/ban-dich/en`, { dich: await dichEn(id) })).status).toBe(200);
+    expect(m.db.prepare('SELECT nguoi_sua_cuoi_id, sua_luc FROM bai WHERE id = ?').get(id)).toEqual(truoc);
+    const r = await m.chinh.gui('put', `/bai/${id}/ban-dich/en`, { dich: await dichEn(id), phienSo: 0 + 5 });
+    expect(r.status).toBe(409);
+    expect(r.body.nguoiSua).toBe('Dịch giả'); // xung đột trên bản dịch nêu đúng người sửa bản dịch
+    expect((await m.chinh.gui('get', `/bai/${id}/ban-dich/en`)).body.nguoiSuaCuoi).toMatchObject({ ten: 'Dịch giả' });
+  });
+
+  it('bản dịch cấu trúc mồ côi (chuyên mục đã xoá, mục menu đã bớt) không được xuất', async () => {
+    m.db.prepare("INSERT INTO dich_cau_truc (loai, khoa, ngon_ngu, du_lieu, sua_luc) VALUES ('chuyen-muc', 'da-xoa', 'en', '{\"ten\":\"Old\"}', 0), ('menu', 'dauTrang.9', 'en', '{\"nhan\":\"Old\"}', 0)").run();
+    const { mkdtempSync, readFileSync } = await import('node:fs');
+    const d = mkdtempSync(join((await import('node:os')).tmpdir(), 'vtt-mc-'));
+    xuatNoiDung(m.db, d, 'production', m.anhDir);
+    expect(JSON.parse(readFileSync(join(d, 'dich-cau-truc.json'), 'utf8'))).toEqual([]);
+  });
+});
+
 describe('xem trước bản dịch (Review)', () => {
   it('lưu rồi trả URL xem trước /en/…, noiDungPhien và yêu cầu build; bản chưa đủ cấu trúc → hopLe=false, không có URL', async () => {
     const id = await taoBai('bai-a');

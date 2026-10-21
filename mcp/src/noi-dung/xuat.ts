@@ -10,6 +10,7 @@ import { docCaiDat } from './cai-dat';
 import { kiemTraDayDu } from './kiem-tra';
 import { lietKeNgonNgu, maNgonNguDangBat } from './ngon-ngu';
 import { docBanDich, ghepDayDu } from './ban-dich';
+import { banGocDich, type LoaiDich } from './dich-cau-truc';
 
 /**
  * `anhDir` (nếu có): bản nháp đưa vào preview còn phải qua kiểm tra tham chiếu (ảnh/tỉnh có thật), nếu không một nháp
@@ -81,7 +82,7 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
 
   // Bản dịch cấu trúc (chuyên mục, tỉnh, trang, menu, site) và chuỗi giao diện của các ngôn ngữ ĐANG BẬT.
   const dangBat = new Set(maNgonNguDangBat(db));
-  const dcRows = (db.prepare('SELECT loai, khoa, ngon_ngu, du_lieu FROM dich_cau_truc ORDER BY loai, khoa, ngon_ngu').all() as { loai: string; khoa: string; ngon_ngu: string; du_lieu: string }[]).filter((r) => dangBat.has(r.ngon_ngu));
+  const dcRows = (db.prepare('SELECT loai, khoa, ngon_ngu, du_lieu FROM dich_cau_truc ORDER BY loai, khoa, ngon_ngu').all() as { loai: string; khoa: string; ngon_ngu: string; du_lieu: string }[]).filter((r) => dangBat.has(r.ngon_ngu) && (r.loai === 'giao-dien' || banGocDich(db, r.loai as LoaiDich, r.khoa) !== null)); // bỏ bản dịch mồ côi (đối tượng gốc đã xoá/đổi slug)
   writeFileSync(join(dich, 'dich-cau-truc.json'), JSON.stringify(dcRows.filter((r) => r.loai !== 'giao-dien' && r.loai !== 'trang').map((r) => ({ loai: r.loai, khoa: r.khoa, ngonNgu: r.ngon_ngu, duLieu: JSON.parse(r.du_lieu) })), null, 2) + '\n');
   mkdirSync(join(dich, 'giao-dien'), { recursive: true });
   // Trang tĩnh đã dịch → trang-dich/<mã>/<slug đã dịch>.md (frontmatter slugGoc = slug trang tiếng Việt). Chỉ khi trang gốc cũng được xuất;

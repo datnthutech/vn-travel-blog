@@ -15,6 +15,8 @@ interface Props {
 }
 const { ngonNgu = 'vi', hreflang = {}, title, moTa = SITE.moTa, duongDan = Astro.url.pathname, anh, loai = 'website', jsonLd = [] } = Astro.props;
 const LOCALE_OG: Record<string, string> = { vi: 'vi_VN', en: 'en_US' };
+// Open Graph cần dạng ngôn_ngữ_QUỐC GIA: 'zh-cn' → zh_CN, 'fr' → fr_FR.
+const ogLocale = (ma: string) => { const [a, b] = ma.split('-'); return `${a}_${(b ?? a).toUpperCase()}`; };
 const canonical = new URL(duongDan, Astro.site).toString();
 const anhMacDinh = SITE.anhChiaSe ? `/anh/${SITE.anhChiaSe.ma}/1600.webp` : undefined; // ảnh chia sẻ mặc định cho trang không có ảnh riêng
 const anhChon = anh || anhMacDinh; // chuỗi rỗng cũng dùng ảnh mặc định
@@ -31,7 +33,7 @@ const anhOg = anhChon ? new URL(anhChon, Astro.site).toString() : undefined;
 <meta property="og:title" content={title} />
 <meta property="og:description" content={moTa} />
 <meta property="og:url" content={canonical} />
-<meta property="og:locale" content={LOCALE_OG[ngonNgu] ?? ngonNgu} />
+<meta property="og:locale" content={LOCALE_OG[ngonNgu] ?? ogLocale(ngonNgu)} />
 {anhOg && <meta property="og:image" content={anhOg} />}
 <meta name="twitter:card" content={anhOg ? 'summary_large_image' : 'summary'} />
 <meta name="twitter:title" content={title} />

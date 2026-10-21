@@ -36,6 +36,7 @@
   let canhBao = $state<string[]>([]);
   let dangBan = $state(false);
   let xemGoc = $state(false);
+  let moc = ''; // ảnh chụp dữ liệu lần cuối đồng bộ với máy chủ: không đổi gì thì không lưu lại (giữ dấu "đã kiểm tra")
 
   const dong = (ds: string[]) => ds.join('\n');
   const tach = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean);
@@ -56,6 +57,7 @@
       const r = await goiApi<Doc>('GET', `/bai/${id}/ban-dich/${ma}`);
       doc = r;
       f = r.dich ? ($state.snapshot(r.dich) as Dich) : r.banGoc ? khungRong(r.banGoc) : null;
+      moc = r.dich && f ? JSON.stringify(sach()) : '';
     } catch (e) {
       loi = thongBaoLoi(e);
     } finally {
@@ -81,6 +83,7 @@
   async function luuThat(): Promise<boolean> {
     if (!f) return false;
     if (!f.slug && f.tieuDe) f.slug = taoSlug(f.tieuDe);
+    if (doc && doc.phienSo > 0 && JSON.stringify(sach()) === moc) return true; // không có gì mới để lưu
     try {
       const r = await goiApi<{ phienSo: number }>('PUT', `/bai/${id}/ban-dich/${ma}`, { dich: sach(), ...(doc && doc.phienSo > 0 ? { phienSo: doc.phienSo } : {}) });
       if (doc) {
@@ -89,6 +92,7 @@
         doc.daKiemTra = false; // lưu lại nội dung → máy chủ xoá dấu "đã kiểm tra"
         doc.cuHonBanGoc = false;
       }
+      moc = JSON.stringify(sach());
       return true;
     } catch (e) {
       xuLy(e);
@@ -103,12 +107,16 @@
       dangBan = false;
     }
   }
+  async function taiMeta() {
+    const r = await goiApi<Doc>('GET', `/bai/${id}/ban-dich/${ma}`);
+    if (doc) Object.assign(doc, { trangThai: r.trangThai, cuHonBanGoc: r.cuHonBanGoc, daKiemTra: r.daKiemTra, ghiChuKiemTra: r.ghiChuKiemTra, nguoiKiemTra: r.nguoiKiemTra, banVi: r.banVi, phienSo: r.phienSo });
+  }
   async function lamRoiTai(ok: string, viec: () => Promise<unknown>, truocDo = true) {
     batDau();
     try {
       if (truocDo && !(await luuThat())) return;
       await viec();
-      await tai();
+      await taiMeta(); // chỉ làm mới trạng thái/dấu kiểm tra; KHÔNG nạp lại form (giữ nội dung đang gõ hoặc AI vừa điền)
       thongBao = ok;
     } catch (e) {
       xuLy(e);

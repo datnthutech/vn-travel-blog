@@ -151,6 +151,12 @@ export function bienDoiDuLieuBai(db: Db, fn: (du: Record<string, unknown>, baiId
  */
 export function themRedirectKhiDoiUrl(db: Db, urlCu: string, urlMoi: string): void {
   if (urlCu === urlMoi) return;
+  // URL tiếng Việt đổi thì URL các bản dịch (/<mã>/…) cũng đổi theo (tỉnh/chuyên mục/slug bài đổi): thêm redirect cho từng ngôn ngữ.
+  // Đích chưa tồn tại (chưa có bản dịch) bị bỏ ở bước xuất nên thêm thừa là vô hại.
+  const maNn = (db.prepare('SELECT ma FROM ngon_ngu WHERE ma <> ?').all('vi') as { ma: string }[]).map((r) => r.ma);
+  if (!maNn.some((ma) => urlCu.startsWith(`/${ma}/`))) {
+    for (const ma of maNn) themRedirectKhiDoiUrl(db, `/${ma}${urlCu}`, `/${ma}${urlMoi}`);
+  }
   db.prepare('UPDATE redirect SET den = ? WHERE den = ?').run(urlMoi, urlCu);
   db.prepare('DELETE FROM redirect WHERE tu = ?').run(urlMoi);
   db.prepare('DELETE FROM redirect WHERE tu = den').run();

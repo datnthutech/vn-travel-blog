@@ -53,6 +53,17 @@ describe('bình luận theo ngôn ngữ', () => {
     expect((await gui(hopLe(await ve('vi'), 'en', 'sau khi gỡ'))).status).toBe(404);
   });
 
+  it('bài tiếng Việt vào thùng rác/bị gỡ → trang en cũng hết nhận bình luận (trang dịch đã biến khỏi site)', async () => {
+    await dangBanEn();
+    expect((await lay('en')).status).toBe(200);
+    await m.chinh.gui('post', `/bai/${baiId}/thung-rac`);
+    expect((await lay('en')).status).toBe(404);
+    expect((await gui(hopLe(await ve('en'), 'en', 'muộn'))).status).toBe(404);
+    await m.chinh.gui('post', `/bai/${baiId}/khoi-phuc`);
+    await m.chinh.gui('post', `/bai/${baiId}/go`);
+    expect((await lay('en')).status).toBe(404);
+  });
+
   it('quản trị lọc bình luận theo ngôn ngữ', async () => {
     await dangBanEn();
     await gui(hopLe(await ve('en'), 'en', 'Great post!'), '8.8.8.8');
