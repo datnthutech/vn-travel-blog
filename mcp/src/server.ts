@@ -8,6 +8,7 @@ import { loadConfig } from './config';
 import { duongDanDb, moDb } from './db/ket-noi';
 import { dongBoAnh } from './admin-api/anh';
 import { khoiTaoCaiDatSite } from './noi-dung/cai-dat-site';
+import { guiCanhBaoSaoLuu } from './noi-dung/sao-luu-ngoai';
 import { xuLyHenGio } from './noi-dung/hen-gio';
 import { taoDichVuMail } from './mail/dich-vu';
 import { donSaoLuu, saoLuu } from './db/sao-luu';
@@ -20,6 +21,7 @@ const thuMucSaoLuu = `${config.dataDir}/db/sao-luu`;
 const saoLuuDinhKy = () =>
   saoLuu(db, thuMucSaoLuu, Date.now())
     .then(() => donSaoLuu(thuMucSaoLuu, Date.now()))
+    .then(() => void guiCanhBaoSaoLuu(db, mail, config.dataDir, Date.now()))
     .catch((e) => console.error('Sao lưu DB lỗi:', (e as Error).message));
 setInterval(() => void saoLuuDinhKy(), 3_600_000).unref();
 // Gửi mail trong hàng đợi mỗi 30 giây (tối đa 20 mail mỗi lượt).

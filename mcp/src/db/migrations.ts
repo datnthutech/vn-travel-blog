@@ -251,4 +251,10 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE phien_ban_moi RENAME TO phien_ban;
     `,
   },
+  {
+    phienBan: 9,
+    sql: `
+      ALTER TABLE redirect ADD COLUMN tu_dong INTEGER NOT NULL DEFAULT 0; -- 1 = hệ thống tự thêm khi đổi slug/tỉnh
+    `,
+  },
 ];

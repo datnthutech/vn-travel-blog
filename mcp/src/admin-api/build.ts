@@ -7,7 +7,7 @@ import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 
 // build.json do bản build ghi (site/scripts/write-build-json.mjs); thiếu/hỏng → null.
-async function docNoiDungPhien(thuMuc: string): Promise<number | null> {
+export async function docBuildJson(thuMuc: string): Promise<number | null> {
   try {
     const d = JSON.parse(await readFile(join(thuMuc, 'build.json'), 'utf8')) as { noiDungPhien?: unknown };
     return typeof d.noiDungPhien === 'number' ? d.noiDungPhien : null;
@@ -23,8 +23,8 @@ export function buildRouter(d: { config: Config; db: Db; hangDoi: HangDoiBuild }
     res.json({
       ...d.hangDoi.trangThai(),
       saoLuuCuoiLuc: s ? Number(s.gia_tri) : null,
-      previewNoiDungPhien: await docNoiDungPhien(d.config.previewDir),
-      productionNoiDungPhien: await docNoiDungPhien(d.config.siteDir),
+      previewNoiDungPhien: await docBuildJson(d.config.previewDir),
+      productionNoiDungPhien: await docBuildJson(d.config.siteDir),
     });
   });
   return r;

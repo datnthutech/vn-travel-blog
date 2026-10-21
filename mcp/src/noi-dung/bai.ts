@@ -149,7 +149,7 @@ export function themRedirectKhiDoiUrl(db: Db, urlCu: string, urlMoi: string): vo
   db.prepare('UPDATE redirect SET den = ? WHERE den = ?').run(urlMoi, urlCu);
   db.prepare('DELETE FROM redirect WHERE tu = ?').run(urlMoi);
   db.prepare('DELETE FROM redirect WHERE tu = den').run();
-  db.prepare('INSERT OR REPLACE INTO redirect (tu, den) VALUES (?, ?)').run(urlCu, urlMoi);
+  db.prepare('INSERT OR REPLACE INTO redirect (tu, den, tu_dong) VALUES (?, ?, 1)').run(urlCu, urlMoi);
 }
 
 /** Thêm "-2", "-3"… cho tới khi slug không trùng bài nào (và không trùng đường dẫn hệ thống). `truBaiId`: bỏ qua chính bài đang sửa. */

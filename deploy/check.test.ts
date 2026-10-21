@@ -118,6 +118,13 @@ describe('sao lưu ảnh', () => {
     expect(sh.match(/vntraveltips_data:\/data:ro/g)).toHaveLength(2);
   });
 
+  it('ghi file đánh dấu .da-day-ra-ngoai SAU khi cả hai lần rclone thành công (set -e), chỉ ghi đúng file đó', () => {
+    const lenh = sh.split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
+    const dau = lenh.indexOf('.da-day-ra-ngoai');
+    expect(dau).toBeGreaterThan(lenh.lastIndexOf('rclone/rclone'));
+    expect(lenh).toMatch(/> \/data\/db\/sao-luu\/\.da-day-ra-ngoai/);
+  });
+
   it('nguồn là thư mục anh/ trong volume vntraveltips_data; không còn đường dẫn /srv', () => {
     expect(sh).toContain('/data/anh');
     expect(sh).not.toContain('/srv/vntraveltips');

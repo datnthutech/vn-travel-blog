@@ -46,4 +46,8 @@ docker run --rm \
   --transfers 1 --checkers 1 --bwlimit 4M \
   --log-level NOTICE
 
+# Ghi thời điểm sao lưu ra ngoài VPS thành công (set -e: chỉ chạy tới đây khi hai lần rclone ở trên đều thành công).
+# Trang quản trị đọc file này để cảnh báo khi quá 26 giờ chưa có bản ra ngoài VPS. Chỉ ghi đúng MỘT file đánh dấu, không đụng dữ liệu khác.
+docker run --rm -v vntraveltips_data:/data alpine sh -c 'date +%s000 > /data/db/sao-luu/.da-day-ra-ngoai'
+
 echo "Sao lưu xong: $(date -Is)"
