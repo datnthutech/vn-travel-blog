@@ -25,7 +25,7 @@ export function khoiTaoBanTin(khung: HTMLElement, p: PhuThuoc = {}): void {
       });
       const d = (await r.json().catch(() => ({}))) as { loi?: unknown };
       if (r.ok) {
-        thongBao('Kiểm tra hộp thư để xác nhận.');
+        thongBao(khung.dataset.daGui || 'Kiểm tra hộp thư để xác nhận.'); // bản dịch theo ngôn ngữ của trang (data-da-gui)
         f.email!.value = '';
       } else thongBao(typeof d.loi === 'string' ? d.loi : 'Không đăng ký được, hãy thử lại.');
     } catch {

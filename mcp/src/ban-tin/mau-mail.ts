@@ -1,34 +1,24 @@
-// Mẫu mail + trang kết quả của newsletter. Chuỗi theo ngôn ngữ nằm ở đây để GĐ7 chỉ cần thêm bản dịch (ngôn ngữ chưa có → tiếng Việt).
+// Mẫu mail + trang kết quả của newsletter. Chuỗi theo ngôn ngữ truyền vào qua tham số `chuoi` (xem chuoi.ts); không truyền → tiếng Việt.
+import { CHUOI_GIAO_DIEN_VI } from '@vntraveltips/schema';
 export interface ChuoiBanTin {
   xacNhanTieuDe: string; xacNhanLoiChao: string; xacNhanNut: string; xacNhanGhiChu: string;
   trangDaXacNhan: string; trangHetHan: string; trangHuyHoi: string; trangNutHuy: string; trangDaHuy: string; trangLinkLoi: string;
   chanTrang: string; huyLienKet: string;
 }
 
+/** Chuỗi tiếng Việt mặc định (nguồn: khoá `mail.*` của chuỗi giao diện); ngôn ngữ khác do `docChuoiBanTin(db, mã)` dựng. */
 const VI: ChuoiBanTin = {
-  xacNhanTieuDe: 'Xác nhận đăng ký nhận tin VNTravelTips',
-  xacNhanLoiChao: 'Chào bạn, bạn (hoặc ai đó) vừa đăng ký nhận bản tin VNTravelTips bằng địa chỉ email này. Bấm nút dưới đây để xác nhận:',
-  xacNhanNut: 'Xác nhận đăng ký',
-  xacNhanGhiChu: 'Liên kết có hiệu lực 7 ngày. Nếu bạn không đăng ký, cứ bỏ qua thư này — chúng tôi sẽ không gửi gì thêm.',
-  trangDaXacNhan: 'Đã xác nhận đăng ký. Cảm ơn bạn — bản tin sẽ được gửi vào hộp thư này.',
-  trangHetHan: 'Liên kết đã hết hạn hoặc không hợp lệ. Hãy đăng ký lại trên trang chủ để nhận liên kết mới.',
-  trangHuyHoi: 'Bạn muốn ngừng nhận bản tin VNTravelTips?',
-  trangNutHuy: 'Xác nhận huỷ',
-  trangDaHuy: 'Đã huỷ đăng ký. Bạn sẽ không nhận bản tin nữa.',
-  trangLinkLoi: 'Liên kết huỷ không hợp lệ.',
-  chanTrang: 'Bạn nhận thư này vì đã đăng ký bản tin VNTravelTips.',
-  huyLienKet: 'Huỷ đăng ký',
+  xacNhanTieuDe: CHUOI_GIAO_DIEN_VI['mail.xac-nhan-tieu-de']!, xacNhanLoiChao: CHUOI_GIAO_DIEN_VI['mail.xac-nhan-loi-chao']!, xacNhanNut: CHUOI_GIAO_DIEN_VI['mail.xac-nhan-nut']!,
+  xacNhanGhiChu: CHUOI_GIAO_DIEN_VI['mail.xac-nhan-ghi-chu']!, trangDaXacNhan: CHUOI_GIAO_DIEN_VI['mail.trang-da-xac-nhan']!, trangHetHan: CHUOI_GIAO_DIEN_VI['mail.trang-het-han']!,
+  trangHuyHoi: CHUOI_GIAO_DIEN_VI['mail.trang-huy-hoi']!, trangNutHuy: CHUOI_GIAO_DIEN_VI['mail.trang-nut-huy']!, trangDaHuy: CHUOI_GIAO_DIEN_VI['mail.trang-da-huy']!,
+  trangLinkLoi: CHUOI_GIAO_DIEN_VI['mail.trang-link-loi']!, chanTrang: CHUOI_GIAO_DIEN_VI['mail.chan-trang']!, huyLienKet: CHUOI_GIAO_DIEN_VI['mail.huy-lien-ket']!,
 };
-
-const BANG: Record<string, ChuoiBanTin> = { vi: VI };
-export const chuoiBanTin = (ngonNgu: string): ChuoiBanTin => BANG[ngonNgu] ?? VI;
-/** GĐ7 gọi hàm này để thêm bản dịch. */
-export const themChuoiBanTin = (ngonNgu: string, c: ChuoiBanTin) => void (BANG[ngonNgu] = c);
+export const chuoiBanTinVi = (): ChuoiBanTin => VI;
 
 export const escHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-export function mauMailXacNhan(o: { ngonNgu: string; link: string }): { tieuDe: string; html: string; text: string } {
-  const c = chuoiBanTin(o.ngonNgu);
+export function mauMailXacNhan(o: { ngonNgu: string; link: string; chuoi?: ChuoiBanTin }): { tieuDe: string; html: string; text: string } {
+  const c = o.chuoi ?? VI;
   return {
     tieuDe: c.xacNhanTieuDe,
     text: `${c.xacNhanLoiChao}\n\n${o.link}\n\n${c.xacNhanGhiChu}`,
@@ -53,10 +43,10 @@ function noiDungSangHtml(noiDung: string): string {
     .join('');
 }
 
-export function mauMailBanTin(o: { banTin: { tieuDe: string; noiDung: string; ngonNgu: string }; nguoiNhan?: { email: string }; linkHuy: string }): {
+export function mauMailBanTin(o: { banTin: { tieuDe: string; noiDung: string; ngonNgu: string }; nguoiNhan?: { email: string }; linkHuy: string; chuoi?: ChuoiBanTin }): {
   tieuDe: string; html: string; text: string; headers: Record<string, string>;
 } {
-  const c = chuoiBanTin(o.banTin.ngonNgu);
+  const c = o.chuoi ?? VI;
   return {
     tieuDe: o.banTin.tieuDe,
     text: `${o.banTin.noiDung}\n\n--\n${c.chanTrang}\n${c.huyLienKet}: ${o.linkHuy}`,

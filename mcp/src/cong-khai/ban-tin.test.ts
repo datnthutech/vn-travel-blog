@@ -127,6 +127,53 @@ describe('huỷ', () => {
   });
 });
 
+describe('đa ngôn ngữ', () => {
+  const GD_EN = { 'mail.xac-nhan-tieu-de': 'Confirm your VNTravelTips subscription', 'mail.xac-nhan-loi-chao': 'Hi, someone signed up with this address. Click below to confirm:', 'mail.xac-nhan-nut': 'Confirm subscription', 'mail.trang-da-xac-nhan': 'Subscription confirmed. Thank you!', 'mail.trang-huy-hoi': 'Do you want to unsubscribe?', 'mail.trang-nut-huy': 'Confirm unsubscribe', 'mail.trang-da-huy': 'You have been unsubscribed.' };
+  const batEn = async () => {
+    await m.chinh.gui('post', '/ngon-ngu', { ma: 'en', ten: 'English' });
+    await m.chinh.gui('put', '/dich/giao-dien/giao-dien/en', GD_EN);
+  };
+
+  it('đăng ký từ trang /en/… → ngon_ngu = en, mail xác nhận bằng tiếng Anh, trang xác nhận/huỷ tiếng Anh (lang="en")', async () => {
+    await batEn();
+    await gui({ email: 'john@x.vn', ngonNgu: 'en' });
+    expect(dong('john@x.vn').ngon_ngu).toBe('en');
+    const mail = m.db.prepare("SELECT tieu_de, text FROM mail_hang_doi WHERE den = 'john@x.vn'").get() as { tieu_de: string; text: string };
+    expect(mail.tieu_de).toBe('Confirm your VNTravelTips subscription');
+    expect(mail.text).toContain('Click below to confirm');
+    const t = /token=([0-9a-f]{64})/.exec(mail.text)![1]!;
+    const xn = await request(m.app).get(`/api/cong-khai/ban-tin/xac-nhan?token=${t}`);
+    expect(xn.text).toContain('Subscription confirmed. Thank you!');
+    expect(xn.text).toContain('<html lang="en">');
+    const th = dong('john@x.vn').token_huy as string;
+    const g = await request(m.app).get(`/api/cong-khai/ban-tin/huy?token=${th}`);
+    expect(g.text).toContain('Confirm unsubscribe');
+    expect((await request(m.app).post(`/api/cong-khai/ban-tin/huy?token=${th}`).type('form').send({})).text).toContain('You have been unsubscribed.');
+  });
+
+  it('chuỗi chưa dịch → rơi về tiếng Việt từng khoá; ngôn ngữ lạ/đang tắt → người đăng ký được ghi là vi, mail tiếng Việt', async () => {
+    await batEn();
+    await gui({ email: 'a@x.vn', ngonNgu: 'en' }, '2.2.2.2');
+    expect((m.db.prepare("SELECT text FROM mail_hang_doi WHERE den = 'a@x.vn'").get() as { text: string }).text).toContain('Liên kết có hiệu lực 7 ngày'); // ghi chú chưa dịch
+    await gui({ email: 'b@x.vn', ngonNgu: 'fr' }, '3.3.3.3');
+    expect(dong('b@x.vn').ngon_ngu).toBe('vi');
+    await m.chinh.gui('put', '/ngon-ngu/en', { bat: false });
+    await gui({ email: 'c@x.vn', ngonNgu: 'en' }, '4.4.4.4');
+    expect(dong('c@x.vn').ngon_ngu).toBe('vi');
+    expect(mailXacNhan().filter((x) => x.den === 'c@x.vn')).toHaveLength(1);
+  });
+
+  it('bản tin tiếng Anh: mail có chân trang + liên kết huỷ bằng tiếng Anh khi đã dịch', async () => {
+    await batEn();
+    await m.chinh.gui('put', '/dich/giao-dien/giao-dien/en', { ...GD_EN, 'mail.chan-trang': 'You receive this because you subscribed.', 'mail.huy-lien-ket': 'Unsubscribe' });
+    const { docChuoiBanTin } = await import('../ban-tin/chuoi');
+    const t = mauMailBanTin({ banTin: { tieuDe: 'News', noiDung: 'Hello', ngonNgu: 'en' }, linkHuy: 'https://x.vn/huy?token=abc', chuoi: docChuoiBanTin(m.db, 'en') });
+    expect(t.text).toContain('You receive this because you subscribed.');
+    expect(t.text).toContain('Unsubscribe: https://x.vn/huy?token=abc');
+    expect(t.html).toContain('>Unsubscribe</a>');
+  });
+});
+
 describe('mẫu mail', () => {
   it('mẫu bản tin có 2 header huỷ + link huỷ trong CẢ html lẫn text; nội dung bị thoát HTML, link thành thẻ a, dòng ảnh thành img', () => {
     const t = mauMailBanTin({

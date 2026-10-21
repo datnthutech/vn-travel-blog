@@ -12,6 +12,8 @@
   let trang = $state(1);
   let tt = $state('');
   let q = $state('');
+  let nn = $state('');
+  let ngonDs = $state<{ ma: string; ten: string }[]>([]);
   let loi = $state('');
   let seq = 0;
   const gio = (ms: number) => new Date(ms).toLocaleDateString('vi-VN');
@@ -21,6 +23,7 @@
     const qs = new URLSearchParams({ trang: String(trang) });
     if (tt) qs.set('trangThai', tt);
     if (q.trim()) qs.set('q', q.trim());
+    if (nn) qs.set('ngonNgu', nn);
     try {
       const r = await goiApi<{ nguoi: N[]; tong: number }>('GET', `/nguoi-dang-ky?${qs}`);
       if (luot !== seq) return;
@@ -44,7 +47,10 @@
       loi = thongBaoLoi(e);
     }
   }
-  onMount(() => void tai());
+  onMount(() => {
+    void goiApi<{ ngonNgu: { ma: string; ten: string; bat: boolean }[] }>('GET', '/ngon-ngu').then((r) => (ngonDs = r.ngonNgu)).catch(() => {});
+    void tai();
+  });
 </script>
 
 <p><a href="{GOC}/ban-tin" onclick={bamLienKet}>← Bản tin</a></p>
@@ -55,6 +61,10 @@
   <select id="dk-tt" bind:value={tt} onchange={loc}>
     <option value="">Tất cả</option><option value="da-xac-nhan">Đã xác nhận</option><option value="cho-xac-nhan">Chờ xác nhận</option><option value="da-huy">Đã huỷ</option>
   </select>
+  {#if ngonDs.length > 1}
+    <label for="dk-nn">Ngôn ngữ</label>
+    <select id="dk-nn" bind:value={nn} onchange={loc}><option value="">Tất cả</option>{#each ngonDs as n}<option value={n.ma}>{n.ten} ({n.ma})</option>{/each}</select>
+  {/if}
   <label for="dk-q">Tìm email</label>
   <input id="dk-q" type="search" bind:value={q} onchange={loc} />
   <div class="hang-nut"><a class="nut phu" href="/api/admin/nguoi-dang-ky.csv" download>Tải CSV</a></div>

@@ -121,6 +121,20 @@ Người đọc đăng ký nhận tin bằng form ở chân mọi trang và cu�
 - **Người đăng ký** (`/quan-tri/nguoi-dang-ky`): lọc, tìm, xoá, tải CSV (chỉ Quản trị).
 - **Gmail:** dùng "Mật khẩu ứng dụng" (không dùng mật khẩu Gmail): bật xác minh 2 bước cho tài khoản Google → vào myaccount.google.com/apppasswords → tạo mật khẩu cho "Mail" → dán vào "Cài đặt mail" (SMTP `smtp.gmail.com`, cổng 465, SSL). Gmail miễn phí gửi tối đa khoảng 500 mail/ngày.
 
+## Đa ngôn ngữ
+
+Tiếng Việt là ngôn ngữ gốc (địa chỉ không đổi). Quản trị thêm ngôn ngữ ở `/quan-tri/ngon-ngu` (mã như `en`, `zh-cn`; **không được trùng slug tỉnh/trang** vì ngôn ngữ chiếm đường dẫn `/en/…`). Mỗi bài có tab theo ngôn ngữ: bản gốc nằm cạnh bản dịch, dịch xong bấm **Review toàn màn hình** rồi **Đăng bản dịch** (cần bản tiếng Việt đã đăng; bản vi bị gỡ/vào thùng rác thì mọi bản dịch của nó cũng biến khỏi site).
+
+- **URL:** bài `/<mã>/<tỉnh>/<slug-dịch>/` hoặc `/<mã>/kinh-nghiem/<slug-dịch>/`; hub tỉnh `/<mã>/<tỉnh>/`, chuyên mục `/<mã>/chu-de/<chuyên-mục>/`, trang tĩnh `/<mã>/<slug-trang-dịch>/`, RSS `/<mã>/rss.xml`. Slug tỉnh/chuyên mục giữ nguyên giữa các ngôn ngữ (chỉ tên/mô tả được dịch). Trang chủ `/<mã>/` chỉ có khi ngôn ngữ có ít nhất một bài đã đăng.
+- **SEO:** `<html lang>`, `hreflang` + `x-default` (chỉ khi bài có ≥ 2 bản đã đăng), canonical theo ngôn ngữ, sitemap gồm mọi ngôn ngữ; nút chuyển ngôn ngữ chỉ liệt kê bản dịch của chính trang đó.
+- **"Cũ hơn bản gốc":** khi sửa phần CHỮ của bản tiếng Việt, bản dịch hiện nhãn này (sửa giá số, toạ độ, ảnh… thì không). **"Đã kiểm tra":** ai cũng đánh dấu được, lưu lại bản dịch thì dấu bị xoá.
+- **Bản dịch cấu trúc:** `/quan-tri/dich-cau-truc` (chuyên mục, tỉnh, trang, nhãn menu, tên site) và `/quan-tri/chuoi-giao-dien` (chữ trên giao diện, cả form đăng ký tin/bình luận và mail xác nhận). Chuỗi chưa dịch tự dùng tiếng Việt; Tổng quan hiện số chuỗi còn thiếu.
+- **Newsletter & bình luận:** người đăng ký ghi nhận ngôn ngữ của trang họ đăng ký, bản tin chỉ gửi người cùng ngôn ngữ; bình luận thuộc ngôn ngữ của trang nên không lẫn giữa các ngôn ngữ.
+
+### Cài API key AI (Dịch bằng AI)
+
+`/quan-tri/cai-dat-ai` (quản trị): dán API key Anthropic (lấy ở console.anthropic.com → API keys), chọn model (mặc định `claude-opus-5-5`), bấm **Thử kết nối**. Key được mã hoá trong cơ sở dữ liệu, chỉ ghi không đọc lại. Nút **Dịch bằng AI** chỉ *điền* bản dịch vào form kèm cảnh báo (mất ảnh/link, lệch số phần tử…) — không tự lưu, không tự đăng; AI lỗi chỉ làm nút đó báo lỗi. Dịch tốn phí theo tài khoản Anthropic của bạn.
+
 ## Thêm connector MCP vào Claude
 
 claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → đăng nhập GitHub. App Claude trên iPhone tự đồng bộ connector. Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).

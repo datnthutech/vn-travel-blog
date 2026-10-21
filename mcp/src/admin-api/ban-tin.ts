@@ -5,6 +5,7 @@ import type { Db } from '../db/ket-noi';
 import type { DichVuMail } from '../mail/dich-vu';
 import { docBanTin, lietKeBanTin, linkHuy, nhapTuBai, tienDo, xepHangGui } from '../ban-tin/gui';
 import { lietKe, xoaNguoiDangKy } from '../ban-tin/kho';
+import { docChuoiBanTin } from '../ban-tin/chuoi';
 import { mauMailBanTin } from '../ban-tin/mau-mail';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { yeuCauQuyen } from '../tai-khoan/quyen';
@@ -71,7 +72,7 @@ export function banTinRouter(d: { config: Config; db: Db; mail: DichVuMail; now:
   r.post('/ban-tin/:id/gui-thu', q, (req, res) => {
     const bt = doc(req);
     if (!bt) return void res.status(404).json({ loi: 'Không tìm thấy bản tin' });
-    const m = mauMailBanTin({ banTin: { ...bt, tieuDe: `[Gửi thử] ${bt.tieuDe}` }, linkHuy: linkHuy(d.config.publicBaseUrl, 'gui-thu') });
+    const m = mauMailBanTin({ banTin: { ...bt, tieuDe: `[Gửi thử] ${bt.tieuDe}` }, linkHuy: linkHuy(d.config.publicBaseUrl, 'gui-thu'), chuoi: docChuoiBanTin(d.db, bt.ngonNgu) });
     d.mail.gui({ loai: 'thuong', den: req.nguoiDung!.email, tieuDe: m.tieuDe, html: m.html, text: m.text, headers: m.headers, nhayCam: true });
     res.json({ ok: true, den: req.nguoiDung!.email });
   });

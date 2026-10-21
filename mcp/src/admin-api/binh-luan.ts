@@ -43,6 +43,12 @@ export function binhLuanRouter(d: { config: Config; db: Db; mail: DichVuMail; ha
       dk.push('c.trang_thai = ?');
       tham.push(tt);
     }
+    const nn = String(req.query.ngonNgu ?? '');
+    if (nn) {
+      if (!/^[a-z]{2}(-[a-z]{2})?$/.test(nn)) return void res.status(400).json({ loi: 'ngonNgu không hợp lệ' });
+      dk.push('c.ngon_ngu = ?');
+      tham.push(nn);
+    }
     if (/^\d+$/.test(String(req.query.baiId ?? ''))) (dk.push('c.bai_id = ?'), tham.push(Number(req.query.baiId)));
     if (u.vaiTro === 'writer') (dk.push('b.tac_gia_id = ?'), tham.push(u.id)); // người viết chỉ thấy bình luận ở bài của mình
     const where = dk.length ? `WHERE ${dk.join(' AND ')}` : '';

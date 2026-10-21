@@ -278,13 +278,13 @@ describe('build với NOI_DUNG_DIR', () => {
       .replace(/^tieuDe: .*$/m, 'tieuDe: Vung Tau 2 days in an apartment')
       .replace(`slug: ${slugVi}`, 'slug: vung-tau-apartment')
       .replace(/^moTa: .*$/m, `moTa: ${'An English description of the two day Vung Tau apartment trip with a small child, where we stayed, what we cooked and ate, and tips for parents.'}`)
-      .replace('hopTac: false', 'hopTac: false\nngonNgu: en\nbanDich:\n  vi: /vung-tau/vung-tau-can-ho-banh-canh/')
+      .replace('hopTac: false', 'hopTac: false\nmaBai: 77\nngonNgu: en\nbanDich:\n  vi: /vung-tau/vung-tau-can-ho-banh-canh/')
       .replace('draft: false', 'draft: false');
     mkdirSync(join(nd, 'bai-viet/en'), { recursive: true });
     writeFileSync(join(nd, 'bai-viet/en/vung-tau-apartment.md'), en);
     writeFileSync(join(nd, 'ngon-ngu.json'), JSON.stringify([{ ma: 'vi', ten: 'Tiếng Việt', thuTu: 0 }, { ma: 'en', ten: 'English', thuTu: 1 }]));
     mkdirSync(join(nd, 'giao-dien'), { recursive: true });
-    writeFileSync(join(nd, 'giao-dien/en.json'), JSON.stringify({ 'tra-nhanh': 'Quick facts', 'trang-chu': 'Home' }));
+    writeFileSync(join(nd, 'giao-dien/en.json'), JSON.stringify({ 'tra-nhanh': 'Quick facts', 'trang-chu': 'Home', 'bt.dang-ky': 'Subscribe', 'bt.da-gui': 'Check your inbox to confirm.', 'bl.tieu-de': 'Comments' }));
     return nd;
   }
 
@@ -303,6 +303,13 @@ describe('build với NOI_DUNG_DIR', () => {
     expect(bai).toContain('Thời gian'); // khoá thiếu → chuỗi tiếng Việt
     expect(bai).toContain('class="chuyen-ngon-ngu"'); // nút chuyển ngôn ngữ, chỉ về bản dịch của chính trang này
     expect(bai).toContain('href="/vung-tau/vung-tau-can-ho-banh-canh/" hreflang="vi"');
+    // newsletter + bình luận theo ngôn ngữ của trang: form gửi kèm mã ngôn ngữ, chữ lấy từ giao-dien/en.json
+    expect(bai).toContain('<input type="hidden" name="ngonNgu" value="en"');
+    expect(bai).toContain('>Subscribe</button>');
+    expect(bai).toContain('data-da-gui="Check your inbox to confirm."');
+    expect(bai).toContain('data-ngon-ngu="en"');
+    expect(bai).toContain('<h2>Comments</h2>');
+    expect(docO('vung-tau/vung-tau-can-ho-banh-canh')).toContain('<input type="hidden" name="ngonNgu" value="vi"');
     expect(docO('en')).toContain('<html lang="en"');
     expect(existsSync(join(o, 'en/vung-tau/index.html'))).toBe(true); // hub tỉnh có bản dịch
     expect(existsSync(join(o, 'en/rss.xml'))).toBe(true);

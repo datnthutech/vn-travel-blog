@@ -76,6 +76,15 @@ export function lietKe(db: Db, loc: Loc): { tong: number; nguoi: NguoiDangKy[] }
   return { tong, nguoi };
 }
 
+/** Ngôn ngữ của người đăng ký ứng với một token xác nhận / token huỷ (để trang kết quả hiện đúng ngôn ngữ); không tìm thấy → 'vi'. */
+export function ngonNguTheoToken(db: Db, loai: 'xac-nhan' | 'huy', token: string): string {
+  if (!TOKEN.test(token)) return 'vi';
+  const r = (loai === 'huy'
+    ? db.prepare('SELECT ngon_ngu FROM nguoi_dang_ky WHERE token_huy = ?').get(token)
+    : db.prepare('SELECT ngon_ngu FROM nguoi_dang_ky WHERE token_xac_nhan_bam = ?').get(bam(token))) as { ngon_ngu: string } | undefined;
+  return r?.ngon_ngu ?? 'vi';
+}
+
 export const demDaXacNhan = (db: Db): number => (db.prepare("SELECT count(*) AS n FROM nguoi_dang_ky WHERE trang_thai = 'da-xac-nhan'").get() as { n: number }).n;
 
 /** Xoá người đăng ký; mail bản tin của họ còn chờ trong hàng đợi bị đánh dấu 'bo-qua' TRƯỚC (xoá người sẽ kéo theo dòng ban_tin_gui, bộ lọc không còn nhận ra mail đó nữa). */

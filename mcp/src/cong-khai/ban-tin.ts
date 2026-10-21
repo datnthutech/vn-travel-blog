@@ -3,8 +3,9 @@ import { Router, type Request, type Response } from 'express';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import type { DichVuMail } from '../mail/dich-vu';
-import { dangKy, huy, xacNhan } from '../ban-tin/kho';
-import { chuoiBanTin, mauMailXacNhan, trangKetQua } from '../ban-tin/mau-mail';
+import { chonNgonNgu, docChuoiBanTin } from '../ban-tin/chuoi';
+import { dangKy, huy, ngonNguTheoToken, xacNhan } from '../ban-tin/kho';
+import { mauMailXacNhan, trangKetQua } from '../ban-tin/mau-mail';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 const NGON_NGU = /^[a-z]{2}(-[A-Za-z]{2,4})?$/;
@@ -53,31 +54,37 @@ export function banTinCongKhaiRouter(d: Deps): Router {
     if (vuotGioiHan(req.ip ?? 'khong-ro')) return void res.status(429).json({ loi: 'Bạn đăng ký quá nhiều lần, hãy thử lại sau' });
     const email = typeof b.email === 'string' ? b.email.trim() : '';
     if (!EMAIL.test(email)) return void res.status(400).json({ loi: 'Email không hợp lệ' });
-    const ngonNgu = typeof b.ngonNgu === 'string' && NGON_NGU.test(b.ngonNgu) ? b.ngonNgu : 'vi';
+    // Ngôn ngữ của TRANG đăng ký (form gửi kèm); ngôn ngữ lạ/đang tắt → tiếng Việt.
+    const ngonNgu = chonNgonNgu(d.db, typeof b.ngonNgu === 'string' && NGON_NGU.test(b.ngonNgu) ? b.ngonNgu : 'vi');
     const kq = dangKy(d.db, email, ngonNgu, d.now());
     if (kq.canGuiXacNhan && d.mail) {
       const link = `${d.config.publicBaseUrl}/api/cong-khai/ban-tin/xac-nhan?token=${kq.token}`;
-      const m = mauMailXacNhan({ ngonNgu, link });
+      const m = mauMailXacNhan({ ngonNgu, link, chuoi: docChuoiBanTin(d.db, ngonNgu) });
       d.mail.gui({ loai: 'quan-trong', den: email.toLowerCase(), tieuDe: m.tieuDe, html: m.html, text: m.text, nhayCam: true });
     }
     xong();
   });
 
   r.get('/ban-tin/xac-nhan', (req, res) => {
-    const ok = xacNhan(d.db, docToken(req), d.now());
-    const c = chuoiBanTin('vi');
-    trang(res, ok ? 200 : 400, trangKetQua({ ngonNgu: 'vi', noiDung: ok ? c.trangDaXacNhan : c.trangHetHan }));
+    const token = docToken(req);
+    const ngonNgu = chonNgonNgu(d.db, ngonNguTheoToken(d.db, 'xac-nhan', token));
+    const ok = xacNhan(d.db, token, d.now());
+    const c = docChuoiBanTin(d.db, ngonNgu);
+    trang(res, ok ? 200 : 400, trangKetQua({ ngonNgu, noiDung: ok ? c.trangDaXacNhan : c.trangHetHan }));
   });
 
   r.get('/ban-tin/huy', (req, res) => {
-    const c = chuoiBanTin('vi');
-    trang(res, 200, trangKetQua({ ngonNgu: 'vi', noiDung: c.trangHuyHoi, bieuMau: { hanhDong: `/api/cong-khai/ban-tin/huy?token=${encodeURIComponent(docToken(req))}`, nut: c.trangNutHuy } }));
+    const ngonNgu = chonNgonNgu(d.db, ngonNguTheoToken(d.db, 'huy', docToken(req)));
+    const c = docChuoiBanTin(d.db, ngonNgu);
+    trang(res, 200, trangKetQua({ ngonNgu, noiDung: c.trangHuyHoi, bieuMau: { hanhDong: `/api/cong-khai/ban-tin/huy?token=${encodeURIComponent(docToken(req))}`, nut: c.trangNutHuy } }));
   });
 
   r.post('/ban-tin/huy', (req, res) => {
-    const c = chuoiBanTin('vi');
-    const ok = huy(d.db, docToken(req), d.now());
-    trang(res, ok ? 200 : 400, trangKetQua({ ngonNgu: 'vi', noiDung: ok ? c.trangDaHuy : c.trangLinkLoi }));
+    const token = docToken(req);
+    const ngonNgu = chonNgonNgu(d.db, ngonNguTheoToken(d.db, 'huy', token));
+    const c = docChuoiBanTin(d.db, ngonNgu);
+    const ok = huy(d.db, token, d.now());
+    trang(res, ok ? 200 : 400, trangKetQua({ ngonNgu, noiDung: ok ? c.trangDaHuy : c.trangLinkLoi }));
   });
 
   return r;

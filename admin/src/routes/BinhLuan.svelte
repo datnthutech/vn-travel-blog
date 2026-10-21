@@ -11,6 +11,8 @@
   let tong = $state(0);
   let trang = $state(1);
   let tt = $state('');
+  let nn = $state('');
+  let ngonDs = $state<{ ma: string; ten: string }[]>([]);
   let loi = $state('');
   let ok = $state('');
   let traLoi = $state<{ id: number; noiDung: string } | null>(null);
@@ -20,7 +22,7 @@
   async function tai() {
     const luot = ++seq;
     try {
-      const r = await goiApi<{ binhLuan: B[]; tong: number }>('GET', `/binh-luan?trang=${trang}${tt ? `&trangThai=${tt}` : ''}`);
+      const r = await goiApi<{ binhLuan: B[]; tong: number }>('GET', `/binh-luan?trang=${trang}${tt ? `&trangThai=${tt}` : ''}${nn ? `&ngonNgu=${nn}` : ''}`);
       if (luot !== seq) return;
       ds = r.binhLuan;
       tong = r.tong;
@@ -47,7 +49,10 @@
     const t = traLoi!;
     return lam(async () => { await goiApi('POST', `/binh-luan/${t.id}/tra-loi`, { noiDung: t.noiDung }); traLoi = null; }, 'Đã trả lời (hiện nhãn Tác giả).');
   };
-  onMount(() => void tai());
+  onMount(() => {
+    void goiApi<{ ngonNgu: { ma: string; ten: string; bat: boolean }[] }>('GET', '/ngon-ngu').then((r) => (ngonDs = r.ngonNgu.filter((n) => n.bat))).catch(() => {});
+    void tai();
+  });
 </script>
 
 <h1>Bình luận</h1>
@@ -58,6 +63,12 @@
   <select id="bl-tt" bind:value={tt} onchange={() => { trang = 1; void tai(); }}>
     <option value="">Tất cả (chờ xem lên đầu)</option><option value="cho-xem">Chờ xem</option><option value="hien">Đang hiện</option><option value="an">Đã ẩn</option>
   </select>
+  {#if ngonDs.length > 1}
+    <label for="bl-nn">Ngôn ngữ của bài</label>
+    <select id="bl-nn" bind:value={nn} onchange={() => { trang = 1; void tai(); }}>
+      <option value="">Tất cả</option>{#each ngonDs as n}<option value={n.ma}>{n.ten} ({n.ma})</option>{/each}
+    </select>
+  {/if}
 </div>
 
 <section class="the">

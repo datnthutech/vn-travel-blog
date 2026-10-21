@@ -5,6 +5,7 @@
 import { urlBai } from '@vntraveltips/schema';
 import type { Db } from '../db/ket-noi';
 import type { DichVuMail } from '../mail/dich-vu';
+import { docChuoiBanTin } from './chuoi';
 import { mauMailBanTin } from './mau-mail';
 
 export interface BanTin { id: number; tieuDe: string; noiDung: string; ngonNgu: string; loai: 'tu-soan' | 'bai-moi'; baiId: number | null; trangThai: 'nhap' | 'dang-gui' | 'da-gui'; taoLuc: number; guiLuc: number | null }
@@ -44,11 +45,12 @@ export function xepHangGui(db: Db, mail: DichVuMail, o: { banTinId: number; publ
     // Không có ai để gửi thì KHÔNG đổi trạng thái (nếu không bản nháp bị khoá vĩnh viễn ở 'da-gui' với 0 người nhận).
     if (bt.trangThai === 'nhap' && chua.length === 0) return { soNguoiNhan: 0, moiXep: 0 };
     if (bt.trangThai === 'nhap') db.prepare("UPDATE ban_tin SET trang_thai = 'dang-gui', gui_luc = ?, nguoi_gui_id = ? WHERE id = ?").run(o.now(), o.nguoiGuiId, bt.id);
+    const chuoi = docChuoiBanTin(db, bt.ngonNgu);
     const ghi = db.prepare('INSERT INTO ban_tin_gui (ban_tin_id, nguoi_dang_ky_id, mail_id) VALUES (?,?,NULL) ON CONFLICT(ban_tin_id, nguoi_dang_ky_id) DO NOTHING');
     const gan = db.prepare('UPDATE ban_tin_gui SET mail_id = ? WHERE ban_tin_id = ? AND nguoi_dang_ky_id = ?');
     for (const n of chua) {
       ghi.run(bt.id, n.id);
-      const m = mauMailBanTin({ banTin: bt, nguoiNhan: { email: n.email }, linkHuy: linkHuy(o.publicBaseUrl, n.token_huy) });
+      const m = mauMailBanTin({ banTin: bt, nguoiNhan: { email: n.email }, linkHuy: linkHuy(o.publicBaseUrl, n.token_huy), chuoi });
       const mailId = mail.gui({ loai: 'thuong', den: n.email, tieuDe: m.tieuDe, html: m.html, text: m.text, headers: m.headers, nhayCam: true });
       gan.run(mailId, bt.id, n.id);
     }
