@@ -75,6 +75,20 @@ describe('lịch sử phiên bản', () => {
     expect((await m.chinh.gui('get', `/bai/${id}`)).body.phienSo).toBe(truoc.phienSo);
   });
 
+  it('bài đã đăng: khôi phục bản đầu (chưa có ngày đăng vì hệ thống điền lúc đăng) vẫn được, giữ ngày đăng hiện tại', async () => {
+    const { ngayDang: _n, ...khongNgay } = baiDayDu('ls2');
+    const { id, phienSo } = (await m.chinh.gui('post', '/bai', { bai: khongNgay, noiDung: 'v1' })).body;
+    await m.chinh.gui('post', `/bai/${id}/dang`);
+    const hienTai = (await m.chinh.gui('get', `/bai/${id}`)).body;
+    expect(phienSo).toBe(1);
+    const dau = (await m.chinh.gui('get', `/bai/${id}/phien-ban`)).body.at(-1).id;
+    const r = await m.chinh.gui('post', `/bai/${id}/phien-ban/${dau}/khoi-phuc`);
+    expect(r.status).toBe(200);
+    const sau = (await m.chinh.gui('get', `/bai/${id}`)).body;
+    expect(sau.bai.ngayDang).toBe(hienTai.bai.ngayDang);
+    expect(sau.trangThai).toBe('da-dang');
+  });
+
   it('phiên bản của bài khác không truy cập được qua id bài này', async () => {
     const { id } = await bai3PhienBan();
     const khac = (await m.chinh.gui('post', '/bai', { bai: baiDayDu('khac'), noiDung: 'k' })).body.id;

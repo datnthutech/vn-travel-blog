@@ -349,6 +349,8 @@ export function baiRouter(d: DepsBai): Router {
     const pb = doc && layPb(req, res, doc);
     if (!doc || !pb) return;
     const bai = JSON.parse(pb.du_lieu) as Record<string, unknown>;
+    // Ngày đăng do hệ thống điền lúc bấm Đăng nên các phiên bản trước đó thường chưa có: lấy từ bài hiện tại để khôi phục được.
+    if (!bai.ngayDang && doc.bai.ngayDang) bai.ngayDang = doc.bai.ngayDang;
     if (doc.trangThai !== 'nhap') {
       const kt = kiemTraDayDu(d.db, d.config.anhDir, bai, pb.noi_dung, bai.slug as string);
       if (!kt.dat) return void traLoiLuat(res, kt.loi);
