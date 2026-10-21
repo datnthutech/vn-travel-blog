@@ -6,3 +6,4 @@ export * from './slug';
 export * from './url';
 export * from './menu';
 export * from './cai-dat';
+export * from './quyen';
