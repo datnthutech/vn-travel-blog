@@ -1,5 +1,6 @@
 // API bài viết của trang quản trị: danh sách, đọc, tạo, sửa (kiểm tra phiên bản), tự lưu.
 // Hai người cùng sửa một bài: người lưu sau nhận 409 kèm tên người sửa trước, không ghi đè im lặng.
+import { diffLines } from 'diff';
 import { Router, type Request, type Response } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Config } from '../config';
@@ -7,7 +8,7 @@ import type { Db } from '../db/ket-noi';
 import { gioVN, ngayVN } from '../mail/ngay-vn';
 import { danhDauNoiDungDoi } from '../noi-dung/phien-noi-dung';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
-import { taoSlug } from '@vntraveltips/schema';
+import { baiVietSchema, taoSlug } from '@vntraveltips/schema';
 import { docBai, luuBai, slugKhongTrung, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
 import { kiemTraDayDu, layDanhSachTinh } from '../noi-dung/kiem-tra';
 
@@ -293,6 +294,75 @@ export function baiRouter(d: DepsBai): Router {
     ghi(req, 'nhan-ban', moi.id, { tu: doc.id });
     baoDoi();
     res.status(201).json({ id: moi.id, phienSo: moi.phienSo });
+  });
+
+
+  // ---- Lịch sử phiên bản ----
+  interface DongPb { id: number; luc: number; nguoi_dung_id: number | null; du_lieu: string; noi_dung: string }
+  const layPb = (req: Request, res: Response, doc: BaiDoc): DongPb | null => {
+    const pid = idTuUrl(String(req.params.pid));
+    const pb = Number.isNaN(pid) ? undefined : (d.db.prepare("SELECT id, luc, nguoi_dung_id, du_lieu, noi_dung FROM phien_ban WHERE id = ? AND bai_id = ? AND ngon_ngu = 'vi'").get(pid, doc.id) as DongPb | undefined);
+    if (!pb) {
+      res.status(404).json({ loi: 'Không tìm thấy phiên bản này' });
+      return null;
+    }
+    return pb;
+  };
+
+  r.get('/bai/:id/phien-ban', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    const ds = d.db.prepare("SELECT id, luc, nguoi_dung_id FROM phien_ban WHERE bai_id = ? AND ngon_ngu = 'vi' ORDER BY luc DESC, id DESC").all(doc.id) as { id: number; luc: number; nguoi_dung_id: number | null }[];
+    res.json(ds.map((p) => ({ id: p.id, luc: p.luc, nguoiSua: tenNguoi(d.db, p.nguoi_dung_id) })));
+  });
+
+  r.get('/bai/:id/phien-ban/:pid', (req, res) => {
+    const doc = layBai(req, res);
+    const pb = doc && layPb(req, res, doc);
+    if (!doc || !pb) return;
+    res.json({ bai: JSON.parse(pb.du_lieu), noiDung: pb.noi_dung });
+  });
+
+  // So phiên bản đã chọn ("trước") với bản hiện tại ("sau"): các trường frontmatter khác nhau + diff thân bài theo dòng.
+  r.get('/bai/:id/phien-ban/:pid/so-sanh', (req, res) => {
+    const doc = layBai(req, res);
+    const pb = doc && layPb(req, res, doc);
+    if (!doc || !pb) return;
+    // Chuẩn hoá cả hai bản qua schema (điền giá trị mặc định) để không báo khác biệt giả giữa "thiếu trường" và "mảng rỗng".
+    const kq = baiVietSchema.safeParse({ ...JSON.parse(pb.du_lieu), draft: false });
+    const { draft: _c, ...cuChuan } = (kq.success ? kq.data : JSON.parse(pb.du_lieu)) as Record<string, unknown>;
+    const cu = JSON.parse(JSON.stringify(cuChuan)) as Record<string, unknown>;
+    const { draft: _d, ...hienTai } = doc.bai as unknown as Record<string, unknown>;
+    const hienTaiJson = JSON.parse(JSON.stringify(hienTai)) as Record<string, unknown>;
+    const thayDoi = [...new Set([...Object.keys(cu), ...Object.keys(hienTaiJson)])]
+      .filter((k) => JSON.stringify(cu[k]) !== JSON.stringify(hienTaiJson[k]))
+      .map((truong) => ({ truong, truoc: cu[truong] ?? null, sau: hienTaiJson[truong] ?? null }));
+    const noiDung = diffLines(pb.noi_dung, doc.noiDung).map((p) => ({ them: p.added === true, xoa: p.removed === true, giaTri: p.value }));
+    res.json({ thayDoi, noiDung });
+  });
+
+  // Khôi phục = tạo phiên bản MỚI từ bản cũ (không xoá lịch sử), giữ nguyên trạng thái đăng.
+  r.post('/bai/:id/phien-ban/:pid/khoi-phuc', (req, res) => {
+    const doc = layBai(req, res);
+    const pb = doc && layPb(req, res, doc);
+    if (!doc || !pb) return;
+    const bai = JSON.parse(pb.du_lieu) as Record<string, unknown>;
+    if (doc.trangThai !== 'nhap') {
+      const kt = kiemTraDayDu(d.db, d.config.anhDir, bai, pb.noi_dung, bai.slug as string);
+      if (!kt.dat) return void traLoiLuat(res, kt.loi);
+    }
+    try {
+      const { phienSo } = luuBai(
+        d.db,
+        { id: doc.id, ngonNgu: 'vi', bai: bai as never, noiDung: pb.noi_dung, trangThai: doc.trangThai, henGio: doc.henGio ?? undefined, nguoiId: req.nguoiDung!.id, kiemTra: doc.trangThai === 'nhap' ? 'co-ban' : 'day-du' },
+        d.now,
+      );
+      ghi(req, 'khoi-phuc-phien-ban', doc.id, { phienBanId: pb.id });
+      baoDoi();
+      res.json({ ok: true, phienSo });
+    } catch (e) {
+      res.status(/UNIQUE/.test((e as Error).message) ? 409 : 400).json({ loi: /UNIQUE/.test((e as Error).message) ? 'Slug của phiên bản này đã có bài khác dùng' : (e as Error).message });
+    }
   });
 
   return r;
