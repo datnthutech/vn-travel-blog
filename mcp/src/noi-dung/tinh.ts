@@ -88,9 +88,10 @@ export function xoaTinh(db: Db, slug: string, chuyenSang?: string): { daChuyen: 
       return true;
     });
     db.prepare('DELETE FROM tinh WHERE slug = ?').run(slug);
-    db.prepare('DELETE FROM redirect WHERE den = ?').run(urlTinh(slug));
     for (const b of dangDang) themRedirectKhiDoiUrl(db, urlBai({ slug: b.slug, tinh: slug }), urlBai({ slug: b.slug, tinh: chuyenSang || undefined }));
+    // Trỏ lại redirect cũ sang hub mới TRƯỚC khi bỏ những redirect nhắm vào hub đã mất (không có tỉnh nhận).
     if (chuyenSang) themRedirectKhiDoiUrl(db, urlTinh(slug), urlTinh(chuyenSang));
+    else db.prepare('DELETE FROM redirect WHERE den = ?').run(urlTinh(slug));
     danhDauNoiDungDoi(db);
     return { daChuyen };
   })();

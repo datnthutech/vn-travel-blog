@@ -51,7 +51,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(redirectRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(tongQuanRouter({ config: d.config, db: d.db, hangDoi: deps.hangDoi, mail: deps.mail, now: d.now }));
   r.use(trangRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
-  r.use(caiDatRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
+  r.use(caiDatRouter({ config: d.config, db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(menuRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(tinhRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(chuyenMucRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));

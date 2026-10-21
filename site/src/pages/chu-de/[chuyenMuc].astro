@@ -4,6 +4,7 @@ import Base from '../../layouts/Base.astro';
 import BaiCard from '../../components/BaiCard.astro';
 import { layBaiViet } from '../../lib/bai';
 import { layChuyenMuc } from '../../lib/chuyen-muc';
+import { SITE } from '../../config/site';
 
 export async function getStaticPaths() {
   const bai = await layBaiViet();
@@ -15,7 +16,7 @@ const { cm, bai } = Astro.props;
 const ten = cm.ten;
 ---
 
-<Base title={`${ten} — VNTravelTips`} moTa={cm.moTa || `Các bài về ${ten.toLowerCase()} khi đi du lịch cùng bé nhỏ.`}>
+<Base title={`${ten} — ${SITE.ten}`} moTa={cm.moTa || `Các bài về ${ten.toLowerCase()} khi đi du lịch cùng bé nhỏ.`}>
   <h1>{ten}</h1>
   {bai.map((b) => <BaiCard bai={b} />)}
 </Base>

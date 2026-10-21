@@ -21,7 +21,7 @@
     <li
       draggable="true"
       class:dang-keo={keo === i}
-      ondragstart={() => (keo = i)}
+      ondragstart={(e) => { keo = i; e.dataTransfer?.setData('text/plain', String(i)); }}
       ondragover={(e) => e.preventDefault()}
       ondrop={(e) => { e.preventDefault(); if (keo !== null) chuyen(keo, i); keo = null; }}
       ondragend={() => (keo = null)}

@@ -13,7 +13,8 @@ interface Props {
 const { title, moTa = SITE.moTa, duongDan = Astro.url.pathname, anh, loai = 'website', jsonLd = [] } = Astro.props;
 const canonical = new URL(duongDan, Astro.site).toString();
 const anhMacDinh = SITE.anhChiaSe ? `/anh/${SITE.anhChiaSe.ma}/1600.webp` : undefined; // ảnh chia sẻ mặc định cho trang không có ảnh riêng
-const anhOg = anh || anhMacDinh ? new URL((anh ?? anhMacDinh)!, Astro.site).toString() : undefined;
+const anhChon = anh || anhMacDinh; // chuỗi rỗng cũng dùng ảnh mặc định
+const anhOg = anhChon ? new URL(anhChon, Astro.site).toString() : undefined;
 ---
 
 <meta name="description" content={moTa} />

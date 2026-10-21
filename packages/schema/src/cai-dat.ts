@@ -11,7 +11,8 @@ const urlHttps = z
       return false;
     }
   }, 'phải là địa chỉ bắt đầu bằng https://');
-const maAnh = z.object({ ma: z.string().min(1) });
+const maAnhChuoi = z.string().regex(/^[A-Za-z0-9]{1,64}$/, 'mã ảnh không hợp lệ');
+const maAnh = z.object({ ma: maAnhChuoi });
 
 export const VI_TRI_QUANG_CAO = ['sau-tra-nhanh', 'giua-bai', 'cuoi-bai'] as const;
 
@@ -21,7 +22,7 @@ export const caiDatSiteSchema = z.object({
   logo: maAnh.optional(),
   /** Favicon dùng bản `480.webp` của ảnh đã chọn. */
   favicon: maAnh.optional(),
-  anhChiaSeMacDinh: z.object({ ma: z.string().min(1), alt: z.string().trim().min(1, 'ảnh chia sẻ cần có mô tả (alt)') }).optional(),
+  anhChiaSeMacDinh: z.object({ ma: maAnhChuoi, alt: z.string().trim().min(1, 'ảnh chia sẻ cần có mô tả (alt)') }).optional(),
   mangXaHoi: z.object({ facebook: urlHttps.optional(), instagram: urlHttps.optional(), tiktok: urlHttps.optional(), youtube: urlHttps.optional() }).default({}),
   /** false = chặn Google lập chỉ mục toàn site (noindex). */
   choPhepLapChiMuc: z.boolean(),

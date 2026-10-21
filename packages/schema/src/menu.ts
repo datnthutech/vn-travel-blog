@@ -8,7 +8,7 @@ const slug = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 // `link` chỉ được là https://… hoặc đường dẫn nội bộ bắt đầu bằng "/" (không "//", không khoảng trắng): chặn javascript:, data:, http:.
 export const linkMenuHopLe = (s: string): boolean => {
-  if (/\s/.test(s)) return false;
+  if (/\s/.test(s) || s.includes('\\')) return false; // trình duyệt coi \ như / nên "/\evil.com" là địa chỉ ngoài
   if (s.startsWith('/')) return !s.startsWith('//');
   try {
     return new URL(s).protocol === 'https:';

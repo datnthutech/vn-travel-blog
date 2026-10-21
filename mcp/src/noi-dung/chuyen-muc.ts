@@ -112,9 +112,9 @@ export function xoaChuyenMuc(db: Db, slug: string, chuyenSang?: string): { daChu
       return true;
     });
     db.prepare('DELETE FROM chuyen_muc WHERE slug = ?').run(slug);
-    // Trang hub cũ không còn: redirect nhắm vào nó (nếu có) không còn ý nghĩa.
-    db.prepare('DELETE FROM redirect WHERE den = ?').run(urlChuyenMuc(slug));
+    // Có chuyên mục nhận: trỏ lại các redirect cũ (và hub cũ) sang hub mới TRƯỚC; không có thì redirect nhắm vào hub đã mất bị bỏ.
     if (chuyenSang) themRedirectKhiDoiUrl(db, urlChuyenMuc(slug), urlChuyenMuc(chuyenSang));
+    else db.prepare('DELETE FROM redirect WHERE den = ?').run(urlChuyenMuc(slug));
     danhDauNoiDungDoi(db);
     return { daChuyen };
   })();

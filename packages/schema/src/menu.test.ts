@@ -20,7 +20,7 @@ describe('menuSchema', () => {
 
   it('link: javascript:, data:, http:, //host, có khoảng trắng → lỗi; https:// và /đường-dẫn → hợp lệ', () => {
     const thu = (giaTri: string) => menuSchema.safeParse({ dauTrang: [{ nhan: 'x', loai: 'link', giaTri }], chanTrang: [] }).success;
-    for (const x of ['javascript:alert(1)', 'data:text/html,x', 'http://x.vn', '//evil.com', '/a b', 'ftp://x.vn', 'JaVaScRiPt:alert(1)']) expect(thu(x), x).toBe(false);
+    for (const x of ['javascript:alert(1)', 'data:text/html,x', 'http://x.vn', '//evil.com', '/a b', 'ftp://x.vn', 'JaVaScRiPt:alert(1)', '/\\evil.com', '/a\\b']) expect(thu(x), x).toBe(false);
     for (const x of ['https://facebook.com/vntraveltips', '/tim-kiem/', '/']) expect(thu(x), x).toBe(true);
   });
 

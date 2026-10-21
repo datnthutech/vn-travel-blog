@@ -130,7 +130,12 @@ export function luuBai(db: Db, input: LuuBaiInput, now: () => number = Date.now)
 export function bienDoiDuLieuBai(db: Db, fn: (du: Record<string, unknown>, baiId: number) => boolean): number {
   const upd = db.prepare('UPDATE ban_dich SET du_lieu = ?, sua_luc = ?, phien_so = phien_so + 1 WHERE bai_id = ? AND ngon_ngu = ?');
   let n = 0;
-  for (const r of db.prepare('SELECT bai_id, ngon_ngu, du_lieu FROM ban_dich').all() as { bai_id: number; ngon_ngu: string; du_lieu: string }[]) {
+  for (const r of db.prepare('SELECT bai_id, ngon_ngu, du_lieu, nhap_tu_luu FROM ban_dich').all() as { bai_id: number; ngon_ngu: string; du_lieu: string; nhap_tu_luu: string | null }[]) {
+    // Bản tự lưu (nháp chưa lưu chính thức) cũng phải đổi theo, nếu không "Dùng bản tự lưu" sẽ mang slug cũ quay lại.
+    if (r.nhap_tu_luu) {
+      const t = JSON.parse(r.nhap_tu_luu) as { bai?: Record<string, unknown> };
+      if (t.bai && typeof t.bai === 'object' && fn(t.bai, r.bai_id)) db.prepare('UPDATE ban_dich SET nhap_tu_luu = ? WHERE bai_id = ? AND ngon_ngu = ?').run(JSON.stringify(t), r.bai_id, r.ngon_ngu);
+    }
     const du = JSON.parse(r.du_lieu) as Record<string, unknown>;
     if (!fn(du, r.bai_id)) continue;
     upd.run(JSON.stringify(du), Date.now(), r.bai_id, r.ngon_ngu);
