@@ -1,4 +1,4 @@
-// Tool đọc bài lấy từ SQLite: liệt kê, đọc, kiểm tra (slug trùng, tỉnh) — không động tới GitHub.
+// Tool đọc bài lấy từ SQLite: liệt kê, đọc (theo id hoặc slug), kiểm tra (slug trùng, tỉnh).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -16,12 +16,12 @@ function ctx(): ToolCtx {
   luuBai(db, { ngonNgu: 'vi', bai: { ...goc.bai, tinh: 'vung-tau' }, noiDung: 'Nội dung A', trangThai: 'da-dang' });
   luuBai(db, { ngonNgu: 'vi', bai: { ...goc.bai, slug: 'b', tieuDe: 'B', tinh: undefined }, noiDung: 'Nội dung B', trangThai: 'nhap' });
   const config = loadConfig({
-    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
+    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',
     PUBLIC_BASE_URL: 'https://vntraveltips.monai.click', PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
-    ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's',
+    ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32),
     GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'a'.repeat(64),
   });
-  return { config, db, github: {} as never, now: Date.now, hangDoi: { yeuCau() {}, trangThai: () => ({ trangThai: 'roi', dangCho: false, lanCuoi: null }), doiXong: async () => {} } };
+  return { config, db, nguoiDung: { id: 1, email: 'a@x.vn', ten: 'A', vaiTro: 'quan-tri', biKhoa: false, coTotp: true }, now: Date.now, hangDoi: { yeuCau() {}, trangThai: () => ({ trangThai: 'roi', dangCho: false, lanCuoi: null }), doiXong: async () => {} } };
 }
 
 describe('tool đọc từ DB', () => {
@@ -38,15 +38,24 @@ describe('tool đọc từ DB', () => {
     const c = ctx();
     c.db.prepare("UPDATE bai SET xoa_luc = 1 WHERE id = (SELECT bai_id FROM ban_dich WHERE slug = 'b')").run();
     expect((await lietKeBaiTuDb(c, {})).bai.map((x) => x.slug)).toEqual([goc.bai.slug]);
-    await expect(docBaiTuDb(c, 'b')).rejects.toThrow(/Không có bài/);
+    await expect(docBaiTuDb(c, { slug: 'b' })).rejects.toThrow(/Không có bài/);
   });
 
   it('doc_bai trả dữ liệu + thân; không có / slug lạ → lỗi tiếng Việt', async () => {
     const c = ctx();
-    const r = await docBaiTuDb(c, 'b');
+    const r = await docBaiTuDb(c, { slug: 'b' });
     expect(r.noiDung).toBe('Nội dung B');
-    await expect(docBaiTuDb(c, 'khong-co')).rejects.toThrow(/Không có bài/);
-    await expect(docBaiTuDb(c, '../../etc/passwd')).rejects.toThrow(/slug/i);
+    await expect(docBaiTuDb(c, { slug: 'khong-co' })).rejects.toThrow(/Không có bài/);
+    await expect(docBaiTuDb(c, { slug: '../../etc/passwd' })).rejects.toThrow(/slug/i);
+  });
+
+  it('doc_bai theo id: trả id, trạng thái, phienSo; không truyền gì → lỗi nêu rõ cần id hoặc slug', async () => {
+    const c = ctx();
+    const id = (c.db.prepare("SELECT bai_id AS id FROM ban_dich WHERE slug = 'b'").get() as { id: number }).id;
+    expect(await docBaiTuDb(c, { id })).toMatchObject({ id, trangThai: 'nhap', noiDung: 'Nội dung B', phienSo: 1 });
+    await expect(docBaiTuDb(c, { id: 9999 })).rejects.toThrow(/Không có bài/);
+    await expect(docBaiTuDb(c, {})).rejects.toThrow(/id hoặc slug/);
+    expect((await lietKeBaiTuDb(c, {})).bai.find((x) => x.slug === 'b')).toMatchObject({ id, trangThai: 'nhap' });
   });
 
   it('kiem_tra_bai: slug đã có trong DB → trùng; slugDangSua loại trừ chính nó', async () => {

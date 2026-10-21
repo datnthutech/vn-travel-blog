@@ -391,4 +391,10 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX oauth_token_nguoi ON oauth_token(nguoi_dung_id);
     `,
   },
+  {
+    phienBan: 16,
+    sql: `
+      ALTER TABLE ban_dich ADD COLUMN noi_dung_phien_luu INTEGER; -- bộ đếm "phiên nội dung" ngay sau lần lưu cuối của bản này: cổng dang_bai (MCP) so với bản xem trước đã build
+    `,
+  },
 ];

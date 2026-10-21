@@ -1,6 +1,5 @@
 // Tạo ứng dụng Express. Tách khỏi server.ts để test được mà không phải mở cổng thật.
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { Octokit } from '@octokit/rest';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -9,7 +8,6 @@ import { congKhaiRouter } from './cong-khai/binh-luan';
 import { banTinCongKhaiRouter } from './cong-khai/ban-tin';
 import { dangKyBoLocBanTin } from './ban-tin/gui';
 import { trangQuanTriRouter } from './admin-api/tinh';
-import { GithubClient } from './github/client';
 import type { ToolCtx } from './tools/ctx';
 import { taiAnhRouter, type TaiAnhDeps } from './anh/trang-tai';
 import { createOAuth, type OAuthDeps } from './auth/oauth';
@@ -18,12 +16,11 @@ import { chuyenHuongHandler } from './chuyen-huong';
 import type { Config } from './config';
 import { moDb, type Db } from './db/ket-noi';
 import { taoDichVuMail, type DichVuMail } from './mail/dich-vu';
-import type { DichVuAi } from './ai/dich-vu';
+import { taoDichVuAi, type DichVuAi } from './ai/dich-vu';
 import { taoMcpServer } from './mcp/server';
 import { webhookRouter } from './webhook/github';
 
 export type AppDeps = TaiAnhDeps & OAuthDeps & {
-  github?: GithubClient;
   hangDoi?: HangDoiBuild;
   db?: Db;
   mail?: DichVuMail;
@@ -59,13 +56,15 @@ export function createApp(config: Config, deps: AppDeps = {}) {
 
   // Webhook đứng trước mọi middleware parse body; chỉ đường dẫn này nhận body thô để kiểm tra chữ ký.
   app.use(webhookRouter(config, hangDoi));
-  app.use(taiAnhRouter(config, deps));
-
-  // Trang quản trị: API cần đăng nhập. Body JSON giới hạn 1 MB; cookie phiên đọc bằng cookie-parser.
   const db = deps.db ?? moDb(':memory:');
   const mail = deps.mail ?? taoDichVuMail(db, { khoaBiMat: config.khoaBiMat, now: deps.now });
+  // Một dịch vụ AI dùng chung cho trang quản trị và tool MCP (khoá API đọc từ DB mỗi lần gọi).
+  const dichVuAi = deps.dichVuAi ?? taoDichVuAi(db, { khoaBiMat: config.khoaBiMat });
+  app.use(taiAnhRouter(config, db, deps));
+
+  // Trang quản trị: API cần đăng nhập. Body JSON giới hạn 1 MB; cookie phiên đọc bằng cookie-parser.
   dangKyBoLocBanTin(db, mail);
-  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, dichVuAi: deps.dichVuAi, hangDoi, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaAnhByte, toiDaFile: deps.toiDaAnhFile }));
+  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, dichVuAi, hangDoi, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaAnhByte, toiDaFile: deps.toiDaAnhFile }));
 
   app.use('/quan-tri', trangQuanTriRouter(deps.adminDist ?? process.env.ADMIN_DIST ?? fileURLToPath(new URL('../../admin/dist', import.meta.url))));
 
@@ -77,17 +76,20 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   const oauth = createOAuth(config, db, { now: deps.now, cho: deps.cho });
   app.use(oauth.router);
 
-  // /mcp: BẮT BUỘC có Bearer token hợp lệ (requireAuth chạy trước mọi thứ khác).
+  // /mcp: BẮT BUỘC có Bearer token hợp lệ (requireAuth chạy trước mọi thứ khác và gắn req.nguoiDung).
   const host = new URL(config.publicBaseUrl).host;
-  const ctx: ToolCtx = {
+  const ctxCho = (nguoiDung: NonNullable<express.Request['nguoiDung']>): ToolCtx => ({
     config,
     db,
-    github: deps.github ?? new GithubClient(new Octokit({ auth: config.githubToken }), config.githubRepo),
+    nguoiDung,
     now: deps.now ?? Date.now,
     hangDoi,
-  };
+    mail,
+    dichVuAi,
+    conDungLuong: deps.conDungLuong,
+  });
   app.post('/mcp', ...oauth.requireAuth, express.json({ limit: '2mb' }), async (req, res) => {
-    const server = taoMcpServer(ctx);
+    const server = taoMcpServer(ctxCho(req.nguoiDung!));
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless
       enableJsonResponse: true,

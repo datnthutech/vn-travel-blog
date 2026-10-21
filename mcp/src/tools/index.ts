@@ -7,7 +7,8 @@ import { CAC_LOAI, huongDanVietBai } from '../huong-dan';
 import type { ToolCtx } from './ctx';
 import { lietKeAnh, taoLinkTaiAnh } from './doc';
 import { docBaiTuDb, kiemTraBaiToolTuDb, lietKeBaiTuDb } from './doc-db';
-import { xemTrangThai } from './ghi';
+import { coBiMat } from '../bi-mat';
+import { dangBai, dichAiBanDich, goBai, suaBai, taoBanNhap, xemTrangThai } from './ghi';
 
 // Dùng đúng kiểu kết quả của MCP SDK để tool đăng ký khớp kiểu (trước đây tự khai báo nên lệch với SDK).
 export type KetQuaTool = CallToolResult;
@@ -30,9 +31,10 @@ const boc = <A>(fn: (a: A) => Promise<KetQuaTool> | KetQuaTool) => async (a: A):
   }
 };
 
-// Tool ghi bài tạm khoá trong lúc chuyển sang trang quản trị (GĐ8 mở lại, ghi qua lớp nội dung DB).
-export const THONG_BAO_TAM_NGUNG = 'Tạm ngừng ghi bài qua Claude trong lúc chuyển sang trang quản trị — dùng /quan-tri.';
-const tamNgung = async (): Promise<KetQuaTool> => ({ isError: true, content: [{ type: 'text', text: THONG_BAO_TAM_NGUNG }] });
+const thamChieu = {
+  id: z.number().int().positive().optional().describe('Mã bài (id) — dùng id hoặc slug đều được'),
+  slug: z.string().optional().describe('Slug tiếng Việt của bài'),
+};
 
 export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
   server.registerTool(
@@ -45,7 +47,7 @@ export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
         noiDung: z.string().describe('Thân bài Markdown; ảnh dạng ![mô tả](anh:MÃ_ẢNH)'),
       },
     },
-    tamNgung,
+    boc(async (a) => json(await taoBanNhap(ctx, a))),
   );
 
   server.registerTool(
@@ -54,42 +56,42 @@ export function dangKyToolGhi(server: McpServer, ctx: ToolCtx): void {
       description:
         'Sửa bài nháp hoặc bài đã đăng: gửi các trường cần đổi (bai) và/hoặc thân bài mới (noiDung). Không đổi được slug hay trạng thái đăng (dùng dang_bai/go_bai). Đổi tinh của bài đã đăng sẽ tự thêm redirect 301. tinh:null = bỏ tỉnh.',
       inputSchema: {
-        slug: z.string().describe('Slug của bài cần sửa'),
+        ...thamChieu,
         bai: z.record(z.string(), z.unknown()).optional().describe('Các trường frontmatter cần ghi đè'),
         noiDung: z.string().optional().describe('Thân bài mới (bỏ trống = giữ nguyên)'),
       },
     },
-    tamNgung,
+    boc(async (a) => json(await suaBai(ctx, a))),
   );
 
   server.registerTool(
     'xem_trang_thai',
     {
       description:
-        'Cho biết bản xem trước đã build từ commit mới nhất trên main chưa (so build.json), trạng thái build (đang chờ, đang build, lỗi lần cuối kèm log rút gọn) và link xem trước. Gọi sau tao_ban_nhap/sua_bai để biết khi nào xem được.',
-      inputSchema: {},
+        'Cho biết bản xem trước đã build tới bản mới nhất của bài chưa (truyền id hoặc slug của bài; so bộ đếm phiên nội dung trong build.json), trạng thái build (đang chờ, đang build, lỗi lần cuối kèm log rút gọn) và link xem trước. Gọi sau tao_ban_nhap/sua_bai để biết khi nào xem được.',
+      inputSchema: thamChieu,
     },
-    boc(async () => json(await xemTrangThai(ctx))),
+    boc(async (a) => json(await xemTrangThai(ctx, a))),
   );
 
   server.registerTool(
     'dang_bai',
     {
       description:
-        'Đăng bài nháp lên site thật (draft:false). CHỈ gọi sau khi chủ blog đã xem bản xem trước và nói đồng ý. Từ chối nếu kiểm tra không đạt hoặc bản xem trước chưa build từ đúng commit hiện tại.',
-      inputSchema: { slug: z.string().describe('Slug của bài nháp') },
+        'Đăng bài nháp lên site thật (draft:false). CHỈ gọi sau khi chủ blog đã xem bản xem trước và nói đồng ý. Từ chối nếu kiểm tra không đạt, bản xem trước chưa build tới bản mới nhất của bài, hoặc tài khoản không có quyền đăng bài này.',
+      inputSchema: thamChieu,
     },
-    tamNgung,
+    boc(async (a) => json(await dangBai(ctx, a))),
   );
 
   server.registerTool(
     'go_bai',
     {
       description:
-        'Gỡ bài khỏi site chính (đặt draft:true), có hiệu lực khi build xong, không xoá file. Dùng khi cần gỡ khẩn cấp. CHÚ Ý: bản xem trước (nhap-vntraveltips…), các ảnh trên VPS và lịch sử GitHub VẪN còn nội dung — nếu gỡ vì lộ thông tin riêng tư, phải báo chủ blog xoá thêm ảnh/nội dung.',
-      inputSchema: { slug: z.string().describe('Slug của bài cần gỡ') },
+        'Gỡ bài khỏi site chính (về nháp), có hiệu lực khi build xong, không xoá dữ liệu. Dùng khi cần gỡ khẩn cấp. CHÚ Ý: bản xem trước (nhap-vntraveltips…), các ảnh trên VPS và lịch sử phiên bản VẪN còn nội dung — nếu gỡ vì lộ thông tin riêng tư, phải báo chủ blog xoá thêm ảnh/xoá hẳn bài.',
+      inputSchema: thamChieu,
     },
-    tamNgung,
+    boc(async (a) => json(await goBai(ctx, a))),
   );
 }
 
@@ -162,15 +164,24 @@ export function dangKyToolDoc(server: McpServer, ctx: ToolCtx): void {
     boc(async (a) => json(await lietKeBaiTuDb(ctx, a))),
   );
 
+  // Chỉ có khi chủ blog đã nhập API key AI: dịch rồi TRẢ bản dịch để Claude đưa người dùng xem (không lưu).
+  if (coBiMat(ctx.db, 'ai.apiKey')) {
+    server.registerTool(
+      'dich_ai_ban_dich',
+      {
+        description: 'Dịch một bài sang ngôn ngữ đã bật bằng AI và TRẢ bản dịch kèm cảnh báo (mất ảnh/link, lệch số phần tử). KHÔNG lưu, KHÔNG đăng: hãy đưa bản dịch cho người dùng đọc, họ lưu và đăng ở trang quản trị.',
+        inputSchema: { ...thamChieu, ngonNgu: z.string().describe('Mã ngôn ngữ đích, vd en') },
+      },
+      boc(async (a) => json(await dichAiBanDich(ctx, a))),
+    );
+  }
+
   server.registerTool(
     'doc_bai',
     {
-      description: 'Đọc đầy đủ một bài (dữ liệu + thân bài Markdown) theo slug.',
-      inputSchema: { slug: z.string().describe('Slug của bài') },
+      description: 'Đọc đầy đủ một bài (dữ liệu + thân bài Markdown + trạng thái) theo id hoặc slug.',
+      inputSchema: thamChieu,
     },
-    boc(async ({ slug }) => {
-      const { bai, noiDung } = await docBaiTuDb(ctx, slug);
-      return json({ bai, noiDung });
-    }),
+    boc(async (a) => json(await docBaiTuDb(ctx, a))),
   );
 }

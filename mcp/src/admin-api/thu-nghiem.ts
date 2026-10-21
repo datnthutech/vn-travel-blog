@@ -31,9 +31,9 @@ export async function dungAdmin(opt: { vaiTro?: VaiTro; email?: string; deps?: P
     doiXong: async () => {},
   };
   const config = loadConfig({
-    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: 'http://localhost:8090',
+    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', PUBLIC_BASE_URL: 'http://localhost:8090',
     PREVIEW_BASE_URL: 'http://nhap.localhost:8090', ANH_DIR: anhDir, SESSION_SECRET: 'x'.repeat(32),
-    GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'a'.repeat(64),
+    GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'a'.repeat(64),
     DATA_DIR: mkdtempSync(join(tmpdir(), 'vtt-data-')),
   });
   const app = createApp(config, { db, now: () => dongHo.v, hangDoi, cho: async () => {}, ...opt.taoDeps?.(db), ...opt.deps });

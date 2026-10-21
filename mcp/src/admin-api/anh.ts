@@ -29,7 +29,7 @@ const TOI_DA_BYTE = 25 * 1024 * 1024;
 const TOI_DA_FILE = 20;
 const THONG_BAO_DAY = 'Ổ đĩa trên VPS gần đầy (dưới 2 GB), tạm không nhận thêm ảnh.';
 
-const dungLuongThuMuc = (duong: string): number => {
+export const dungLuongThuMuc = (duong: string): number => {
   let t = 0;
   for (const f of readdirSync(duong)) t += statSync(join(duong, f)).size;
   return t;

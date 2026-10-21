@@ -1,27 +1,27 @@
 // Những thứ mọi tool cần dùng chung. Đưa vào qua tham số (thay vì import trực tiếp) để test được bằng đồ giả.
+// Tool MCP làm việc trên CÙNG lớp nội dung (SQLite) với trang quản trị và THEO QUYỀN của tài khoản đã đăng nhập OAuth.
 import type { Config } from '../config';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Db } from '../db/ket-noi';
-import type { GithubClient } from '../github/client';
+import type { DichVuAi } from '../ai/dich-vu';
+import type { DichVuMail } from '../mail/dich-vu';
+import type { NguoiDung } from '../tai-khoan/nguoi-dung';
 
 export interface ToolCtx {
   config: Config;
   /** SQLite: nguồn sự thật của nội dung bài, tỉnh, redirect. */
   db: Db;
-  github: GithubClient;
+  /** Người dùng admin của token MCP (đã kiểm tra chưa bị khoá). Mọi tool ghi kiểm `coQuyen` trên người này. */
+  nguoiDung: NguoiDung;
   now: () => number;
-  /** Hàng đợi build nội bộ: tool gọi yeuCau() sau khi commit để bản xem trước được build lại. */
+  /** Hàng đợi build nội bộ: tool gọi yeuCau() sau khi ghi để bản xem trước được build lại. */
   hangDoi: HangDoiBuild;
+  mail?: DichVuMail;
+  /** Dịch vụ AI dịch bài (tool dich_ai_ban_dich chỉ có khi đã cấu hình API key). */
+  dichVuAi?: DichVuAi;
   /** Kiểm tra ổ đĩa còn chỗ; test truyền bản giả. */
   conDungLuong?: (anhDir: string) => Promise<boolean>;
 }
 
-export const REDIRECTS_PATH = 'site/redirects.json';
-
-// Vị trí bài và tỉnh trong repo GitHub. Tên file bài LUÔN là <slug>.md.
-export const BAI_DIR = 'site/src/content/bai-viet';
-export const TINH_DIR = 'site/src/content/tinh';
-export const duongDanBai = (slug: string) => `${BAI_DIR}/${slug}.md`;
-
-// slug an toàn để ghép vào đường dẫn file (chặn ../ và ký tự lạ).
+// slug an toàn (chặn ký tự lạ).
 export const SLUG_HOP_LE = /^[a-z0-9]+(-[a-z0-9]+)*$/;

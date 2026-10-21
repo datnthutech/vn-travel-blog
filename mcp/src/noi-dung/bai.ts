@@ -3,7 +3,7 @@
 // Bản nháp được phép thiếu trường (kiểm tra cơ bản); bài đã đăng phải đạt `baiVietSchema` đầy đủ.
 import { baiVietSchema, SLUG_HE_THONG, urlBai, type BaiViet } from '@vntraveltips/schema';
 import type { Db } from '../db/ket-noi';
-import { danhDauNoiDungDoi } from './phien-noi-dung';
+import { danhDauNoiDungDoi, docNoiDungPhien } from './phien-noi-dung';
 
 export type TrangThaiBan = 'nhap' | 'da-dang' | 'hen-gio';
 
@@ -119,6 +119,7 @@ export function luuBai(db: Db, input: LuuBaiInput, now: () => number = Date.now)
       id, input.ngonNgu, input.nguoiId ?? null, t, duLieuJson(bai), input.noiDung,
     );
     danhDauNoiDungDoi(db);
+    db.prepare('UPDATE ban_dich SET noi_dung_phien_luu = ? WHERE bai_id = ? AND ngon_ngu = ?').run(docNoiDungPhien(db), id, input.ngonNgu);
     return { id, phienSo };
   })();
 }
