@@ -32,6 +32,8 @@ export interface DichVuMail {
   xuLyHangDoi(): Promise<{ daGui: number; conCho: number }>;
   thongKeHomNay(): { id: number; ten: string; daGui: number; gioiHan: number }[];
   guiThu(nhaCungCapId: number, den: string): Promise<void>;
+  /** Bộ lọc chạy NGAY TRƯỚC khi gửi từng mail: trả false → mail bị bỏ (trạng thái 'bo-qua'), không tính hạn mức. Dùng cho bản tin: người đã huỷ trong lúc chờ không bị gửi nữa. */
+  themBoLoc(f: (mailId: number, den: string) => boolean): void;
 }
 
 const PHUT = 60_000;
@@ -57,6 +59,7 @@ export function taoDichVuMail(
         socketTimeout: 30_000,
       }));
 
+  const boLoc: ((mailId: number, den: string) => boolean)[] = [];
   const daGuiHomNay = (id: number) =>
     ((db.prepare('SELECT so_da_gui FROM mail_dem WHERE nha_cung_cap_id = ? AND ngay = ?').get(id, ngayVN(now())) as { so_da_gui: number } | undefined)?.so_da_gui ?? 0);
   const tangDem = (id: number) =>
@@ -123,6 +126,11 @@ export function taoDichVuMail(
         .all(TOI_DA_MOI_LUOT) as { id: number; loai: LoaiMail; den: string; tieu_de: string; html: string; text: string; headers: string | null }[];
       let daGui = 0;
       for (const r of cho) {
+        if (boLoc.some((f) => !f(r.id, r.den))) {
+          db.prepare("UPDATE mail_hang_doi SET trang_thai = 'bo-qua', html = '', text = '' WHERE id = ?").run(r.id);
+          nhatKy({ mailId: r.id, den: r.den, loai: r.loai, ketQua: 'bo-qua', loi: 'Bộ lọc loại mail này trước khi gửi (người nhận đã huỷ?)' });
+          continue;
+        }
         const mail: MailGui = { loai: r.loai, den: r.den, tieuDe: r.tieu_de, html: r.html, text: r.text, headers: r.headers ? JSON.parse(r.headers) : undefined };
         const chinh = lietKeNhaCungCap(db).find((n) => n.laChinh && n.bat);
         let xong = false;
@@ -152,6 +160,10 @@ export function taoDichVuMail(
       }
       const conCho = (db.prepare("SELECT count(*) AS n FROM mail_hang_doi WHERE trang_thai = 'cho'").get() as { n: number }).n;
       return { daGui, conCho };
+    },
+
+    themBoLoc(f) {
+      boLoc.push(f);
     },
 
     thongKeHomNay() {

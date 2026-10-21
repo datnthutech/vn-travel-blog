@@ -7,6 +7,7 @@ import express from 'express';
 import { adminApiRouter } from './admin-api';
 import { congKhaiRouter } from './cong-khai/binh-luan';
 import { banTinCongKhaiRouter } from './cong-khai/ban-tin';
+import { dangKyBoLocBanTin } from './ban-tin/gui';
 import { trangQuanTriRouter } from './admin-api/tinh';
 import { GithubClient } from './github/client';
 import type { ToolCtx } from './tools/ctx';
@@ -60,6 +61,7 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   // Trang quản trị: API cần đăng nhập. Body JSON giới hạn 1 MB; cookie phiên đọc bằng cookie-parser.
   const db = deps.db ?? moDb(':memory:');
   const mail = deps.mail ?? taoDichVuMail(db, { khoaBiMat: config.khoaBiMat, now: deps.now });
+  dangKyBoLocBanTin(db, mail);
   app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, hangDoi, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaAnhByte, toiDaFile: deps.toiDaAnhFile }));
 
   app.use('/quan-tri', trangQuanTriRouter(deps.adminDist ?? process.env.ADMIN_DIST ?? fileURLToPath(new URL('../../admin/dist', import.meta.url))));

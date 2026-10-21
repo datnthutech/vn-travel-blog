@@ -16,6 +16,7 @@ import { trangRouter } from './trang';
 import { redirectRouter } from './redirect';
 import { tongQuanRouter } from './tong-quan';
 import { binhLuanRouter } from './binh-luan';
+import { banTinRouter } from './ban-tin';
 import { nhatKyRouter } from './nhat-ky';
 import { loiMoiCongKhaiRouter, taiKhoanRouter } from './tai-khoan';
 import { haiLopRouter } from './hai-lop';
@@ -54,6 +55,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(baiRouter({ config: d.config, db: d.db, now: d.now, hangDoi: deps.hangDoi }));
   r.use(taiKhoanRouter({ config: d.config, db: d.db, mail: deps.mail, now: d.now }));
   r.use(binhLuanRouter({ config: d.config, db: d.db, mail: deps.mail, hangDoi: deps.hangDoi, now: d.now }));
+  r.use(banTinRouter({ config: d.config, db: d.db, mail: deps.mail, now: d.now }));
   r.use(nhatKyRouter({ db: d.db }));
   r.use(redirectRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(tongQuanRouter({ config: d.config, db: d.db, hangDoi: deps.hangDoi, mail: deps.mail, now: d.now }));

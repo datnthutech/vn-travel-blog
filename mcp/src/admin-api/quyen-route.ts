@@ -62,6 +62,17 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('POST', '/binh-luan/:id/chan', 'binh-luan.an-xoa'),
   L('GET', '/toi/tuy-chon', 'chi-dang-nhap'),
   L('PUT', '/toi/tuy-chon', 'chi-dang-nhap'),
+  // Bản tin: chỉ quản trị
+  L('GET', '/ban-tin', 'ban-tin.gui'),
+  L('POST', '/ban-tin', 'ban-tin.gui'),
+  L('POST', '/ban-tin/tu-bai/:baiId', 'ban-tin.gui'),
+  L('PUT', '/ban-tin/:id', 'ban-tin.gui'),
+  L('POST', '/ban-tin/:id/gui-thu', 'ban-tin.gui'),
+  L('POST', '/ban-tin/:id/gui', 'ban-tin.gui'),
+  L('GET', '/ban-tin/:id/tien-do', 'ban-tin.gui'),
+  L('GET', '/nguoi-dang-ky', 'ban-tin.gui'),
+  L('GET', '/nguoi-dang-ky.csv', 'ban-tin.gui'),
+  L('DELETE', '/nguoi-dang-ky/:id', 'ban-tin.gui'),
   // Ảnh
   L('POST', '/anh', 'anh.tai-len'),
   L('GET', '/anh', 'chi-dang-nhap'),

@@ -39,7 +39,7 @@ beforeAll(async () => {
 
 describe('(a) mọi route đều được khai báo quyền', () => {
   it('route thật của router == danh sách QUYEN_ROUTE (không thiếu, không thừa)', () => {
-    const r = adminApiRouter({ config: m.config, db: m.db, mail: { gui: () => 0, xuLyHangDoi: async () => ({ daGui: 0, conCho: 0 }), thongKeHomNay: () => [], guiThu: async () => {} }, hangDoi: m.hangDoi });
+    const r = adminApiRouter({ config: m.config, db: m.db, mail: { gui: () => 0, xuLyHangDoi: async () => ({ daGui: 0, conCho: 0 }), thongKeHomNay: () => [], guiThu: async () => {}, themBoLoc: () => {} }, hangDoi: m.hangDoi });
     const that: string[] = [];
     const duyet = (stack: any[]) => {
       for (const l of stack) {

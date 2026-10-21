@@ -159,3 +159,18 @@ describe('guiThu', () => {
     await expect(dv.guiThu(999, 'a@x.vn')).rejects.toThrow(/Không tìm thấy/);
   });
 });
+
+describe('bộ lọc trước khi gửi', () => {
+  it('bộ lọc trả false → mail bị bỏ (bo-qua), không gửi, không tính hạn mức, nội dung bị xoá; mail khác vẫn đi', async () => {
+    them('gmail', 10, 0, true);
+    const bo = dv.gui(mailThuong('huy@x.vn'));
+    dv.gui(mailThuong('con@x.vn'));
+    dv.themBoLoc((_id, den) => den !== 'huy@x.vn');
+    const r = await dv.xuLyHangDoi();
+    expect(r.daGui).toBe(1);
+    expect(goi.map((g) => g.den)).toEqual(['con@x.vn']);
+    expect(db.prepare('SELECT trang_thai, html FROM mail_hang_doi WHERE id = ?').get(bo)).toEqual({ trang_thai: 'bo-qua', html: '' });
+    expect(dv.thongKeHomNay()[0]!.daGui).toBe(1);
+    expect((await dv.xuLyHangDoi()).conCho).toBe(0);
+  });
+});

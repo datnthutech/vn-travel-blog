@@ -78,4 +78,9 @@ export function lietKe(db: Db, loc: Loc): { tong: number; nguoi: NguoiDangKy[] }
 
 export const demDaXacNhan = (db: Db): number => (db.prepare("SELECT count(*) AS n FROM nguoi_dang_ky WHERE trang_thai = 'da-xac-nhan'").get() as { n: number }).n;
 
-export const xoaNguoiDangKy = (db: Db, id: number): boolean => db.prepare('DELETE FROM nguoi_dang_ky WHERE id = ?').run(id).changes > 0;
+/** Xoá người đăng ký; mail bản tin của họ còn chờ trong hàng đợi bị đánh dấu 'bo-qua' TRƯỚC (xoá người sẽ kéo theo dòng ban_tin_gui, bộ lọc không còn nhận ra mail đó nữa). */
+export const xoaNguoiDangKy = (db: Db, id: number): boolean =>
+  db.transaction(() => {
+    db.prepare("UPDATE mail_hang_doi SET trang_thai = 'bo-qua', html = '', text = '' WHERE trang_thai = 'cho' AND id IN (SELECT mail_id FROM ban_tin_gui WHERE nguoi_dang_ky_id = ?)").run(id);
+    return db.prepare('DELETE FROM nguoi_dang_ky WHERE id = ?').run(id).changes > 0;
+  })();
