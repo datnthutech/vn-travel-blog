@@ -243,4 +243,29 @@ describe('build với NOI_DUNG_DIR', () => {
     expect(existsSync(join(prod, 'lien-he/index.html'))).toBe(true);
     expect(existsSync(join(prod, 'chinh-sach-lien-ket/index.html'))).toBe(true);
   }, 240_000);
+
+  it('bình luận: production có khung (data-bai) và script nhỏ ≤ 5 KB gzip; preview KHÔNG có khung; bài không có maBai (mẫu local) không hiện', async () => {
+    const { gzipSync } = await import('node:zlib');
+    const { readdirSync } = await import('node:fs');
+    const nd = taoThuMuc((f, t) => (f.endsWith('top-bai-bien-cho-be.md') ? t.replace('draft: true', 'draft: false\nmaBai: 77') : t));
+    const prod = buildPreview(nd, 'production');
+    const html = readFileSync(join(prod, 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8');
+    expect(html).toContain('class="binh-luan"'); // khung (không nhầm với chuỗi selector trong script)
+    expect(html).toContain('data-bai="77"');
+    expect(html).toContain('data-ngon-ngu="vi"');
+    expect(html).toContain('class="bl-form" hidden'); // form ẩn tới khi script nạp xong
+    // Astro nhúng script nhỏ thẳng vào HTML (hoặc tách ra _astro/*.js nếu lớn): gom cả hai nơi rồi đo phần có mã bình luận.
+    const assets = join(prod, '_astro');
+    const trongHtml = [...html.matchAll(/<script[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g)].map((x) => x[1]!);
+    const taiSan = existsSync(assets) ? readdirSync(assets).filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(assets, f), 'utf8')) : [];
+    const js = [...trongHtml, ...taiSan].find((c) => c.includes('/api/cong-khai/binh-luan'));
+    expect(js).toBeDefined();
+    expect(gzipSync(js!).length).toBeLessThanOrEqual(5 * 1024);
+    // preview: bản xem trước không có form bình luận
+    const prev = readFileSync(join(buildPreview(nd, 'preview'), 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8');
+    expect(prev).not.toContain('class="binh-luan"');
+    // bài không có maBai → không có khung dù ở production
+    const nd2 = taoThuMuc((f, t) => (f.endsWith('top-bai-bien-cho-be.md') ? t.replace('draft: true', 'draft: false') : t));
+    expect(readFileSync(join(buildPreview(nd2, 'production'), 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8')).not.toContain('class="binh-luan"');
+  }, 360_000);
 });

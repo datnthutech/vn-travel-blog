@@ -28,7 +28,9 @@ describe('nhập + xuất', () => {
     for (const f of goc) {
       const a = parseBai(readFileSync(join(NOI_DUNG, 'bai-viet', f), 'utf8'));
       const b = parseBai(readFileSync(join(ra, 'bai-viet', f), 'utf8'));
-      expect(b).toEqual(a);
+      // `maBai` (mã trong DB) là trường MỚI do xuất thêm vào để trang bài nạp bình luận; còn lại phải giống hệt bản gốc.
+      expect(typeof b.bai.maBai).toBe('number');
+      expect({ ...b, bai: { ...b.bai, maBai: undefined } }).toEqual(a);
     }
     expect(readdirSync(join(ra, 'tinh'))).toEqual(readdirSync(join(NOI_DUNG, 'tinh')));
     expect(JSON.parse(readFileSync(join(ra, 'redirects.json'), 'utf8'))).toEqual(JSON.parse(readFileSync(REDIRECTS, 'utf8')));
@@ -114,5 +116,19 @@ describe('luuBai', () => {
     luuBai(db, { id, ngonNgu: 'vi', bai: { ...goc.bai, tieuDe: 'Đổi' }, noiDung: 'b', trangThai: 'da-dang' });
     expect(phien(db)).toBe(truoc + 2);
     expect(docBai(db, id)!.bai.tieuDe).toBe('Đổi');
+  });
+});
+
+describe('xuất kèm maBai', () => {
+  it('frontmatter có maBai = id trong DB (để trang bài nạp bình luận); không ảnh hưởng schema bài', () => {
+    const db = moDb(':memory:');
+    nhapTuThuMuc(db, NOI_DUNG, REDIRECTS);
+    const ra = tam();
+    xuatNoiDung(db, ra, 'preview');
+    for (const f of readdirSync(join(ra, 'bai-viet'))) {
+      const { bai } = parseBai(readFileSync(join(ra, 'bai-viet', f), 'utf8'));
+      const id = db.prepare("SELECT bai_id AS id FROM ban_dich WHERE slug = ?").pluck().get(bai.slug) as number;
+      expect(bai.maBai).toBe(id);
+    }
   });
 });

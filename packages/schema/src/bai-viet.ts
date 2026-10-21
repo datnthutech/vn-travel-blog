@@ -61,6 +61,8 @@ export const baiVietSchema = z
       .array(z.object({ ten: z.string(), ghiChu: z.string().optional(), link: z.string().url().optional() }))
       .default([]),
     faq: z.array(z.object({ hoi: z.string(), dap: z.string() })).default([]),
+    /** Mã bài trong DB: `xuatNoiDung` ghi vào frontmatter để trang bài nạp bình luận (bài mẫu chạy local không có thì không hiện bình luận). */
+    maBai: z.number().int().positive().optional(),
     hopTac: z.boolean().default(false),
     draft: z.boolean().default(false),
   })

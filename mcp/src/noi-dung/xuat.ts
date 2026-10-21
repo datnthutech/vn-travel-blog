@@ -25,7 +25,7 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
       (target === 'preview' || b.trangThai === 'da-dang') &&
       (!anhDir || b.trangThai === 'da-dang' || kiemTraDayDu(db, anhDir, b.bai, b.noiDung, b.bai.slug).dat),
   );
-  for (const b of bai) writeFileSync(join(dich, 'bai-viet', `${b.bai.slug}.md`), serializeBai(b.bai, b.noiDung));
+  for (const b of bai) writeFileSync(join(dich, 'bai-viet', `${b.bai.slug}.md`), serializeBai({ ...b.bai, maBai: b.id }, b.noiDung));
 
   for (const r of db.prepare('SELECT slug, du_lieu FROM tinh ORDER BY slug').all() as { slug: string; du_lieu: string }[]) {
     writeFileSync(join(dich, 'tinh', `${r.slug}.md`), `---\n${stringify(JSON.parse(r.du_lieu), { lineWidth: 0 })}---\n`);
