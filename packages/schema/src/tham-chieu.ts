@@ -13,10 +13,12 @@ export function kiemTraThamChieu(
   bai: (Pick<BaiViet, 'slug' | 'tinh'> & { chuyenMuc?: string[] })[],
   tinh: Pick<Tinh, 'slug'>[],
   chuyenMuc?: { slug: string }[],
+  maNgonNgu: string[] = [],
 ): string[] {
   const loi: string[] = [];
   for (const t of tinh) {
     if (SLUG_HE_THONG.includes(t.slug)) loi.push(`Slug tỉnh "${t.slug}" trùng đường dẫn hệ thống`);
+    if (maNgonNgu.includes(t.slug)) loi.push(`Slug tỉnh "${t.slug}" trùng mã một ngôn ngữ`);
   }
   const cacTinh = new Set(tinh.map((t) => t.slug));
   const daThay = new Set<string>();

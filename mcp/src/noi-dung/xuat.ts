@@ -8,6 +8,7 @@ import type { Db } from '../db/ket-noi';
 import { lietKeBai } from './bai';
 import { docCaiDat } from './cai-dat';
 import { kiemTraDayDu } from './kiem-tra';
+import { lietKeNgonNgu } from './ngon-ngu';
 
 /**
  * `anhDir` (nếu có): bản nháp đưa vào preview còn phải qua kiểm tra tham chiếu (ảnh/tỉnh có thật), nếu không một nháp
@@ -39,6 +40,9 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
   for (const t of trangXuat) {
     writeFileSync(join(dich, 'trang', `${t.slug}.md`), `---\n${stringify({ tieuDe: t.tieu_de, moTa: t.mo_ta }, { lineWidth: 0 })}---\n\n${t.noi_dung}\n`);
   }
+
+  // Danh sách ngôn ngữ ĐANG BẬT (vi luôn đứng đầu): site và các bước xuất sau chỉ làm việc với các mã này.
+  writeFileSync(join(dich, 'ngon-ngu.json'), JSON.stringify(lietKeNgonNgu(db).filter((n) => n.bat).map((n) => ({ ma: n.ma, ten: n.ten, thuTu: n.thuTu })), null, 2) + '\n');
 
   // Cài đặt site: chỉ ghi khi đã có (server khởi tạo lần đầu từ env); thiếu thì site dùng mặc định + env.
   const caiDat = docCaiDat(db, 'site');

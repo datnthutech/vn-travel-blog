@@ -73,6 +73,10 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('GET', '/nguoi-dang-ky', 'ban-tin.gui'),
   L('GET', '/nguoi-dang-ky.csv', 'ban-tin.gui'),
   L('DELETE', '/nguoi-dang-ky/:id', 'ban-tin.gui'),
+  // Ngôn ngữ
+  L('GET', '/ngon-ngu', 'chi-dang-nhap'),
+  L('POST', '/ngon-ngu', 'cai-dat.sua'),
+  L('PUT', '/ngon-ngu/:ma', 'cai-dat.sua'),
   // Ảnh
   L('POST', '/anh', 'anh.tai-len'),
   L('GET', '/anh', 'chi-dang-nhap'),

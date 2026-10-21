@@ -11,6 +11,9 @@ describe('kiemTraThamChieu', () => {
   it('hợp lệ → không lỗi', () => {
     expect(kiemTraThamChieu([bai('a', 'vung-tau'), bai('b')], tinh)).toEqual([]);
   });
+  it('slug tỉnh trùng mã ngôn ngữ đang có → báo lỗi', () => {
+    expect(kiemTraThamChieu([], [{ slug: 'en' }, { slug: 'da-nang' }], undefined, ['vi', 'en'])).toEqual(['Slug tỉnh "en" trùng mã một ngôn ngữ']);
+  });
   it('tinh không tồn tại → báo lỗi', () => {
     const loi = kiemTraThamChieu([bai('a', 'khong-co')], tinh);
     expect(loi).toHaveLength(1);

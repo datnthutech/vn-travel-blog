@@ -1,5 +1,6 @@
 // Trang tĩnh (giới thiệu, chính sách liên kết, liên hệ + trang chủ blog tự tạo ở /trang/<slug>/).
 // 3 trang cố định giữ URL cũ, không xoá/đổi slug/gỡ được. Có tự lưu + lịch sử phiên bản như bài.
+import { maNgonNguDaCo } from './ngon-ngu';
 import { SLUG_HE_THONG, slugHopLe, taoSlug, urlTrang } from '@vntraveltips/schema';
 import type { Db } from '../db/ket-noi';
 import { themRedirectKhiDoiUrl, XungDotPhienBan } from './bai';
@@ -41,6 +42,7 @@ function kiemTraSlug(db: Db, slug: string): void {
   if (!slugHopLe(slug)) throw new LoiNghiepVu('Slug chỉ gồm a-z, 0-9 và dấu gạch ngang');
   if (SLUG_HE_THONG.includes(slug) || slug === 'trang') throw new LoiNghiepVu(`Slug "${slug}" trùng đường dẫn hệ thống`);
   if (docTrang(db, slug)) throw new LoiNghiepVu(`Trang "${slug}" đã có`, 409);
+  if (maNgonNguDaCo(db).includes(slug)) throw new LoiNghiepVu(`Slug "${slug}" trùng mã một ngôn ngữ`);
   if (db.prepare('SELECT 1 FROM tinh WHERE slug = ?').get(slug)) throw new LoiNghiepVu(`Slug "${slug}" trùng một tỉnh`);
 }
 

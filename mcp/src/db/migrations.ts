@@ -346,4 +346,29 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX ban_tin_gui_mail ON ban_tin_gui(mail_id);
     `,
   },
+  {
+    phienBan: 14,
+    sql: `
+      CREATE TABLE ngon_ngu (
+        ma TEXT PRIMARY KEY,
+        ten TEXT NOT NULL,
+        bat INTEGER NOT NULL DEFAULT 1,
+        thu_tu INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT INTO ngon_ngu (ma, ten, bat, thu_tu) VALUES ('vi', 'Tiếng Việt', 1, 0);
+      ALTER TABLE ban_dich ADD COLUMN ban_goc_bam TEXT;
+      ALTER TABLE ban_dich ADD COLUMN da_kiem_tra INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE ban_dich ADD COLUMN ghi_chu_kiem_tra TEXT;
+      ALTER TABLE ban_dich ADD COLUMN nguoi_kiem_tra_id INTEGER;
+      ALTER TABLE ban_dich ADD COLUMN kiem_tra_luc INTEGER;
+      CREATE TABLE dich_cau_truc (
+        loai TEXT NOT NULL CHECK (loai IN ('chuyen-muc', 'tinh', 'trang', 'menu', 'site', 'giao-dien')),
+        khoa TEXT NOT NULL,
+        ngon_ngu TEXT NOT NULL,
+        du_lieu TEXT NOT NULL,
+        sua_luc INTEGER NOT NULL,
+        PRIMARY KEY (loai, khoa, ngon_ngu)
+      );
+    `,
+  },
 ];
