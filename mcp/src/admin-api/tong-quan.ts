@@ -7,6 +7,7 @@ import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import type { DichVuMail } from '../mail/dich-vu';
 import { guiCanhBaoSaoLuu, trangThaiSaoLuu } from '../noi-dung/sao-luu-ngoai';
+import { demDaXacNhan } from '../ban-tin/kho';
 import { docBuildJson } from './build';
 
 export function tongQuanRouter(d: { config: Config; db: Db; hangDoi: HangDoiBuild; mail: DichVuMail; now: () => number }): Router {
@@ -39,6 +40,7 @@ export function tongQuanRouter(d: { config: Config; db: Db; hangDoi: HangDoiBuil
       ...(chuyen && ct ? { chuyenNhaCungCapGanNhat: { luc: chuyen.luc, tu: ct.tu ?? '', den: ct.sang ?? '' } } : {}),
       // Bình luận cần để ý: tạo trong 24 giờ qua HOẶC đang chờ xem (mỗi bình luận đếm một lần).
       binhLuanMoi: (d.db.prepare("SELECT count(*) AS n FROM binh_luan WHERE la_tac_gia = 0 AND ((tao_luc > ? AND trang_thai = 'hien') OR trang_thai = 'cho-xem')").get(d.now() - 86_400_000) as { n: number }).n,
+      nguoiDangKyBanTin: demDaXacNhan(d.db),
       binhLuanChoXem: (d.db.prepare("SELECT count(*) AS n FROM binh_luan WHERE trang_thai = 'cho-xem'").get() as { n: number }).n,
     });
   });

@@ -77,6 +77,14 @@ describe('gửi', () => {
   });
 });
 
+describe('tổng quan', () => {
+  it('đếm người đăng ký ĐÃ XÁC NHẬN (không tính chờ xác nhận)', async () => {
+    nguoi('a@x.vn');
+    dangKy(m.db, 'cho@x.vn', 'vi', m.dongHo.v);
+    expect((await m.chinh.gui('get', '/tong-quan')).body.nguoiDangKyBanTin).toBe(1);
+  });
+});
+
 describe('người đăng ký', () => {
   it('danh sách lọc/tìm/phân trang, không trả token; xoá; tham số lạ → 400', async () => {
     nguoi('a@x.vn');

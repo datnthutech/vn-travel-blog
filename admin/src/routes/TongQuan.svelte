@@ -15,6 +15,7 @@
     chuyenNhaCungCapGanNhat?: { luc: number; tu: string; den: string };
     binhLuanMoi: number;
     binhLuanChoXem: number;
+    nguoiDangKyBanTin: number;
   }
   let tq = $state<Tq | null>(null);
   let loi = $state('');
@@ -55,6 +56,10 @@
     <section class="the">
       <h2>Bình luận</h2>
       <p><a href="{GOC}/binh-luan" onclick={bamLienKet}>{tq.binhLuanMoi} bình luận mới/cần xem</a>{tq.binhLuanChoXem ? ` · ${tq.binhLuanChoXem} đang chờ xem` : ''}</p>
+    </section>
+    <section class="the">
+      <h2>Bản tin</h2>
+      <p><a href="{GOC}/nguoi-dang-ky" onclick={bamLienKet}>{tq.nguoiDangKyBanTin} người đăng ký đã xác nhận</a></p>
     </section>
     <section class="the">
       <h2>Sao lưu</h2>

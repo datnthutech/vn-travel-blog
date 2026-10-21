@@ -1,8 +1,9 @@
 <!-- Danh sách bài: tìm kiếm, lọc theo trạng thái/tỉnh, trạng thái có màu, giờ hẹn hiển thị giờ Việt Nam. -->
 <script lang="ts">
+  import { coQuyen } from '@vntraveltips/schema';
   import { onMount } from 'svelte';
   import { goiApi } from '../lib/api';
-  import { bamLienKet, GOC } from '../lib/dieu-huong.svelte';
+  import { bamLienKet, di, GOC } from '../lib/dieu-huong.svelte';
   import { phien, thongBaoLoi } from '../lib/phien.svelte';
 
   interface Tom { id: number; tieuDe: string; slug: string; trangThai: 'nhap' | 'da-dang' | 'hen-gio'; henGio?: number; tinh?: string; tacGia: { ten: string } | null; nguoiSuaCuoi: { ten: string } | null; suaLuc: number }
@@ -16,6 +17,18 @@
   let tinhDs = $state<{ slug: string; ten: string }[]>([]);
   let loi = $state('');
   let dangTai = $state(false);
+
+  let guiThongBaoLoi = $state('');
+  const laQuanTri = $derived(phien.nguoiDung !== null && coQuyen(phien.nguoiDung, 'ban-tin.gui'));
+  async function guiThongBao(b: Tom) {
+    guiThongBaoLoi = '';
+    try {
+      const r = await goiApi<{ id: number }>('POST', `/ban-tin/tu-bai/${b.id}`, { ngonNgu: 'vi' });
+      di(`${GOC}/ban-tin/${r.id}`);
+    } catch (e) {
+      guiThongBaoLoi = thongBaoLoi(e);
+    }
+  }
 
   const TEN = { nhap: 'Nháp', 'da-dang': 'Đã đăng', 'hen-gio': 'Hẹn giờ' } as const;
   const gioVN = (ms: number) => new Date(ms + 7 * 3600_000).toISOString().slice(0, 16).replace('T', ' ');
@@ -74,6 +87,7 @@
 </div>
 
 {#if loi}<p class="thong-bao-loi" role="alert">{loi}</p>{/if}
+{#if guiThongBaoLoi}<p class="thong-bao-loi" role="alert">{guiThongBaoLoi}</p>{/if}
 <div class="the">
   {#if !dangTai && ds.length === 0}<p class="nhat">Chưa có bài nào khớp.</p>{/if}
   <ul class="danh-sach">
@@ -83,6 +97,7 @@
         <span class="nhan {b.trangThai}">{TEN[b.trangThai]}</span><br />
         <span class="nhat">/{b.tinh ? `${b.tinh}/` : 'kinh-nghiem/'}{b.slug}/ · {b.tacGia?.ten ?? 'không rõ tác giả'} · sửa {gioVN(b.suaLuc)}{b.nguoiSuaCuoi ? ` bởi ${b.nguoiSuaCuoi.ten}` : ''}
           {#if b.trangThai === 'hen-gio' && b.henGio} · sẽ đăng {gioVN(b.henGio)} (giờ VN){/if}</span>
+        {#if laQuanTri && b.trangThai === 'da-dang'}<div class="hang-nut"><button class="phu" onclick={() => guiThongBao(b)}>Gửi thông báo bài này</button></div>{/if}
       </li>
     {/each}
   </ul>

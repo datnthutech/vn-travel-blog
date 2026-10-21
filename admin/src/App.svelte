@@ -17,7 +17,10 @@
   import Tag from './routes/Tag.svelte';
   import Tinh from './routes/Tinh.svelte';
   import Trang from './routes/Trang.svelte';
+  import BanTin from './routes/BanTin.svelte';
   import BinhLuan from './routes/BinhLuan.svelte';
+  import NguoiDangKy from './routes/NguoiDangKy.svelte';
+  import SoanBanTin from './routes/SoanBanTin.svelte';
   import CaiDatSite from './routes/CaiDatSite.svelte';
   import ChuyenMuc from './routes/ChuyenMuc.svelte';
   import DanhSachBai from './routes/DanhSachBai.svelte';
@@ -37,6 +40,7 @@
     { duong: `${GOC}/bai`, ten: 'Bài viết' },
     { duong: `${GOC}/anh`, ten: 'Ảnh' },
     { duong: `${GOC}/binh-luan`, ten: 'Bình luận' },
+    { duong: `${GOC}/ban-tin`, ten: 'Bản tin', hd: 'ban-tin.gui' },
     { duong: `${GOC}/thung-rac`, ten: 'Thùng rác' },
     { duong: `${GOC}/chuyen-muc`, ten: 'Chuyên mục', hd: 'cau-truc.sua' },
     { duong: `${GOC}/tinh`, ten: 'Tỉnh', hd: 'cau-truc.sua' },
@@ -112,6 +116,12 @@
       <DanhSachBai />
     {:else if dieuHuong.duong === `${GOC}/binh-luan`}
       <BinhLuan />
+    {:else if dieuHuong.duong === `${GOC}/ban-tin`}
+      <BanTin />
+    {:else if dieuHuong.duong === `${GOC}/nguoi-dang-ky`}
+      <NguoiDangKy />
+    {:else if /^\/quan-tri\/ban-tin\/\d+$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanBanTin id={Number(dieuHuong.duong.split('/').pop())} />{/key}
     {:else if dieuHuong.duong === `${GOC}/chuyen-muc`}
       <ChuyenMuc />
     {:else if dieuHuong.duong === `${GOC}/tinh`}
