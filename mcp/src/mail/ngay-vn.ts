@@ -4,3 +4,10 @@ const dinhDang = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh'
 
 /** `YYYY-MM-DD` theo giờ Việt Nam. */
 export const ngayVN = (now: number): string => dinhDang.format(new Date(now));
+
+const dinhDangGio = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false });
+/** `HH:mm ngày DD/MM/YYYY` theo giờ Việt Nam, để đưa vào thông báo cho người dùng. */
+export const gioVN = (now: number): string => {
+  const [y, m, d] = ngayVN(now).split('-');
+  return `${dinhDangGio.format(new Date(now))} ngày ${d}/${m}/${y}`;
+};

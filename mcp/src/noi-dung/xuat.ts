@@ -11,7 +11,8 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
   mkdirSync(join(dich, 'bai-viet'), { recursive: true });
   mkdirSync(join(dich, 'tinh'), { recursive: true });
 
-  const bai = lietKeBai(db, 'vi').filter((b) => target === 'preview' || b.trangThai === 'da-dang');
+  // Bản nháp còn thiếu trường (chưa qua schema) không xuất được: Astro sẽ báo lỗi và làm hỏng cả build.
+  const bai = lietKeBai(db, 'vi').filter((b) => b.hopLe && (target === 'preview' || b.trangThai === 'da-dang'));
   for (const b of bai) writeFileSync(join(dich, 'bai-viet', `${b.bai.slug}.md`), serializeBai(b.bai, b.noiDung));
 
   for (const r of db.prepare('SELECT slug, du_lieu FROM tinh ORDER BY slug').all() as { slug: string; du_lieu: string }[]) {

@@ -164,4 +164,12 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE nguoi_dung ADD COLUMN totp_buoc_cuoi INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    phienBan: 4,
+    sql: `
+      ALTER TABLE ban_dich ADD COLUMN phien_so INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE ban_dich ADD COLUMN nhap_tu_luu TEXT;
+      ALTER TABLE ban_dich ADD COLUMN phien_ban_cuoi_luc INTEGER;
+    `,
+  },
 ];
