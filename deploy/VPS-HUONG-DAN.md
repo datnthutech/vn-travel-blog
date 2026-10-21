@@ -57,8 +57,8 @@ File `.env` chứa bí mật. Git đã bỏ qua nó, đừng commit. Điền cá
 | `SESSION_SECRET` | chạy `openssl rand -hex 32` và dán kết quả |
 | `KHOA_BI_MAT` | đúng 64 ký tự hex: chạy `openssl rand -hex 32` và dán kết quả (khoá mã hoá bí mật trong cơ sở dữ liệu; giữ cố định, đổi là mất bí mật đã lưu) |
 | `GITHUB_WEBHOOK_SECRET` | chuỗi ngẫu nhiên (`openssl rand -hex 24`), dán cùng giá trị vào ô Secret của webhook |
-| `NOINDEX_ALL` | để `true`. Chặn Google cho tới khi sẵn sàng |
-| `GOATCOUNTER_CODE` | mã GoatCounter. Để trống nếu chưa dùng |
+| `NOINDEX_ALL` | để `true`. Chỉ là giá trị khởi tạo lần đầu (chặn Google); sau đó bật/tắt trong trang quản trị → Cài đặt site |
+| `GOATCOUNTER_CODE` | mã GoatCounter (giá trị khởi tạo lần đầu, sau đó đổi trong Cài đặt site). Để trống nếu chưa dùng |
 
 Đổi bất kỳ biến nào ở trên → chạy lại `./deploy.sh` (không dùng `docker restart`, vì restart không đọc lại `.env`). Container mcp khởi động lại sẽ tự build site với giá trị mới.
 

@@ -78,6 +78,15 @@ Vào `/quan-tri/` → **Bài viết** → **Viết bài mới** (dùng được 
 6. Hai người cùng sửa một bài: người lưu sau nhận thông báo "bài đã được … sửa lúc …" và chọn *Tải bản mới* hoặc *Giữ bản của tôi để chép* — không bao giờ ghi đè im lặng. Mỗi lần lưu tạo một phiên bản; xem, so sánh và khôi phục ở **Lịch sử phiên bản**.
 7. Đổi slug hoặc tỉnh của bài đã đăng sẽ tự tạo chuyển hướng 301 từ địa chỉ cũ.
 
+## Cấu trúc site trên trang quản trị
+
+- **Chuyên mục** (`/quan-tri/chuyen-muc`): thêm/sửa/kéo thả thứ tự. Đổi slug làm các bài tự cập nhật và địa chỉ cũ `/chu-de/cu/` tự chuyển hướng 301. Xoá chuyên mục còn bài thì phải chọn chuyên mục nhận bài.
+- **Tỉnh** (`/quan-tri/tinh`): đổi slug tỉnh → trang tỉnh và MỌI bài đã đăng của tỉnh tự 301 sang địa chỉ mới; xoá tỉnh có thể chuyển bài sang tỉnh khác hoặc "bỏ tỉnh" (bài thành `/kinh-nghiem/…`). **Tag**: đổi tên/gộp tag, xem tag chỉ còn ở thùng rác.
+- **Menu** (`/quan-tri/menu`): menu đầu/chân trang, một cấp con, trỏ tới chuyên mục/tỉnh/trang/bài/link (`https://…` hoặc `/…`); mục trỏ tới thứ chưa đăng tự ẩn trên site.
+- **Trang tĩnh** (`/quan-tri/trang`): giới thiệu, chính sách liên kết, liên hệ (cố định, giữ URL cũ) và trang tự tạo ở `/trang/<slug>/`. Slug không được trùng đường dẫn hệ thống, trang khác hay tỉnh.
+- **Cài đặt site** (`/quan-tri/cai-dat`): tên, mô tả, logo/favicon/ảnh chia sẻ, mạng xã hội, **cho phép Google lập chỉ mục**, mã GoatCounter, quảng cáo. `NOINDEX_ALL` và `GOATCOUNTER_CODE` trong `deploy/.env` giờ chỉ là **giá trị khởi tạo lần đầu**; sau đó đổi bằng nút trong trang này (không cần sửa `.env` hay chạy lại `./deploy.sh`).
+- **Chuyển hướng** (`/quan-tri/redirect`) xem/thêm/xoá 301; **Tổng quan** báo số bài, build, sao lưu (trong và ngoài VPS — quá 26 giờ chưa ra ngoài VPS thì cảnh báo và gửi mail cho quản trị), ổ đĩa, mail.
+
 ## Thêm connector MCP vào Claude
 
 claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → đăng nhập GitHub. App Claude trên iPhone tự đồng bộ connector. Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).
@@ -98,8 +107,8 @@ Webhook sai chữ ký hoặc không phải push vào `main` đều bị bỏ qua
 
 - Làm từng bước ở [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md): DNS ở nhà đăng ký tên miền, GitHub OAuth App và token, clone repo, `deploy/.env`, `./deploy.sh`, nginx trên host (mẫu `deploy/nginx-host.conf.example`, `nginx -t` trước khi reload), certbot cho hai host. VPS đang chạy dịch vụ khác nên hướng dẫn chỉ **thêm** file riêng và không đụng các cổng cũ.
 - Cổng đang dùng: `vntraveltips-web` ở `127.0.0.1:8090`, `vntraveltips-mcp` ở `127.0.0.1:8091`. Không dùng cổng nào khác.
-- **Mở cho Google lập chỉ mục** (mặc định site đang chặn bằng `NOINDEX_ALL=true`): trong `deploy/.env` đặt `NOINDEX_ALL=false` rồi chạy lại `./deploy.sh`. Compose thấy `.env` đổi nên tạo lại container mcp, và mỗi lần khởi động mcp tự build lại site với cấu hình mới (site vẫn phục vụ bản cũ trong lúc build; theo dõi `docker logs -f vntraveltips-mcp`). **Đừng** dùng `docker restart` — lệnh đó không đọc lại `.env`. Sau đó gửi `https://vntraveltips.monai.click/sitemap-index.xml` lên Google Search Console.
-- **Đếm lượt xem không cookie:** tạo site miễn phí ở goatcounter.com, rồi đặt `GOATCOUNTER_CODE` = tên site trong `deploy/.env` rồi chạy lại `./deploy.sh` (chỉ có script ở bản production). Để trống thì không có script bên thứ ba nào.
+- **Mở cho Google lập chỉ mục** (mặc định site đang chặn): vào `/quan-tri/cai-dat` và bật "Cho phép Google lập chỉ mục" — site tự build lại sau vài phút (`NOINDEX_ALL` trong `deploy/.env` chỉ là giá trị khởi tạo lần đầu, đổi nó sau đó không còn tác dụng). Sau đó gửi `https://vntraveltips.monai.click/sitemap-index.xml` lên Google Search Console.
+- **Đếm lượt xem không cookie:** tạo site miễn phí ở goatcounter.com, rồi điền tên site vào ô "Mã GoatCounter" ở `/quan-tri/cai-dat` (chỉ có script ở bản production; `GOATCOUNTER_CODE` trong `.env` chỉ là giá trị khởi tạo lần đầu). Để trống thì không có script bên thứ ba nào.
 - **Bảo mật trang quản trị và script bên thứ ba:** phiên đăng nhập `/quan-tri/` dùng cookie `HttpOnly` (không để trong `localStorage`) nên script GoatCounter/AdSense không đọc được; vẫn nên đăng xuất khi dùng máy lạ. Quản trị bắt buộc bật 2FA; sai mật khẩu 5 lần thì IP bị chặn 15 phút (tăng dần).
 - **Redirect khi đổi tỉnh của bài đã đăng:** làm qua Claude (`sua_bai`), nó tự thêm vào `site/redirects.json`. Build sinh redirect đã kiểm tra, và container web chuyển URL cũ sang dịch vụ MCP, nên không cần reload nginx.
 - **Affiliate:** link đặt phòng (`linkDat`) và đồ cho bé (`doMangChoBe[].link`) tự có `rel="sponsored nofollow noopener"` và dòng tiết lộ dẫn tới `/chinh-sach-lien-ket/`.
