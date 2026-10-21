@@ -6,6 +6,7 @@ import type { HangDoiBuild } from '../build/hang-doi';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import { gioVN, ngayVN } from '../mail/ngay-vn';
+import { epochSangGioVN, gioVNSangEpoch } from '../noi-dung/hen-gio';
 import { danhDauNoiDungDoi } from '../noi-dung/phien-noi-dung';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { baiVietSchema, taoSlug } from '@vntraveltips/schema';
@@ -363,6 +364,43 @@ export function baiRouter(d: DepsBai): Router {
     } catch (e) {
       res.status(/UNIQUE/.test((e as Error).message) ? 409 : 400).json({ loi: /UNIQUE/.test((e as Error).message) ? 'Slug của phiên bản này đã có bài khác dùng' : (e as Error).message });
     }
+  });
+
+
+  // ---- Hẹn giờ đăng (giờ Việt Nam) ----
+  r.post('/bai/:id/hen-gio', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    if (doc.xoaLuc !== null) return void res.status(409).json({ loi: 'Bài đang trong thùng rác' });
+    let luc: number;
+    try {
+      luc = gioVNSangEpoch(String((req.body as { luc?: unknown } | undefined)?.luc ?? ''));
+    } catch (e) {
+      return void res.status(400).json({ loi: (e as Error).message });
+    }
+    if (luc <= d.now()) return void res.status(400).json({ loi: 'Giờ hẹn phải ở tương lai (giờ Việt Nam)' });
+    const bai = { ...doc.bai, ngayDang: doc.bai.ngayDang ?? epochSangGioVN(luc).slice(0, 10) };
+    const kt = kiemTraDayDu(d.db, d.config.anhDir, bai, doc.noiDung, doc.bai.slug);
+    if (!kt.dat) return void traLoiLuat(res, kt.loi);
+    try {
+      luuBai(d.db, { id: doc.id, ngonNgu: 'vi', bai: bai as never, noiDung: doc.noiDung, trangThai: 'hen-gio', henGio: luc, nguoiId: req.nguoiDung!.id }, d.now);
+    } catch (e) {
+      return void res.status(400).json({ loi: (e as Error).message });
+    }
+    d.db.prepare("UPDATE ban_dich SET hen_gio_nguoi_id = ? WHERE bai_id = ? AND ngon_ngu = 'vi'").run(req.nguoiDung!.id, doc.id);
+    ghi(req, 'hen-gio', doc.id, { luc: epochSangGioVN(luc) });
+    baoDoi();
+    res.json({ ok: true, henGio: luc, gioVN: epochSangGioVN(luc) });
+  });
+
+  r.post('/bai/:id/huy-hen-gio', (req, res) => {
+    const doc = layBai(req, res);
+    if (!doc) return;
+    if (doc.trangThai !== 'hen-gio') return void res.status(409).json({ loi: 'Bài không có hẹn giờ' });
+    luuThat(req, doc, 'nhap', doc.bai);
+    ghi(req, 'huy-hen-gio', doc.id);
+    baoDoi();
+    res.json({ ok: true });
   });
 
   return r;

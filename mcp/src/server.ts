@@ -6,6 +6,7 @@ import { taoHangDoiBuild } from './build/hang-doi';
 import { khiKhoiDong } from './build/khoi-dong';
 import { loadConfig } from './config';
 import { duongDanDb, moDb } from './db/ket-noi';
+import { xuLyHenGio } from './noi-dung/hen-gio';
 import { taoDichVuMail } from './mail/dich-vu';
 import { donSaoLuu, saoLuu } from './db/sao-luu';
 
@@ -31,6 +32,14 @@ setInterval(() => {
     .finally(() => (dangGuiMail = false));
 }, 30_000).unref();
 const hangDoi = taoHangDoiBuild(taoChayBuild(config, db));
+// Mỗi 60 giây: đăng các bài hẹn giờ đã tới hạn (giờ Việt Nam) rồi xếp một lượt build nếu có.
+setInterval(() => {
+  try {
+    xuLyHenGio(db, hangDoi, Date.now());
+  } catch (e) {
+    console.error('Hẹn giờ đăng lỗi:', (e as Error).message);
+  }
+}, 60_000).unref();
 createApp(config, { hangDoi, db, mail }).listen(config.port, '0.0.0.0', () => {
   console.log(`vntraveltips-mcp đang chạy ở cổng ${config.port}`);
 });

@@ -172,4 +172,10 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE ban_dich ADD COLUMN phien_ban_cuoi_luc INTEGER;
     `,
   },
+  {
+    phienBan: 5,
+    sql: `
+      ALTER TABLE ban_dich ADD COLUMN hen_gio_nguoi_id INTEGER; -- người đặt hẹn giờ (sẽ là người đăng khi tới hạn)
+    `,
+  },
 ];
