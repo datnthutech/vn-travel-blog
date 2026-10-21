@@ -15,6 +15,7 @@ import { caiDatRouter } from './cai-dat';
 import { trangRouter } from './trang';
 import { redirectRouter } from './redirect';
 import { tongQuanRouter } from './tong-quan';
+import { nhatKyRouter } from './nhat-ky';
 import { loiMoiCongKhaiRouter, taiKhoanRouter } from './tai-khoan';
 import { haiLopRouter } from './hai-lop';
 import { buildRouter } from './build';
@@ -51,6 +52,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(haiLopRouter(d));
   r.use(baiRouter({ config: d.config, db: d.db, now: d.now, hangDoi: deps.hangDoi }));
   r.use(taiKhoanRouter({ config: d.config, db: d.db, mail: deps.mail, now: d.now }));
+  r.use(nhatKyRouter({ db: d.db }));
   r.use(redirectRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));
   r.use(tongQuanRouter({ config: d.config, db: d.db, hangDoi: deps.hangDoi, mail: deps.mail, now: d.now }));
   r.use(trangRouter({ db: d.db, hangDoi: deps.hangDoi, now: d.now }));

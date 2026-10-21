@@ -31,6 +31,10 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('GET', '/loi-moi/:token', 'cong-khai'),
   L('POST', '/loi-moi/:token/nhan', 'cong-khai'),
   L('POST', '/tai-khoan/moi', 'tai-khoan.quan-ly'),
+  L('GET', '/tai-khoan', 'tai-khoan.quan-ly'),
+  L('PUT', '/tai-khoan/:id', 'tai-khoan.quan-ly'),
+  L('POST', '/tai-khoan/:id/dat-lai-2fa', 'tai-khoan.quan-ly'),
+  L('GET', '/nhat-ky', 'nhat-ky.xem'),
   // Bài viết
   L('GET', '/bai', 'bai.xem'),
   L('GET', '/bai/:id', 'bai.xem'),
