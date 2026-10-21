@@ -16,6 +16,7 @@
   import { goiTaiAnh } from '../lib/tai-anh';
   import { taoTuLuu, type TrangThaiTuLuu } from '../lib/tu-luu';
   import TrinhSoanThao from '../lib/soan-thao/TrinhSoanThao.svelte';
+  import TabBanDich from '../lib/ban-dich/TabBanDich.svelte';
 
   let { idBanDau }: { idBanDau: number | null } = $props();
 
@@ -326,6 +327,7 @@
   const loiNhom = (k: string) => loiCua(loiTruong, k);
 </script>
 
+{#if id !== null}<TabBanDich {id} hienTai="vi" />{/if}
 <h1>{id === null ? 'Viết bài mới' : 'Sửa bài'}</h1>
 
 {#if !daTai}

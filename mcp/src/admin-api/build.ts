@@ -29,3 +29,13 @@ export function buildRouter(d: { config: Config; db: Db; hangDoi: HangDoiBuild }
   });
   return r;
 }
+
+/** Khoá giao diện còn thiếu theo ngôn ngữ ({ en: số khoá }) do build ghi vào build.json; thiếu/hỏng → {}. */
+export async function docGiaoDienThieu(thuMuc: string): Promise<Record<string, number>> {
+  try {
+    const d = JSON.parse(await readFile(join(thuMuc, 'build.json'), 'utf8')) as { giaoDienThieu?: Record<string, unknown> };
+    return Object.fromEntries(Object.entries(d.giaoDienThieu ?? {}).map(([ma, ds]) => [ma, Array.isArray(ds) ? ds.length : 0]));
+  } catch {
+    return {};
+  }
+}

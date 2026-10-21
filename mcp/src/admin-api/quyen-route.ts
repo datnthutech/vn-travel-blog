@@ -58,6 +58,7 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('GET', '/bai/:id/ban-dich/:ngonNgu', 'bai.xem'),
   L('PUT', '/bai/:id/ban-dich/:ngonNgu', 'bai.sua'),
   L('PATCH', '/bai/:id/ban-dich/:ngonNgu/tu-luu', 'bai.sua'),
+  L('POST', '/bai/:id/ban-dich/:ngonNgu/xem-truoc', 'bai.sua'),
   L('POST', '/bai/:id/ban-dich/:ngonNgu/dang', 'bai.dang'),
   L('POST', '/bai/:id/ban-dich/:ngonNgu/go', 'bai.dang'),
   L('POST', '/bai/:id/ban-dich/:ngonNgu/hen-gio', 'bai.dang'),

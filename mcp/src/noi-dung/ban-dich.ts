@@ -142,3 +142,16 @@ export function datTrangThaiBanDich(db: Db, baiId: number, ngonNgu: string, tran
     danhDauNoiDungDoi(db);
   })();
 }
+
+/** Số bài tiếng Việt ĐÃ ĐĂNG chưa có bản dịch `ma`, và số bản dịch cũ hơn bản gốc (bài trong thùng rác không tính). */
+export function thongKeBanDich(db: Db, ma: string): { chua: number; cu: number } {
+  const ids = (db.prepare("SELECT d.bai_id AS id FROM ban_dich d JOIN bai b ON b.id = d.bai_id WHERE d.ngon_ngu = 'vi' AND d.trang_thai = 'da-dang' AND b.xoa_luc IS NULL").all() as { id: number }[]).map((r) => r.id);
+  let chua = 0;
+  let cu = 0;
+  for (const id of ids) {
+    const ban = docBanDich(db, id, ma);
+    if (!ban) chua++;
+    else if (cuHonBanGoc(db, ban)) cu++;
+  }
+  return { chua, cu };
+}

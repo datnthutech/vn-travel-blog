@@ -1,5 +1,6 @@
 // API bản dịch bài viết: /bai/:id/ban-dich/:ngonNgu — cùng luật quyền với bài (người viết chỉ sửa/đăng bài của mình), riêng "đã kiểm tra" mở cho mọi vai trò.
 // Đăng bản dịch cần bản tiếng Việt đang `da-dang`; mọi bản dịch của một bài biến khỏi production khi bài vi bị gỡ/vào thùng rác (xử lý ở xuatNoiDung).
+import { urlBai } from '@vntraveltips/schema';
 import { Router, type Request, type Response } from 'express';
 import type { HangDoiBuild } from '../build/hang-doi';
 import type { Config } from '../config';
@@ -113,6 +114,42 @@ export function banDichRouter(d: { config: Config; db: Db; now: () => number; ha
       const unique = /UNIQUE/.test((e as Error).message);
       res.status(unique ? 409 : 400).json({ loi: unique ? 'Slug này đã có bản dịch khác dùng trong ngôn ngữ này' : (e as Error).message });
     }
+  });
+
+  // Xem trước (Review): lưu như PUT rồi trả URL trang xem trước /<mã>/… + bộ đếm nội dung để trang quản trị chờ build xong rồi mở.
+  r.post('/bai/:id/ban-dich/:ngonNgu/xem-truoc', yeuCauQuyen('bai.sua', chuBai), (req, res) => {
+    const k = lay(req, res);
+    const g = k && lanBody(req, res);
+    if (!k || !g) return;
+    const hien = doc(k.baiId, k.ma);
+    const trangThai = hien?.trangThai ?? 'nhap';
+    if (trangThai !== 'nhap') {
+      const loi = loiDayDuTuBody(k.baiId, k.ma, g.dich as Record<string, unknown>, g.noiDung);
+      if (loi.length) return void res.status(400).json({ loi: 'Bản dịch chưa đạt kiểm tra', chiTiet: loi });
+    }
+    let phienSo: number;
+    try {
+      ({ phienSo } = luuBanDich(d.db, { baiId: k.baiId, ngonNgu: k.ma, dich: g.dich, noiDung: g.noiDung, trangThai, henGio: hien?.henGio ?? undefined, nguoiId: req.nguoiDung!.id, phienSo: g.phienSo }, d.now));
+    } catch (e) {
+      if (e instanceof XungDotPhienBan) return void traXungDot(res, e);
+      const unique = /UNIQUE/.test((e as Error).message);
+      return void res.status(unique ? 409 : 400).json({ loi: unique ? 'Slug này đã có bản dịch khác dùng trong ngôn ngữ này' : (e as Error).message });
+    }
+    d.hangDoi.yeuCau();
+    const luu = doc(k.baiId, k.ma)!;
+    const loi = loiDayDu(luu); // bản nháp còn thiếu/lệch cấu trúc thì không dựng được trang: báo rõ để không chờ vô ích
+    let url = '';
+    if (loi.length === 0) {
+      const tinh = ghepDayDu(d.db, luu).bai.tinh;
+      url = `${d.config.previewBaseUrl}/${k.ma}${urlBai({ slug: luu.dich.slug, tinh })}`;
+    }
+    res.json({
+      url,
+      noiDungPhien: Number((d.db.prepare("SELECT gia_tri FROM he_thong WHERE khoa = 'noi_dung_phien'").get() as { gia_tri: string }).gia_tri),
+      phienSo,
+      hopLe: loi.length === 0,
+      ...(loi.length ? { loi } : {}),
+    });
   });
 
   r.patch('/bai/:id/ban-dich/:ngonNgu/tu-luu', yeuCauQuyen('bai.sua', chuBai), (req, res) => {

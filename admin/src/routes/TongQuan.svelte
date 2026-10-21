@@ -15,6 +15,9 @@
     chuyenNhaCungCapGanNhat?: { luc: number; tu: string; den: string };
     binhLuanMoi: number;
     binhLuanChoXem: number;
+    banDichThieuHoacCu: number;
+    banDich: Record<string, { ten: string; chua: number; cu: number }>;
+    giaoDienThieu: Record<string, number>;
     nguoiDangKyBanTin: number;
   }
   let tq = $state<Tq | null>(null);
@@ -57,6 +60,14 @@
       <h2>Bình luận</h2>
       <p><a href="{GOC}/binh-luan" onclick={bamLienKet}>{tq.binhLuanMoi} bình luận mới/cần xem</a>{tq.binhLuanChoXem ? ` · ${tq.binhLuanChoXem} đang chờ xem` : ''}</p>
     </section>
+    {#if Object.keys(tq.banDich).length > 0}
+      <section class="the">
+        <h2>Bản dịch</h2>
+        {#each Object.entries(tq.banDich) as [ma, x]}
+          <p><a href="{GOC}/bai?thieuBanDich={ma}" onclick={bamLienKet}>{x.ten}: <strong>{x.chua}</strong> bài chưa dịch</a> · <strong>{x.cu}</strong> bản dịch cũ hơn bản gốc{#if tq.giaoDienThieu[ma]}<br /><a href="{GOC}/chuoi-giao-dien" onclick={bamLienKet}>{tq.giaoDienThieu[ma]} chuỗi giao diện chưa dịch</a>{/if}</p>
+        {/each}
+      </section>
+    {/if}
     <section class="the">
       <h2>Bản tin</h2>
       <p><a href="{GOC}/nguoi-dang-ky" onclick={bamLienKet}>{tq.nguoiDangKyBanTin} người đăng ký đã xác nhận</a></p>

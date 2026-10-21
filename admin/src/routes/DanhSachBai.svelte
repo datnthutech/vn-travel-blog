@@ -6,7 +6,7 @@
   import { bamLienKet, di, GOC } from '../lib/dieu-huong.svelte';
   import { phien, thongBaoLoi } from '../lib/phien.svelte';
 
-  interface Tom { id: number; tieuDe: string; slug: string; trangThai: 'nhap' | 'da-dang' | 'hen-gio'; henGio?: number; tinh?: string; tacGia: { ten: string } | null; nguoiSuaCuoi: { ten: string } | null; suaLuc: number }
+  interface Tom { id: number; tieuDe: string; slug: string; trangThai: 'nhap' | 'da-dang' | 'hen-gio'; henGio?: number; banDich?: Record<string, { trangThai: string; cu?: boolean; daKiemTra?: boolean }>; tinh?: string; tacGia: { ten: string } | null; nguoiSuaCuoi: { ten: string } | null; suaLuc: number }
   let ds = $state<Tom[]>([]);
   let tong = $state(0);
   let trang = $state(1);
@@ -14,6 +14,9 @@
   let trangThai = $state('');
   let tinh = $state('');
   let cuaToi = $state(false);
+  // Lọc theo bản dịch: '' | 'thieu:<mã>' | 'cu:<mã>'
+  let locDich = $state('');
+  let ngonDs = $state<{ ma: string; ten: string }[]>([]);
   let tinhDs = $state<{ slug: string; ten: string }[]>([]);
   let loi = $state('');
   let dangTai = $state(false);
@@ -45,6 +48,7 @@
       if (trangThai) qs.set('trangThai', trangThai);
       if (tinh) qs.set('tinh', tinh);
       if (cuaToi && phien.nguoiDung) qs.set('tacGia', String(phien.nguoiDung.id));
+      if (locDich) qs.set(locDich.startsWith('thieu:') ? 'thieuBanDich' : 'banDichCu', locDich.slice(locDich.indexOf(':') + 1));
       const r = await goiApi<{ bai: Tom[]; tong: number }>('GET', `/bai?${qs}`);
       if (luot !== seq) return;
       ds = r.bai;
@@ -62,6 +66,10 @@
     hen = setTimeout(() => void tai(), 300);
   };
   onMount(() => {
+    const tim = new URLSearchParams(location.search); // liên kết từ Tổng quan: ?thieuBanDich=en | ?banDichCu=en
+    if (tim.get('thieuBanDich')) locDich = `thieu:${tim.get('thieuBanDich')}`;
+    else if (tim.get('banDichCu')) locDich = `cu:${tim.get('banDichCu')}`;
+    void goiApi<{ ngonNgu: { ma: string; ten: string; bat: boolean }[] }>('GET', '/ngon-ngu').then((r) => (ngonDs = r.ngonNgu.filter((n) => n.bat && n.ma !== 'vi'))).catch(() => {});
     void goiApi<{ tinh: typeof tinhDs }>('GET', '/tinh').then((r) => (tinhDs = r.tinh)).catch(() => {});
     void tai();
   });
@@ -76,6 +84,13 @@
   <label for="q">Tìm theo tiêu đề hoặc slug</label>
   <input id="q" type="text" bind:value={q} oninput={loc} />
   <label class="hang-chon"><input type="checkbox" bind:checked={cuaToi} onchange={loc} /> Chỉ bài của tôi</label>
+  {#if ngonDs.length > 0}
+    <label for="loc-dich">Bản dịch</label>
+    <select id="loc-dich" bind:value={locDich} onchange={loc}>
+      <option value="">Tất cả</option>
+      {#each ngonDs as n}<option value="thieu:{n.ma}">Chưa dịch sang {n.ten}</option><option value="cu:{n.ma}">Bản dịch {n.ten} cũ hơn bản gốc</option>{/each}
+    </select>
+  {/if}
   <div class="hang-loc">
     <div><label for="tt">Trạng thái</label>
       <select id="tt" bind:value={trangThai} onchange={loc}>
@@ -97,6 +112,9 @@
         <span class="nhan {b.trangThai}">{TEN[b.trangThai]}</span><br />
         <span class="nhat">/{b.tinh ? `${b.tinh}/` : 'kinh-nghiem/'}{b.slug}/ · {b.tacGia?.ten ?? 'không rõ tác giả'} · sửa {gioVN(b.suaLuc)}{b.nguoiSuaCuoi ? ` bởi ${b.nguoiSuaCuoi.ten}` : ''}
           {#if b.trangThai === 'hen-gio' && b.henGio} · sẽ đăng {gioVN(b.henGio)} (giờ VN){/if}</span>
+        {#if b.banDich && Object.keys(b.banDich).length > 0}
+          <div class="chip-dich">{#each Object.entries(b.banDich) as [ma, x]}<a href="{GOC}/bai/{b.id}/ban-dich/{ma}" onclick={bamLienKet} class="chip" class:cu={x.cu}>{ma}: {x.trangThai === 'chua-dich' ? 'chưa dịch' : x.trangThai === 'da-dang' ? 'đã đăng' : x.trangThai === 'hen-gio' ? 'hẹn giờ' : 'nháp'}{x.cu ? ' · cũ hơn bản gốc' : ''}{x.daKiemTra ? ' · đã kiểm tra' : ''}</a>{/each}</div>
+        {/if}
         {#if laQuanTri && b.trangThai === 'da-dang'}<div class="hang-nut"><button class="phu" onclick={() => guiThongBao(b)}>Gửi thông báo bài này</button></div>{/if}
       </li>
     {/each}
@@ -116,4 +134,7 @@
   .nhan.da-dang { background: var(--ok-nen); color: var(--ok); }
   .nhan.hen-gio { background: #fff3cd; color: #7a5b00; }
   .nhan.nhap { color: var(--chu-nhat); }
+  .chip-dich { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .chip { font-size: .8rem; padding: 4px 10px; border: 1px solid var(--vien); border-radius: 999px; text-decoration: none; min-height: 32px; display: inline-flex; align-items: center; }
+  .chip.cu { background: #fff3cd; color: #7a5b00; }
 </style>

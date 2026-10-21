@@ -128,6 +128,38 @@ describe('đăng bản dịch', () => {
   });
 });
 
+describe('xem trước bản dịch (Review)', () => {
+  it('lưu rồi trả URL xem trước /en/…, noiDungPhien và yêu cầu build; bản chưa đủ cấu trúc → hopLe=false, không có URL', async () => {
+    const id = await taoBai('bai-a');
+    const truoc = m.yeuCau.so;
+    const r = await m.chinh.gui('post', `/bai/${id}/ban-dich/en/xem-truoc`, { dich: await dichEn(id, { slug: 'xem-thu' }) });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ url: 'http://nhap.localhost:8090/en/kinh-nghiem/xem-thu/', hopLe: true, phienSo: 1 });
+    expect(typeof r.body.noiDungPhien).toBe('number');
+    expect(m.yeuCau.so).toBeGreaterThan(truoc);
+    expect((await m.chinh.gui('get', `/bai/${id}/ban-dich/en`)).body.dich.slug).toBe('xem-thu'); // đã lưu
+    const lech = await m.chinh.gui('post', `/bai/${id}/ban-dich/en/xem-truoc`, { dich: { ...(await dichEn(id)), diaDiem: [{ ten: 'thừa', uuDiem: [], nhuocDiem: [], anhAlt: [] }] }, phienSo: 1 });
+    expect(lech.body.hopLe).toBe(false);
+    expect(lech.body.url).toBe('');
+    expect(lech.body.loi.join(' ')).toMatch(/diaDiem/);
+    expect((await m.chinh.gui('post', `/bai/${id}/ban-dich/en/xem-truoc`, { dich: await dichEn(id), phienSo: 1 })).status).toBe(409); // phienSo cũ
+    const w = await m.dangNhap('w@x.vn', 'W', 'writer');
+    expect((await w.gui('post', `/bai/${id}/ban-dich/en/xem-truoc`, { dich: await dichEn(id) })).status).toBe(403);
+  });
+
+  it('Tổng quan đếm bản dịch thiếu/cũ theo ngôn ngữ (banDichThieuHoacCu = chưa dịch + cũ)', async () => {
+    const a = await taoBai('bai-a');
+    await taoBai('bai-b');
+    expect((await m.chinh.gui('get', '/tong-quan')).body).toMatchObject({ banDichThieuHoacCu: 2, banDich: { en: { chua: 2, cu: 0 } }, giaoDienThieu: {} });
+    await luuEn(a, await dichEn(a));
+    const vi = (await m.chinh.gui('get', `/bai/${a}`)).body;
+    await m.chinh.gui('put', `/bai/${a}`, { bai: { ...vi.bai, tieuDe: 'Gốc đổi' }, noiDung: vi.noiDung, phienSo: vi.phienSo });
+    expect((await m.chinh.gui('get', '/tong-quan')).body).toMatchObject({ banDichThieuHoacCu: 2, banDich: { en: { chua: 1, cu: 1 } } });
+    await m.chinh.gui('put', '/ngon-ngu/en', { bat: false });
+    expect((await m.chinh.gui('get', '/tong-quan')).body).toMatchObject({ banDichThieuHoacCu: 0, banDich: {} });
+  });
+});
+
 describe('bản dịch cũ hơn bản gốc + đã kiểm tra', () => {
   it('sửa tieuDe bản vi → cuHonBanGoc=true; sửa trường KHÔNG phải chữ (tinh/ngày) thì không; lưu lại bản dịch xoá "đã kiểm tra" và hết cũ', async () => {
     const id = await taoBai('bai-a');

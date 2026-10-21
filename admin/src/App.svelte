@@ -18,6 +18,11 @@
   import Tinh from './routes/Tinh.svelte';
   import Trang from './routes/Trang.svelte';
   import BanTin from './routes/BanTin.svelte';
+  import CaiDatAi from './routes/CaiDatAi.svelte';
+  import ChuoiGiaoDien from './routes/ChuoiGiaoDien.svelte';
+  import DichCauTruc from './routes/DichCauTruc.svelte';
+  import NgonNgu from './routes/NgonNgu.svelte';
+  import SoanBanDich from './routes/SoanBanDich.svelte';
   import BinhLuan from './routes/BinhLuan.svelte';
   import NguoiDangKy from './routes/NguoiDangKy.svelte';
   import SoanBanTin from './routes/SoanBanTin.svelte';
@@ -49,6 +54,10 @@
     { duong: `${GOC}/menu`, ten: 'Menu', hd: 'cau-truc.sua' },
     { duong: `${GOC}/redirect`, ten: 'Chuyển hướng', hd: 'cau-truc.sua' },
     { duong: `${GOC}/cai-dat`, ten: 'Cài đặt site', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/ngon-ngu`, ten: 'Ngôn ngữ', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/dich-cau-truc`, ten: 'Bản dịch cấu trúc', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/chuoi-giao-dien`, ten: 'Chuỗi giao diện', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/cai-dat-ai`, ten: 'Cài đặt AI', hd: 'cai-dat.sua' },
     { duong: `${GOC}/mail`, ten: 'Cài đặt mail', hd: 'cai-dat.sua' },
     { duong: `${GOC}/tai-khoan`, ten: 'Tài khoản', hd: 'tai-khoan.quan-ly' },
     { duong: `${GOC}/nhat-ky`, ten: 'Nhật ký', hd: 'nhat-ky.xem' },
@@ -138,6 +147,16 @@
       <Redirect />
     {:else if dieuHuong.duong === `${GOC}/cai-dat`}
       <CaiDatSite />
+    {:else if dieuHuong.duong === `${GOC}/ngon-ngu`}
+      <NgonNgu />
+    {:else if dieuHuong.duong === `${GOC}/dich-cau-truc`}
+      <DichCauTruc />
+    {:else if dieuHuong.duong === `${GOC}/chuoi-giao-dien`}
+      <ChuoiGiaoDien />
+    {:else if dieuHuong.duong === `${GOC}/cai-dat-ai`}
+      <CaiDatAi />
+    {:else if /^\/quan-tri\/bai\/\d+\/ban-dich\/[a-z]{2}(-[a-z]{2})?$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanBanDich id={Number(dieuHuong.duong.split('/')[3])} ma={dieuHuong.duong.split('/')[5]!} />{/key}
     {:else if dieuHuong.duong === `${GOC}/trang`}
       <Trang />
     {:else if /^\/quan-tri\/trang\/[a-z0-9-]+$/.test(dieuHuong.duong)}
