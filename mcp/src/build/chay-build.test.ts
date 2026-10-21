@@ -90,6 +90,19 @@ describe('taoChayBuild', () => {
     expect(JSON.stringify(kq)).not.toContain(TOKEN);
   });
 
+  it('không có GITHUB_TOKEN (repo public): clone/fetch KHÔNG gửi header xác thực, log vẫn nguyên vẹn (không bị che nhầm)', async () => {
+    const config = { ...configTam(), githubToken: '' };
+    const { exec, goi } = execGia();
+    const kq = await taoChayBuild(config, db, exec)();
+    expect(kq).toEqual({ ok: true, sha: SHA });
+    const clone = goi.find((g) => g.lenh === 'git' && g.args[0] === 'clone')!;
+    expect(Object.keys(clone.env).some((k) => k.startsWith('GIT_CONFIG'))).toBe(false);
+    expect(clone.env.GIT_TERMINAL_PROMPT).toBe('0');
+    const hong = await taoChayBuild({ ...config, dataDir: mkdtempSync(join(tmpdir(), 'vtt-data-')) }, db, execGia({ hongBuild: 'production' }).exec)();
+    expect(hong.ok).toBe(false);
+    expect(JSON.stringify(hong)).toContain('astro lỗi');
+  });
+
   it('thành công: build production rồi preview, mỗi lần một process, đúng env', async () => {
     const config = configTam();
     const { exec, goi } = execGia();

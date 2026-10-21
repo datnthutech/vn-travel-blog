@@ -36,18 +36,18 @@ const chayLenh: Exec = (lenh, args, opt) =>
   });
 
 export function taoChayBuild(config: Config, db: Db, exec: Exec = chayLenh): () => Promise<KetQuaBuild> {
+  const coToken = config.githubToken !== '';
   const basic = Buffer.from(`x-access-token:${config.githubToken}`).toString('base64');
-  // Che mọi dạng của token trước khi đưa vào log: token thô và chuỗi Basic đã mã hoá.
-  const che = (s: string) => s.split(config.githubToken).join('***').split(basic).join('***');
+  // Che mọi dạng của token trước khi đưa vào log: token thô và chuỗi Basic đã mã hoá (không có token thì không che gì — split('') sẽ phá chuỗi).
+  const che = (s: string) => (coToken ? s.split(config.githubToken).join('***').split(basic).join('***') : s);
   const duoi = (s: string) => che(s).slice(-LOG_MAX);
   const moiTruong = { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '' };
   // Token đi vào git qua cấu hình môi trường (GIT_CONFIG_*), không nằm trong danh sách tham số.
-  const envGit = {
+  // Repo public (mặc định) fetch không cần token → không đặt header; chỉ khi có GITHUB_TOKEN (repo private) mới gửi.
+  const envGit: Record<string, string> = {
     ...moiTruong,
     GIT_TERMINAL_PROMPT: '0',
-    GIT_CONFIG_COUNT: '1',
-    GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
-    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}`,
+    ...(coToken ? { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader', GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}` } : {}),
   };
 
   return async () => {

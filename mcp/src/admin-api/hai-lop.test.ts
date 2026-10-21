@@ -20,9 +20,9 @@ beforeEach(() => {
   db = moDb(':memory:');
   t = Date.UTC(2026, 9, 21, 3, 0, 15);
   const config = loadConfig({
-    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: 'http://localhost:8090',
+    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',PUBLIC_BASE_URL: 'http://localhost:8090',
     PREVIEW_BASE_URL: 'https://nhap.example.com', ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32),
-    GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: KHOA,
+     GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: KHOA,
   });
   app = createApp(config, { db, now: () => t, cho: async () => {} });
 });

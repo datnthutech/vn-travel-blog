@@ -12,7 +12,7 @@ Mỗi bài đặt **thông tin tiện lợi lên trước** (khối "Tra nhanh")
 |---|---|
 | `packages/schema/` | "Bộ luật" dữ liệu (zod) dùng chung: bài viết, tỉnh, redirect. Site, MCP và `/admin` đều kiểm tra theo đây. |
 | `site/` | Website dựng bằng **Astro**: bài viết trong `site/src/content/`, giao diện trong `site/src/{layouts,components,pages}/`. |
-| `mcp/` | Dịch vụ Node (container `vntraveltips-mcp`): MCP cho Claude, đăng nhập OAuth, trang tải ảnh, xử lý ảnh (`sharp`), hàng đợi và quy trình build site, webhook GitHub. |
+| `mcp/` | Dịch vụ Node (container `vntraveltips-mcp`): MCP cho Claude (đăng nhập OAuth bằng tài khoản admin, tool dùng chung lớp nội dung với trang quản trị), trang tải ảnh, xử lý ảnh (`sharp`), hàng đợi và quy trình build site, webhook GitHub. |
 | `deploy/` | Container web (`deploy/web/`), `docker-compose.yml`, mẫu nginx trên host, mẫu `.env`, hướng dẫn VPS, sao lưu ảnh. |
 | `deploy.sh` | Một lệnh để build image và chạy container. Không SSH, không sửa nginx, không gọi GitHub. |
 
@@ -21,7 +21,7 @@ Mỗi bài đặt **thông tin tiện lợi lên trước** (khối "Tra nhanh")
 Cần Docker (Docker Desktop) và Node 22 (`.nvmrc`) nếu muốn chạy test.
 
 ```bash
-cp deploy/.env.example deploy/.env    # điền GITHUB_TOKEN, OAuth, SESSION_SECRET... (xem bảng ở hướng dẫn VPS)
+cp deploy/.env.example deploy/.env    # điền SESSION_SECRET, KHOA_BI_MAT... (xem bảng ở hướng dẫn VPS; GITHUB_TOKEN chỉ cần nếu repo private)
 ./deploy.sh                           # build và chạy hai container
 ```
 
@@ -135,9 +135,14 @@ Tiếng Việt là ngôn ngữ gốc (địa chỉ không đổi). Quản trị 
 
 `/quan-tri/cai-dat-ai` (quản trị): dán API key Anthropic (lấy ở console.anthropic.com → API keys), chọn model (mặc định `claude-opus-5-5`), bấm **Thử kết nối**. Key được mã hoá trong cơ sở dữ liệu, chỉ ghi không đọc lại. Nút **Dịch bằng AI** chỉ *điền* bản dịch vào form kèm cảnh báo (mất ảnh/link, lệch số phần tử…) — không tự lưu, không tự đăng; AI lỗi chỉ làm nút đó báo lỗi. Dịch tốn phí theo tài khoản Anthropic của bạn.
 
-## Thêm connector MCP vào Claude
+## Claude/MCP (đường phụ)
 
-claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → đăng nhập GitHub. App Claude trên iPhone tự đồng bộ connector. Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).
+Claude không còn là đường chính để viết bài (trang quản trị `/quan-tri/` mới là chính), nhưng vẫn dùng được như một "người dùng" nữa: các tool đọc/ghi bài chạy trên **cùng lớp nội dung (SQLite)** và **theo quyền của tài khoản đăng nhập** (người viết chỉ đụng bài của mình, y như API admin).
+
+- **Thêm connector:** claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → cửa sổ đăng nhập của blog: email + mật khẩu tài khoản quản trị (+ mã 2FA; quản trị chưa bật 2FA thì chưa kết nối được). App Claude trên iPhone tự đồng bộ connector. Khoá tài khoản hoặc đổi mật khẩu → Claude bị cắt ngay.
+- **Tool:** `huong_dan_viet_bai`, `tao_link_tai_anh`, `liet_ke_anh`, `kiem_tra_bai`, `liet_ke_bai`, `doc_bai`, `tao_ban_nhap`, `sua_bai`, `xem_trang_thai`, `dang_bai`, `go_bai` (nhận `id` hoặc `slug`), và `dich_ai_ban_dich` (chỉ khi đã nhập API key AI; trả bản dịch để xem, không lưu). Bài Claude tạo là nháp của chính tài khoản đó, hiện trong `/quan-tri/bai`.
+- **Cổng đăng bài:** `dang_bai` chỉ chạy khi bản xem trước đã build tới đúng bản mới nhất của bài (chủ blog đã có thể xem đúng thứ sắp đăng) và bài đạt đủ luật kiểm tra.
+- **Lỗi Claude/MCP không ảnh hưởng trang quản trị** (admin không gọi MCP). Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).
 
 ## Webhook GitHub
 
@@ -153,7 +158,7 @@ Webhook sai chữ ký hoặc không phải push vào `main` đều bị bỏ qua
 
 ## Triển khai và vận hành
 
-- Làm từng bước ở [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md): DNS ở nhà đăng ký tên miền, GitHub OAuth App và token, clone repo, `deploy/.env`, `./deploy.sh`, nginx trên host (mẫu `deploy/nginx-host.conf.example`, `nginx -t` trước khi reload), certbot cho hai host. VPS đang chạy dịch vụ khác nên hướng dẫn chỉ **thêm** file riêng và không đụng các cổng cũ.
+- Làm từng bước ở [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md): DNS ở nhà đăng ký tên miền, webhook GitHub (token chỉ nếu repo private), clone repo, `deploy/.env`, `./deploy.sh`, nginx trên host (mẫu `deploy/nginx-host.conf.example`, `nginx -t` trước khi reload), certbot cho hai host. VPS đang chạy dịch vụ khác nên hướng dẫn chỉ **thêm** file riêng và không đụng các cổng cũ.
 - Cổng đang dùng: `vntraveltips-web` ở `127.0.0.1:8090`, `vntraveltips-mcp` ở `127.0.0.1:8091`. Không dùng cổng nào khác.
 - **Mở cho Google lập chỉ mục** (mặc định site đang chặn): vào `/quan-tri/cai-dat` và bật "Cho phép Google lập chỉ mục" — site tự build lại sau vài phút (`NOINDEX_ALL` trong `deploy/.env` chỉ là giá trị khởi tạo lần đầu, đổi nó sau đó không còn tác dụng). Sau đó gửi `https://vntraveltips.monai.click/sitemap-index.xml` lên Google Search Console.
 - **Đếm lượt xem không cookie:** tạo site miễn phí ở goatcounter.com, rồi điền tên site vào ô "Mã GoatCounter" ở `/quan-tri/cai-dat` (chỉ có script ở bản production; `GOATCOUNTER_CODE` trong `.env` chỉ là giá trị khởi tạo lần đầu). Để trống thì không có script bên thứ ba nào.

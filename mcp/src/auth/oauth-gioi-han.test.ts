@@ -5,10 +5,10 @@ import { moDb } from '../db/ket-noi';
 import { createOAuth, donHetHan } from './oauth';
 
 const config = loadConfig({
-  GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
+  GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',
   PUBLIC_BASE_URL: 'https://x.test', PREVIEW_BASE_URL: 'https://y.test',
   ANH_DIR: '/khong/ghi/duoc', SESSION_SECRET: 'x'.repeat(32),
-  GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
+   GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
 });
 const khach = { redirect_uris: [new URL('https://claude.ai/api/mcp/auth_callback')], token_endpoint_auth_method: 'none' } as any;
 

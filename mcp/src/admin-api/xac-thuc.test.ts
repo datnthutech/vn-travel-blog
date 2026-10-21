@@ -12,9 +12,9 @@ const GIO = 60 * PHUT;
 const NGAY = 24 * GIO;
 
 const env = (publicBaseUrl: string) => ({
-  GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: publicBaseUrl,
+  GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',PUBLIC_BASE_URL: publicBaseUrl,
   PREVIEW_BASE_URL: 'https://nhap.example.com', ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32),
-  GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'b'.repeat(64),
+   GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'b'.repeat(64),
 });
 
 let db: Db;

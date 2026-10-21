@@ -6,13 +6,11 @@ import { loadConfig } from './config';
 const env = {
   GITHUB_TOKEN: 'ghp_thu_nghiem',
   GITHUB_REPO: 'chu/repo',
-  ALLOWED_GITHUB_USER: 'chu-blog',
+
   PUBLIC_BASE_URL: 'https://vntraveltips.monai.click',
   PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
   ANH_DIR: '/data/anh',
   SESSION_SECRET: 'x'.repeat(32),
-  GITHUB_OAUTH_CLIENT_ID: 'i',
-  GITHUB_OAUTH_CLIENT_SECRET: 's',
   GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
 };
 

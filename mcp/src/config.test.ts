@@ -15,6 +15,12 @@ const du = {
 };
 
 describe('loadConfig', () => {
+  it('GITHUB_TOKEN là TUỲ CHỌN (repo code public fetch không cần token): thiếu → githubToken rỗng, không lỗi', () => {
+    const { GITHUB_TOKEN: _t, ...khongToken } = du;
+    expect(loadConfig(khongToken).githubToken).toBe('');
+    expect(loadConfig(du).githubToken).toBe(du.GITHUB_TOKEN);
+  });
+
   it('không còn đòi biến GitHub OAuth / ALLOWED_GITHUB_USER (MCP đăng nhập bằng tài khoản admin); GITHUB_TOKEN vẫn cần để lấy code build', () => {
     const c = loadConfig(du) as unknown as Record<string, unknown>;
     expect('allowedGithubUser' in c || 'githubOauthClientId' in c || 'githubOauthClientSecret' in c).toBe(false);
@@ -56,8 +62,8 @@ describe('loadConfig', () => {
   });
 
   it('thiếu biến → lỗi nêu tên mọi biến thiếu', () => {
-    const { GITHUB_TOKEN: _a, SESSION_SECRET: _b, ...thieu } = du;
-    expect(() => loadConfig(thieu)).toThrow(/GITHUB_TOKEN.*SESSION_SECRET|SESSION_SECRET.*GITHUB_TOKEN/);
+    const { GITHUB_REPO: _a, SESSION_SECRET: _b, ...thieu } = du;
+    expect(() => loadConfig(thieu)).toThrow(/GITHUB_REPO.*SESSION_SECRET|SESSION_SECRET.*GITHUB_REPO/);
   });
 
   it('KHOA_BI_MAT thiếu hoặc không đúng 64 hex → lỗi nêu tên biến, không in giá trị', () => {

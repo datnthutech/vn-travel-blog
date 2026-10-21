@@ -2,6 +2,7 @@
 // thay vì chạy được nửa chừng. Thông báo lỗi CHỈ nêu tên biến, không bao giờ in giá trị (có thể là bí mật).
 export interface Config {
   port: number;
+  /** Tuỳ chọn: chỉ cần khi repo code là PRIVATE (repo public fetch không cần token). Rỗng = fetch không xác thực. */
   githubToken: string;
   githubRepo: string; // "chu-so-huu/ten-repo"
   publicBaseUrl: string;
@@ -23,7 +24,6 @@ export interface Config {
 }
 
 const BAT_BUOC = [
-  'GITHUB_TOKEN',
   'GITHUB_REPO',
   'PUBLIC_BASE_URL',
   'PREVIEW_BASE_URL',
@@ -45,7 +45,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   for (const k of BIEN_BUILD_TUY_CHON) if (env[k]) buildEnv[k] = env[k]!;
   return {
     port: Number(env.PORT ?? 8091),
-    githubToken: env.GITHUB_TOKEN!,
+    githubToken: env.GITHUB_TOKEN ?? '',
     githubRepo: env.GITHUB_REPO!,
     publicBaseUrl: env.PUBLIC_BASE_URL!.replace(/\/$/, ''),
     previewBaseUrl: env.PREVIEW_BASE_URL!.replace(/\/$/, ''),

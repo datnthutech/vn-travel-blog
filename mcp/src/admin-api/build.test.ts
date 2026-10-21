@@ -66,9 +66,9 @@ describe('GET /api/admin/build', () => {
   it('build lỗi → lanCuoi.ok=false kèm log rút gọn, không chứa token GitHub', async () => {
     const db = moDb(':memory:');
     const config = loadConfig({
-      GITHUB_TOKEN: 'ghp_bi_mat_123', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: 'http://localhost:8090',
+      GITHUB_TOKEN: 'ghp_bi_mat_123', GITHUB_REPO: 'a/b',PUBLIC_BASE_URL: 'http://localhost:8090',
       PREVIEW_BASE_URL: 'http://nhap.localhost:8090', ANH_DIR: mkdtempSync(join(tmpdir(), 'a-')), SESSION_SECRET: 'x'.repeat(32),
-      GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'a'.repeat(64),
+       GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'a'.repeat(64),
       DATA_DIR: mkdtempSync(join(tmpdir(), 'd-')),
     });
     // Hàng đợi THẬT với hàm build giả trả log đã che token như chay-build làm.

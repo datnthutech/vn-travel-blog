@@ -18,9 +18,9 @@ beforeEach(async () => {
   db = moDb(':memory:');
   t = Date.UTC(2026, 9, 21, 3, 0, 0);
   const config = loadConfig({
-    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: 'https://vntraveltips.monai.click',
+    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',PUBLIC_BASE_URL: 'https://vntraveltips.monai.click',
     PREVIEW_BASE_URL: 'https://nhap.example.com', ANH_DIR: '/khong/co', SESSION_SECRET: 'x'.repeat(32),
-    GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'f'.repeat(64),
+     GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'f'.repeat(64),
   });
   app = createApp(config, { db, now: () => t, cho: async () => {} });
   await taoNguoiDung(db, { email: 'chu@x.vn', ten: 'Chủ <b>', vaiTro: 'quan-ly', matKhau: MK });
