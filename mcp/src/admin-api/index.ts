@@ -23,6 +23,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
     db: deps.db,
     now: deps.now ?? Date.now,
     cho: deps.cho ?? ((ms) => new Promise((xong) => setTimeout(xong, ms))),
+    mail: deps.mail,
   };
   const r = Router();
   r.use(xacThucCongKhai(d));
