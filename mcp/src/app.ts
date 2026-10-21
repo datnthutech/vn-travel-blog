@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { adminApiRouter } from './admin-api';
+import { congKhaiRouter } from './cong-khai/binh-luan';
 import { trangQuanTriRouter } from './admin-api/tinh';
 import { GithubClient } from './github/client';
 import type { ToolCtx } from './tools/ctx';
@@ -61,6 +62,9 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, hangDoi, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaAnhByte, toiDaFile: deps.toiDaAnhFile }));
 
   app.use('/quan-tri', trangQuanTriRouter(deps.adminDist ?? process.env.ADMIN_DIST ?? fileURLToPath(new URL('../../admin/dist', import.meta.url))));
+
+  // API công khai (người đọc): body JSON ≤ 16 KB, không cookie.
+  app.use('/api/cong-khai', express.json({ limit: '16kb' }), congKhaiRouter({ config, db, now: deps.now ?? Date.now, mail }));
 
   const oauth = createOAuth(config, deps);
   app.use(oauth.router);
