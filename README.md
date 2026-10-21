@@ -87,6 +87,24 @@ Vào `/quan-tri/` → **Bài viết** → **Viết bài mới** (dùng được 
 - **Cài đặt site** (`/quan-tri/cai-dat`): tên, mô tả, logo/favicon/ảnh chia sẻ, mạng xã hội, **cho phép Google lập chỉ mục**, mã GoatCounter, quảng cáo. `NOINDEX_ALL` và `GOATCOUNTER_CODE` trong `deploy/.env` giờ chỉ là **giá trị khởi tạo lần đầu**; sau đó đổi bằng nút trong trang này (không cần sửa `.env` hay chạy lại `./deploy.sh`).
 - **Chuyển hướng** (`/quan-tri/redirect`) xem/thêm/xoá 301; **Tổng quan** báo số bài, build, sao lưu (trong và ngoài VPS — quá 26 giờ chưa ra ngoài VPS thì cảnh báo và gửi mail cho quản trị), ổ đĩa, mail.
 
+## Tài khoản và quyền
+
+Ba vai trò, áp lên **mọi** API quản trị (server kiểm tra; giao diện chỉ ẩn/hiện nút):
+
+| | Quản trị | Quản lý | Người viết (writer) |
+|---|---|---|---|
+| Tạo bài, xem bài, kiểm tra, tải ảnh | ✓ | ✓ | ✓ |
+| Sửa / đăng / gỡ / thùng rác bài | mọi bài | mọi bài | **chỉ bài của mình** |
+| Xoá hẳn bài | ✓ | — | — |
+| Xoá ảnh | ✓ | ✓ | chỉ ảnh mình tải lên |
+| Chuyên mục, tỉnh, tag, menu, trang tĩnh, chuyển hướng, tổng quan | ✓ | ✓ | — |
+| Cài đặt site, mail, tài khoản, nhật ký | ✓ | — | — |
+
+- Writer **tự đăng** bài của mình (không qua duyệt). Luôn còn ít nhất **một quản trị đang hoạt động** (không tự hạ/khoá được quản trị cuối cùng).
+- **Mời người dùng:** `/quan-tri/tai-khoan` → nhập email + vai trò → người được mời nhận mail (cần cấu hình mail), mở liên kết (hiệu lực 48 giờ, dùng một lần), tự đặt tên và mật khẩu ≥ 12 ký tự. Tối đa 5 lời mời/giờ. Quản trị mới bắt buộc bật xác thực 2 lớp ngay.
+- Khoá tài khoản = đăng xuất họ ngay mọi thiết bị (không xoá cứng, để giữ tác giả bài). Mất điện thoại: quản trị khác bấm **Đặt lại 2FA**.
+- **Nhật ký** (`/quan-tri/nhat-ky`): đăng nhập, đổi vai trò, khoá/mở khoá, mời, đặt lại 2FA, đăng/xoá bài… (chỉ quản trị xem).
+
 ## Thêm connector MCP vào Claude
 
 claude.ai → Settings → **Connectors** → Add custom connector → URL `https://vntraveltips.monai.click/mcp` → đăng nhập GitHub. App Claude trên iPhone tự đồng bộ connector. Chi tiết cài đặt phía VPS: [deploy/VPS-HUONG-DAN.md](deploy/VPS-HUONG-DAN.md).
