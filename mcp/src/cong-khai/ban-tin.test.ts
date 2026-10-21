@@ -57,16 +57,16 @@ describe('đăng ký', () => {
     expect((await gui({ email: 'u8@x.vn' }, '4.4.4.4')).status).toBe(200);
   });
 
-  it('form không JS (urlencoded) → 303 về TRANG TRƯỚC kèm ?dang-ky=da-gui; Referer ngoài site/độc hại không gây open redirect', async () => {
+  it('form không JS (urlencoded) → 303 về TRANG TRƯỚC kèm ?dang-ky=da-gui#ban-tin-da-gui (CSS :target hiện lời nhắn); Referer ngoài site/độc hại không gây open redirect', async () => {
     const f = (ref: string | undefined, email: string, ip: string) => {
       const q = request(m.app).post('/api/cong-khai/ban-tin/dang-ky').set('X-Forwarded-For', ip).type('form');
       return (ref ? q.set('Referer', ref) : q).send({ email, ngonNgu: 'vi', website: '' });
     };
     const a = await f('http://localhost:8090/da-nang/bai-hay/', 'f1@x.vn', '6.6.6.1');
     expect(a.status).toBe(303);
-    expect(a.headers.location).toBe('/da-nang/bai-hay/?dang-ky=da-gui');
-    expect((await f('https://evil.com//evil.com', 'f2@x.vn', '6.6.6.2')).headers.location).toBe('/?dang-ky=da-gui');
-    expect((await f(undefined, 'f3@x.vn', '6.6.6.3')).headers.location).toBe('/?dang-ky=da-gui');
+    expect(a.headers.location).toBe('/da-nang/bai-hay/?dang-ky=da-gui#ban-tin-da-gui');
+    expect((await f('https://evil.com//evil.com', 'f2@x.vn', '6.6.6.2')).headers.location).toBe('/?dang-ky=da-gui#ban-tin-da-gui');
+    expect((await f(undefined, 'f3@x.vn', '6.6.6.3')).headers.location).toBe('/?dang-ky=da-gui#ban-tin-da-gui');
     expect(dong('f1@x.vn')).toBeTruthy();
   });
 });

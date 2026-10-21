@@ -244,6 +244,30 @@ describe('build với NOI_DUNG_DIR', () => {
     expect(existsSync(join(prod, 'chinh-sach-lien-ket/index.html'))).toBe(true);
   }, 240_000);
 
+  it('bản tin: production có form ở chân MỌI trang (không cần JS: method=post) + form cuối bài; preview KHÔNG có; script ≤ 2 KB gzip', async () => {
+    const { gzipSync } = await import('node:zlib');
+    const { readdirSync } = await import('node:fs');
+    const nd = taoThuMuc((f, t) => (f.endsWith('top-bai-bien-cho-be.md') ? t.replace('draft: true', 'draft: false\nmaBai: 77') : t));
+    const prod = buildPreview(nd, 'production');
+    for (const trang of ['index.html', 'gioi-thieu/index.html', 'kinh-nghiem/top-bai-bien-cho-be/index.html']) {
+      const html = readFileSync(join(prod, trang), 'utf8');
+      expect(html, trang).toContain('action="/api/cong-khai/ban-tin/dang-ky"');
+      expect(html, trang).toContain('name="website"');
+      expect(html, trang).toContain('id="ban-tin-da-gui"');
+    }
+    const bai = readFileSync(join(prod, 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8');
+    expect(bai.split('data-ban-tin').length - 1).toBeGreaterThanOrEqual(2); // chân trang + cuối bài (script cũng chứa chuỗi selector)
+    const assets = join(prod, '_astro');
+    const trongHtml = [...bai.matchAll(/<script[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g)].map((x) => x[1]!);
+    const taiSan = existsSync(assets) ? readdirSync(assets).filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(assets, f), 'utf8')) : [];
+    const js = [...trongHtml, ...taiSan].find((c) => c.includes('ban-tin') && c.includes('Kiểm tra hộp thư'));
+    expect(js).toBeDefined();
+    expect(gzipSync(js!).length).toBeLessThanOrEqual(2 * 1024);
+    const prev = buildPreview(nd, 'preview');
+    expect(readFileSync(join(prev, 'index.html'), 'utf8')).not.toContain('/api/cong-khai/ban-tin/dang-ky');
+    expect(readFileSync(join(prev, 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8')).not.toContain('/api/cong-khai/ban-tin/dang-ky');
+  }, 360_000);
+
   it('bình luận: production có khung (data-bai) và script nhỏ ≤ 5 KB gzip; preview KHÔNG có khung; bài không có maBai (mẫu local) không hiện', async () => {
     const { gzipSync } = await import('node:zlib');
     const { readdirSync } = await import('node:fs');

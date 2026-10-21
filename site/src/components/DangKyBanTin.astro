@@ -1,0 +1,37 @@
+---
+// Form đăng ký nhận tin: HTML tĩnh, hoạt động KHÔNG cần JS (form POST → máy chủ trả 303 về trang trước, #ban-tin-da-gui hiện lời nhắn bằng CSS :target).
+// Chỉ ở bản PRODUCTION; bản xem trước không có. Ô bẫy `website` đặt ngoài màn hình (không display:none để bot vẫn thấy).
+import { buildTarget } from '../lib/build-target';
+interface Props { ngonNgu?: string; neo?: boolean }
+const { ngonNgu = 'vi', neo = false } = Astro.props;
+const hien = buildTarget() === 'production';
+---
+
+{hien && (
+  <section class="ban-tin" data-ban-tin aria-label="Đăng ký nhận tin">
+    <p class="bt-tieu-de">Nhận bản tin du lịch cùng bé</p>
+    <form method="post" action="/api/cong-khai/ban-tin/dang-ky">
+      <label>Email <input name="email" type="email" required autocomplete="email" maxlength="254" /></label>
+      <input type="hidden" name="ngonNgu" value={ngonNgu} />
+      <input name="website" class="bt-bay" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <button type="submit">Đăng ký</button>
+    </form>
+    <p class="bt-trang-thai" role="status" hidden></p>
+    {neo && <p id="ban-tin-da-gui" class="bt-da-gui" role="status">Kiểm tra hộp thư để xác nhận.</p>}
+  </section>
+)}
+
+<script>
+  import { khoiTaoBanTin } from '../scripts/ban-tin';
+  document.querySelectorAll<HTMLElement>('[data-ban-tin]').forEach((k) => khoiTaoBanTin(k));
+</script>
+
+<style is:global>
+  .ban-tin { margin: 1.5rem 0; }
+  .ban-tin label { display: inline-block; margin-right: 0.5rem; }
+  .ban-tin input[type=email] { min-height: 44px; min-width: 14rem; }
+  .ban-tin button { min-height: 44px; padding: 0 1rem; }
+  .bt-bay { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .bt-da-gui { display: none; }
+  .bt-da-gui:target { display: block; }
+</style>

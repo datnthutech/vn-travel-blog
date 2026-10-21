@@ -48,7 +48,7 @@ export function banTinCongKhaiRouter(d: Deps): Router {
     res.setHeader('Cache-Control', 'no-store');
     const b = (req.body ?? {}) as Record<string, unknown>;
     const laForm = !!req.is('application/x-www-form-urlencoded');
-    const xong = () => (laForm ? res.redirect(303, `${trangTruoc(req)}?dang-ky=da-gui`) : res.json({ ok: true }));
+    const xong = () => (laForm ? res.redirect(303, `${trangTruoc(req)}?dang-ky=da-gui#ban-tin-da-gui`) : res.json({ ok: true }));
     if (typeof b.website === 'string' && b.website !== '') return void xong(); // ô bẫy: bot được "thành công" giả
     if (vuotGioiHan(req.ip ?? 'khong-ro')) return void res.status(429).json({ loi: 'Bạn đăng ký quá nhiều lần, hãy thử lại sau' });
     const email = typeof b.email === 'string' ? b.email.trim() : '';

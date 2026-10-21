@@ -16,6 +16,7 @@ import RelatedPosts from '../components/RelatedPosts.astro';
 import AdSlot from '../components/AdSlot.astro';
 import AffiliateDisclosure from '../components/AffiliateDisclosure.astro';
 import BinhLuan from '../components/BinhLuan.astro';
+import DangKyBanTin from '../components/DangKyBanTin.astro';
 import { coAffiliate } from '../lib/affiliate';
 import { breadcrumb } from '../lib/breadcrumb';
 import { layBaiViet } from '../lib/bai';
@@ -61,6 +62,7 @@ const phut = Math.max(1, Math.round((entry.body ?? '').split(/\s+/).length / 200
     <RelatedPosts bai={lienQuan} />
     <AdSlot viTri="cuoiBai" />
     {coAffiliate(bai) && <AffiliateDisclosure />}
+    <DangKyBanTin />
     <BinhLuan maBai={bai.maBai} />
   </article>
 </Base>

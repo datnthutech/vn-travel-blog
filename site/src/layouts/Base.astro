@@ -6,6 +6,7 @@ import SeoHead from '../components/SeoHead.astro';
 import AdScript from '../components/AdScript.astro';
 import { goatcounterScript } from '../lib/analytics';
 import Menu from '../components/Menu.astro';
+import DangKyBanTin from '../components/DangKyBanTin.astro';
 import { SITE } from '../config/site';
 interface Props {
   title: string;
@@ -38,6 +39,7 @@ const gc = goatcounterScript();
     </header>
     <main><slot /></main>
     <footer class="site-footer">
+      <DangKyBanTin neo />
       © {SITE.ten} — nhật ký du lịch của một gia đình nhỏ
       {Object.keys(SITE.mangXaHoi).length > 0 && (
         <ul class="mxh">{Object.entries(SITE.mangXaHoi).map(([k, u]) => <li><a href={u} rel="noopener me" target="_blank">{k}</a></li>)}</ul>
