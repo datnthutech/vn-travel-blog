@@ -13,6 +13,7 @@
   let mkCu = $state('');
   let mkMoi = $state('');
   let tat = $state({ matKhau: '', ma: '' });
+  let nhanMail = $state(true);
 
   const gio = (ms: number) => new Date(ms).toLocaleString('vi-VN');
   async function tai() {
@@ -28,7 +29,11 @@
       loi = thongBaoLoi(e);
     }
   }
-  onMount(() => void tai().catch((e) => (loi = thongBaoLoi(e))));
+  onMount(() => {
+    void tai().catch((e) => (loi = thongBaoLoi(e)));
+    void goiApi<{ nhanMailBinhLuan: boolean }>('GET', '/toi/tuy-chon').then((r) => (nhanMail = r.nhanMailBinhLuan)).catch(() => {});
+  });
+  const doiNhanMail = () => lam(async () => { await goiApi('PUT', '/toi/tuy-chon', { nhanMailBinhLuan: nhanMail }); }, nhanMail ? 'Sẽ nhận mail khi có bình luận mới ở bài của bạn.' : 'Đã tắt mail báo bình luận.');
 
   const xoaThietBi = (id: number) => lam(async () => { await goiApi('DELETE', `/phien/${id}`); await tai(); }, 'Đã đăng xuất thiết bị đó.');
   const xoaMoiNoi = () => lam(async () => { await goiApi('POST', '/dang-xuat-moi-noi'); await tai(); }, 'Đã đăng xuất mọi thiết bị khác.');
@@ -58,6 +63,11 @@
     {/each}
   </ul>
   <div class="hang-nut"><button class="phu" onclick={xoaMoiNoi}>Đăng xuất mọi thiết bị khác</button></div>
+</section>
+
+<section class="the">
+  <h2>Thông báo</h2>
+  <label class="hang-chon"><input type="checkbox" bind:checked={nhanMail} onchange={doiNhanMail} /> Gửi mail cho tôi khi có bình luận mới ở bài của tôi</label>
 </section>
 
 <section class="the">

@@ -19,6 +19,8 @@
   let qcBat = $state(false);
   let qcViTri = $state<string[]>([]);
   let affiliate = $state('');
+  let blBat = $state(false);
+  let tuCam = $state('');
   let loi = $state('');
   let ok = $state('');
   let anhBaseUrl = $derived(phien.publicBaseUrl || location.origin);
@@ -38,6 +40,8 @@
         qcBat = c.quangCao?.bat ?? false;
         qcViTri = c.quangCao?.viTri ?? [];
         affiliate = c.affiliateMacDinh ?? '';
+        blBat = c.binhLuan?.bat ?? false;
+        tuCam = (c.binhLuan?.tuCam ?? []).join('\n');
       })
       .catch((e) => (loi = thongBaoLoi(e))),
   );
@@ -51,7 +55,8 @@
       tenSite, moTaMacDinh: moTa, logo: co(logo), favicon: co(favicon), anhChiaSeMacDinh: chiaSe.ma ? chiaSe : undefined,
       mangXaHoi: Object.fromEntries(Object.entries(mxh).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()])),
       choPhepLapChiMuc: lapChiMuc, goatcounterCode: gc.trim() || undefined,
-      quangCao: { bat: qcBat, viTri: qcViTri }, affiliateMacDinh: affiliate || undefined, muiGio: 'Asia/Ho_Chi_Minh',
+      quangCao: { bat: qcBat, viTri: qcViTri },
+      binhLuan: { bat: blBat, tuCam: tuCam.split('\n').map((x) => x.trim()).filter(Boolean) }, affiliateMacDinh: affiliate || undefined, muiGio: 'Asia/Ho_Chi_Minh',
     };
     try {
       await goiApi('PUT', '/cai-dat/site', body);
@@ -94,6 +99,13 @@
       {#each VI_TRI as p}<label class="hang-chon"><input type="checkbox" checked={qcViTri.includes(p.v)} onchange={() => batTatViTri(p.v)} /> {p.t}</label>{/each}
       <label for="cd-aff">Nơi đặt phòng/vé mặc định cho link affiliate</label>
       <select id="cd-aff" bind:value={affiliate}><option value="">Không đặt mặc định</option><option value="agoda">Agoda</option><option value="klook">Klook</option><option value="traveloka">Traveloka</option><option value="booking">Booking</option></select>
+    </section>
+    <section class="the">
+      <h2>Bình luận của người đọc</h2>
+      <label class="hang-chon"><input type="checkbox" bind:checked={blBat} /> Cho phép người đọc bình luận (tên + email, hiện ngay)</label>
+      <p class="nhat">Chống spam tự động: giới hạn 3 bình luận/10 phút/IP, ô bẫy, thời gian gửi tối thiểu 3 giây, hơn 2 liên kết hoặc có từ cấm thì vào hàng chờ xem.</p>
+      <label for="cd-tucam">Từ cấm (mỗi dòng một cụm; không phân biệt hoa/thường và dấu)</label>
+      <textarea id="cd-tucam" rows="4" bind:value={tuCam}></textarea>
     </section>
     <div class="hang-nut"><button type="submit">Lưu cài đặt</button></div>
   </form>

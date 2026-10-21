@@ -13,6 +13,8 @@
     oDia: { daDungByte: number; conTrongByte: number | null };
     mail: { id: number; ten: string; daGui: number; gioiHan: number }[];
     chuyenNhaCungCapGanNhat?: { luc: number; tu: string; den: string };
+    binhLuanMoi: number;
+    binhLuanChoXem: number;
   }
   let tq = $state<Tq | null>(null);
   let loi = $state('');
@@ -49,6 +51,10 @@
       <h2>Site</h2>
       <p>Build: <strong>{tq.build.trangThai === 'dang-build' ? 'đang dựng…' : tq.build.dangCho ? 'đang chờ' : 'rảnh'}</strong></p>
       <p class="nhat">Bản đang chạy: nội dung #{tq.build.productionNoiDungPhien ?? '?'} · bản xem trước: #{tq.build.previewNoiDungPhien ?? '?'}</p>
+    </section>
+    <section class="the">
+      <h2>Bình luận</h2>
+      <p><a href="{GOC}/binh-luan" onclick={bamLienKet}>{tq.binhLuanMoi} bình luận mới/cần xem</a>{tq.binhLuanChoXem ? ` · ${tq.binhLuanChoXem} đang chờ xem` : ''}</p>
     </section>
     <section class="the">
       <h2>Sao lưu</h2>

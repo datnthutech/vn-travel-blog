@@ -17,6 +17,7 @@
   import Tag from './routes/Tag.svelte';
   import Tinh from './routes/Tinh.svelte';
   import Trang from './routes/Trang.svelte';
+  import BinhLuan from './routes/BinhLuan.svelte';
   import CaiDatSite from './routes/CaiDatSite.svelte';
   import ChuyenMuc from './routes/ChuyenMuc.svelte';
   import DanhSachBai from './routes/DanhSachBai.svelte';
@@ -35,6 +36,7 @@
     { duong: GOC, ten: 'Tổng quan' },
     { duong: `${GOC}/bai`, ten: 'Bài viết' },
     { duong: `${GOC}/anh`, ten: 'Ảnh' },
+    { duong: `${GOC}/binh-luan`, ten: 'Bình luận' },
     { duong: `${GOC}/thung-rac`, ten: 'Thùng rác' },
     { duong: `${GOC}/chuyen-muc`, ten: 'Chuyên mục', hd: 'cau-truc.sua' },
     { duong: `${GOC}/tinh`, ten: 'Tỉnh', hd: 'cau-truc.sua' },
@@ -108,6 +110,8 @@
       <BatTotp />
     {:else if dieuHuong.duong === `${GOC}/bai`}
       <DanhSachBai />
+    {:else if dieuHuong.duong === `${GOC}/binh-luan`}
+      <BinhLuan />
     {:else if dieuHuong.duong === `${GOC}/chuyen-muc`}
       <ChuyenMuc />
     {:else if dieuHuong.duong === `${GOC}/tinh`}
