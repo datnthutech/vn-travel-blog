@@ -5,7 +5,9 @@ import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
 import type { DichVuMail } from '../mail/dich-vu';
 import { canTheoTrangThaiPhien, kiemCsrfGhi, yeuCauDangNhap } from '../tai-khoan/middleware';
+import type { HangDoiBuild } from '../build/hang-doi';
 import { haiLopRouter } from './hai-lop';
+import { heThongRouter } from './he-thong';
 import { mailRouter } from './mail';
 import { laHttps, xacThucCongKhai, xacThucDaDangNhap, type DepsXacThuc } from './xac-thuc';
 
@@ -15,6 +17,7 @@ export interface DepsAdminApi {
   now?: () => number;
   cho?: (ms: number) => Promise<void>;
   mail: DichVuMail;
+  hangDoi: HangDoiBuild;
 }
 
 export function adminApiRouter(deps: DepsAdminApi): Router {
@@ -32,6 +35,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(canTheoTrangThaiPhien());
   r.use(xacThucDaDangNhap(d));
   r.use(haiLopRouter(d));
+  r.use(heThongRouter({ db: d.db, hangDoi: deps.hangDoi }));
   r.use(mailRouter({ db: d.db, khoaBiMat: d.config.khoaBiMat, mail: deps.mail, now: d.now }));
   r.use((_req, res) => {
     res.status(404).json({ loi: 'Không tìm thấy' });

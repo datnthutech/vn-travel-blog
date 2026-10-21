@@ -54,7 +54,15 @@ npm run build -w site      # build thật ra site/dist (BUILD_TARGET=production 
 4. Bạn mở link xem trước trên điện thoại, nói "đăng đi" → Claude `dang_bai`. (Chỉ đăng được khi bản xem trước đã build đúng commit mới nhất.)
 5. Cần gỡ khẩn cấp: `go_bai` (đặt lại thành nháp, có hiệu lực trên site chính khi build xong). **`go_bai` không xoá sạch:** bản xem trước (`nhap-vntraveltips…`) vẫn còn bài nháp, ảnh trong volume vẫn truy cập được nếu biết mã ảnh, và nội dung vẫn nằm trong lịch sử GitHub. Nếu gỡ vì lộ thông tin riêng tư, hãy nhờ chủ blog xoá thư mục ảnh tương ứng trong volume và làm sạch nội dung trên GitHub.
 
-**Sửa nhanh bài đã có — `/admin`:** mở https://vntraveltips.monai.click/admin, đăng nhập GitHub (đúng tài khoản được phép). Sửa xong lưu là commit thẳng vào `main`; build chạy lại trong container, kiểm tra luật dữ liệu, lỗi thì site giữ bản cũ. `/admin` **không tạo bài mới** và **không đổi trạng thái đăng** — hai việc đó đi qua Claude. Nút "📷 Tải ảnh" ở góc phải dưới mở trang tải ảnh.
+**Trang quản trị `/quan-tri/` (đang xây theo từng giai đoạn):** đăng nhập bằng tài khoản riêng (email + mật khẩu ≥ 12 ký tự), bắt buộc xác thực 2 lớp với quản trị viên. Tạo quản trị đầu tiên bằng CLI (mật khẩu được hỏi qua stdin, không đưa vào tham số):
+
+```bash
+docker exec -it vntraveltips-mcp npm run cli -w @vntraveltips/mcp -- tao-quan-tri --email ban@example.com --ten "Tên bạn"
+```
+
+Quên mật khẩu: dùng liên kết "Quên mật khẩu?" ở trang đăng nhập (cần cấu hình mail trong *Cài đặt mail*) hoặc `... -- dat-lai-mat-khau --email ban@example.com`. Nội dung bài nằm trong SQLite; dịch vụ tự sao lưu mỗi giờ (xem `deploy/backup/README.md` để khôi phục).
+
+**Sửa nhanh bài đã có — `/admin` (cũ, sẽ được thay):** mở https://vntraveltips.monai.click/admin, đăng nhập GitHub (đúng tài khoản được phép). Sửa xong lưu là commit thẳng vào `main`; build chạy lại trong container, kiểm tra luật dữ liệu, lỗi thì site giữ bản cũ. `/admin` **không tạo bài mới** và **không đổi trạng thái đăng** — hai việc đó đi qua Claude. Nút "📷 Tải ảnh" ở góc phải dưới mở trang tải ảnh.
 
 Ảnh trong thân bài viết là `![mô tả ảnh](anh:MÃ_ẢNH)` (mã lấy từ `liet_ke_anh`); alt không được để trống.
 

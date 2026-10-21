@@ -2,8 +2,10 @@
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Octokit } from '@octokit/rest';
 import cookieParser from 'cookie-parser';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { adminApiRouter } from './admin-api';
+import { trangQuanTriRouter } from './admin-api/tinh';
 import { GithubClient } from './github/client';
 import type { ToolCtx } from './tools/ctx';
 import { taiAnhRouter, type TaiAnhDeps } from './anh/trang-tai';
@@ -21,6 +23,8 @@ export type AppDeps = TaiAnhDeps & OAuthDeps & {
   hangDoi?: HangDoiBuild;
   db?: Db;
   mail?: DichVuMail;
+  /** Thư mục bản build giao diện quản trị (mặc định admin/dist cạnh mcp/). */
+  adminDist?: string;
   /** Chờ ms mili giây (làm chậm tài khoản bị dò); test truyền bản giả. */
   cho?: (ms: number) => Promise<void>;
 };
@@ -51,7 +55,9 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   // Trang quản trị: API cần đăng nhập. Body JSON giới hạn 1 MB; cookie phiên đọc bằng cookie-parser.
   const db = deps.db ?? moDb(':memory:');
   const mail = deps.mail ?? taoDichVuMail(db, { khoaBiMat: config.khoaBiMat, now: deps.now });
-  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail }));
+  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, hangDoi }));
+
+  app.use('/quan-tri', trangQuanTriRouter(deps.adminDist ?? process.env.ADMIN_DIST ?? fileURLToPath(new URL('../../admin/dist', import.meta.url))));
 
   const oauth = createOAuth(config, deps);
   app.use(oauth.router);

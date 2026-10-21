@@ -2,4 +2,4 @@
 // (vitest ≥ 4 bỏ file vitest.workspace.ts; danh sách dự án giờ nằm ở test.projects.)
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({ test: { projects: ['packages/*', 'site', 'mcp', 'deploy'] } });
+export default defineConfig({ test: { projects: ['packages/*', 'site', 'mcp', 'admin', 'deploy'] } });

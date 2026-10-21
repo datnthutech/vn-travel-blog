@@ -12,7 +12,23 @@ COPY package.json package-lock.json ./
 COPY packages/schema/package.json packages/schema/
 COPY mcp/package.json mcp/
 COPY site/package.json site/
+COPY admin/package.json admin/
 RUN npm ci --omit=dev -w @vntraveltips/mcp -w @vntraveltips/schema --include-workspace-root=false
+
+# Stage admin-build: build giao diện quản trị (Svelte + Vite) thành file tĩnh admin/dist. Cần cả devDependencies nên
+# không đặt NODE_ENV=production ở stage này; image cuối chỉ nhận thư mục dist, không mang Vite/Svelte.
+FROM node:22-slim AS admin-build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/schema/package.json packages/schema/
+COPY mcp/package.json mcp/
+COPY site/package.json site/
+COPY admin/package.json admin/
+RUN npm ci -w @vntraveltips/admin --include-workspace-root=false
+COPY tsconfig.base.json ./
+COPY admin/index.html admin/vite.config.ts admin/svelte.config.js admin/tsconfig.json admin/
+COPY admin/src admin/src
+RUN npm run build -w @vntraveltips/admin
 
 FROM node:22-slim
 WORKDIR /app
@@ -27,10 +43,12 @@ COPY package.json package-lock.json ./
 COPY packages/schema/package.json packages/schema/
 COPY mcp/package.json mcp/
 COPY site/package.json site/
+COPY admin/package.json admin/
 COPY --from=deps /app/node_modules node_modules
 
 COPY packages/schema/src packages/schema/src
 COPY mcp/src mcp/src
+COPY --from=admin-build /app/admin/dist admin/dist
 
 # Thư mục dữ liệu chung (volume vntraveltips_data mount tại /data). Volume mới thừa hưởng chủ sở hữu của
 # thư mục này trong image, nên user node (uid 1000) ghi được repo/, builds/, anh/.

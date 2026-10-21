@@ -216,6 +216,10 @@ describe('nginx trên host (chỉ proxy)', () => {
     }
   });
 
+  it('host chính: /quan-tri/ và /api/ tới mcp 8091', () => {
+    for (const duong of ['/quan-tri/', '/api/']) expect(loc(chinh, duong)).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:8091;/);
+  });
+
   it('phần còn lại (kể cả /admin) tới web 8090; host nhap-vntraveltips tới web 8090', () => {
     expect(loc(chinh, '/')).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:8090;/);
     expect(loc(preview, '/')).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:8090;/);
