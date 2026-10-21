@@ -11,6 +11,11 @@ let m: Moi;
 let vaiTro: Record<VaiTro, PhienThu>;
 let baiId: number;
 let maAnh: string;
+let maBinhLuan: number;
+/** Bình luận MỚI trên bài của quản trị (route DELETE xoá mất bình luận mẫu). */
+function taoBinhLuan(): number {
+  return Number(m.db.prepare("INSERT INTO binh_luan (bai_id, ngon_ngu, ten, email, noi_dung, ip_bam, trang_thai, tao_luc) VALUES (?, 'vi', 'Khách', 'k@x.vn', 'Bài hay', 'ip', 'hien', ?)").run(baiId, m.dongHo.v).lastInsertRowid);
+}
 
 let dem = 0;
 /** Ảnh MỚI của quản trị cho mỗi lần gọi (vì route DELETE ảnh xoá mất ảnh dùng làm mẫu). */
@@ -50,7 +55,7 @@ describe('(a) mọi route đều được khai báo quyền', () => {
 });
 
 const dienDuongDan = (duongDan: string): string =>
-  duongDan.replace(':id', duongDan.startsWith('/bai') ? String(baiId) : '999').replace(':pid', '999').replace(':slug', 'khong-co').replace(':ma', maAnh);
+  duongDan.replace(':id', duongDan.startsWith('/bai') ? String(baiId) : duongDan.startsWith('/binh-luan') ? String(maBinhLuan) : '999').replace(':pid', '999').replace(':slug', 'khong-co').replace(':ma', maAnh);
 
 const kiemTuDong = QUYEN_ROUTE.filter((x) => x.hanhDong !== 'cong-khai' && !x.doiPhien);
 
@@ -62,6 +67,7 @@ describe('(b) từng route × từng vai trò', () => {
         // Chủ sở hữu giả định là QUẢN TRỊ (bài/ảnh của người khác đối với writer).
         const duocPhep = x.hanhDong === 'chi-dang-nhap' || x.hanhDong === 'cong-khai' || coQuyen({ id: phien.nguoi.id, vaiTro: vt }, x.hanhDong, { tacGiaId: vaiTro['quan-tri'].nguoi.id });
         if (x.duongDan.includes(':ma')) maAnh = await taoAnhQuanTri();
+        if (x.duongDan.startsWith('/binh-luan/')) maBinhLuan = taoBinhLuan();
         const r = await phien.gui(x.phuongThuc.toLowerCase() as 'get', dienDuongDan(x.duongDan), x.phuongThuc === 'GET' ? undefined : {});
         if (duocPhep) {
           expect(r.status, `${vt} được phép nhưng nhận ${r.status}: ${JSON.stringify(r.body).slice(0, 120)}`).not.toBe(403);
@@ -110,5 +116,23 @@ describe('(c) writer gọi thẳng API vào bài của người khác', () => {
     const cuaQt = (await m.chinh.gui('post', '/anh').attach('files', await sharp({ create: { width: 40, height: 40, channels: 3, background: '#fedcba' } }).jpeg().toBuffer(), 'q.jpg')).body.ok[0].ma as string;
     expect((await a.gui('delete', `/anh/${cuaQt}`)).status).toBe(403);
     expect((await a.gui('delete', `/anh/${cuaA}`)).status).toBe(200);
+  });
+});
+
+describe('(c) writer vs bình luận của bài người khác', () => {
+  it('writer ẩn/hiện/xoá/trả lời/chặn bình luận trên bài của writer khác → 403, và không THẤY bình luận đó trong danh sách', async () => {
+    const a = await m.dangNhap('wa2@x.vn', 'Writer A2', 'writer');
+    const b = await m.dangNhap('wb2@x.vn', 'Writer B2', 'writer');
+    const bai = (await b.gui('post', '/bai', { bai: baiDayDu('bai-cua-b2'), noiDung: 'x' })).body.id as number;
+    const cmt = Number(m.db.prepare("INSERT INTO binh_luan (bai_id, ngon_ngu, ten, email, noi_dung, ip_bam, trang_thai, tao_luc) VALUES (?, 'vi', 'Khách', 'k@x.vn', 'Bình luận ở bài của B', 'ip', 'hien', ?)").run(bai, m.dongHo.v).lastInsertRowid);
+    expect((await a.gui('put', `/binh-luan/${cmt}`, { trangThai: 'an' })).status).toBe(403);
+    expect((await a.gui('delete', `/binh-luan/${cmt}`)).status).toBe(403);
+    expect((await a.gui('post', `/binh-luan/${cmt}/tra-loi`, { noiDung: 'xen vào' })).status).toBe(403);
+    expect((await a.gui('post', `/binh-luan/${cmt}/chan`, { loai: 'email' })).status).toBe(403);
+    expect(m.db.prepare('SELECT trang_thai FROM binh_luan WHERE id = ?').get(cmt)).toEqual({ trang_thai: 'hien' });
+    expect(((await a.gui('get', '/binh-luan')).body.binhLuan as { id: number }[]).map((x) => x.id)).not.toContain(cmt);
+    expect(((await b.gui('get', '/binh-luan')).body.binhLuan as { id: number }[]).map((x) => x.id)).toContain(cmt);
+    expect((await b.gui('put', `/binh-luan/${cmt}`, { trangThai: 'an' })).status).toBe(200); // chủ bài làm được
+    expect((await vaiTro['quan-ly'].gui('put', `/binh-luan/${cmt}`, { trangThai: 'hien' })).status).toBe(200); // quản lý mọi bài
   });
 });

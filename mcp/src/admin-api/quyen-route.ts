@@ -54,6 +54,14 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('POST', '/bai/:id/hen-gio', 'bai.dang'),
   L('POST', '/bai/:id/huy-hen-gio', 'bai.dang'),
   L('POST', '/bai/:id/xem-truoc', 'bai.sua'),
+  // Bình luận
+  L('GET', '/binh-luan', 'chi-dang-nhap'), // người viết chỉ thấy bình luận ở bài của mình (lọc ở máy chủ)
+  L('PUT', '/binh-luan/:id', 'binh-luan.an-xoa'),
+  L('DELETE', '/binh-luan/:id', 'binh-luan.an-xoa'),
+  L('POST', '/binh-luan/:id/tra-loi', 'binh-luan.an-xoa'),
+  L('POST', '/binh-luan/:id/chan', 'binh-luan.an-xoa'),
+  L('GET', '/toi/tuy-chon', 'chi-dang-nhap'),
+  L('PUT', '/toi/tuy-chon', 'chi-dang-nhap'),
   // Ảnh
   L('POST', '/anh', 'anh.tai-len'),
   L('GET', '/anh', 'chi-dang-nhap'),
