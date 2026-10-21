@@ -64,7 +64,7 @@ export const MIGRATIONS: Migration[] = [
       );
       CREATE TABLE bai (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tinh TEXT NOT NULL,
+        tinh TEXT,
         loai TEXT NOT NULL,
         tac_gia_id INTEGER,
         nguoi_sua_cuoi_id INTEGER,

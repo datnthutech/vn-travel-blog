@@ -7,7 +7,9 @@ import { kiemTraRedirects, type Redirect } from '@vntraveltips/schema';
 import { layBaiViet } from '../lib/bai';
 
 export async function GET() {
-  const redirects: Redirect[] = JSON.parse(await readFile(join(process.cwd(), 'redirects.json'), 'utf8'));
+  // Build từ DB: NOI_DUNG_DIR có redirects.json do MCP xuất; ngược lại dùng site/redirects.json trong repo.
+  const file = process.env.NOI_DUNG_DIR ? join(process.env.NOI_DUNG_DIR, 'redirects.json') : join(process.cwd(), 'redirects.json');
+  const redirects: Redirect[] = JSON.parse(await readFile(file, 'utf8'));
   const daDang = (await layBaiViet()).filter((b) => !b.draft);
   return new Response(JSON.stringify(kiemTraRedirects(daDang, redirects)) + '\n', {
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
