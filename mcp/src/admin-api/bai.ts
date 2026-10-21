@@ -375,6 +375,7 @@ export function baiRouter(d: DepsBai): Router {
     const doc = layBai(req, res);
     if (!doc) return;
     if (doc.xoaLuc !== null) return void res.status(409).json({ loi: 'Bài đang trong thùng rác' });
+    if (doc.trangThai === 'da-dang') return void res.status(409).json({ loi: 'Bài đã đăng. Hãy gỡ bài trước nếu muốn hẹn giờ đăng lại' });
     let luc: number;
     try {
       luc = gioVNSangEpoch(String((req.body as { luc?: unknown } | undefined)?.luc ?? ''));
@@ -414,11 +415,16 @@ export function baiRouter(d: DepsBai): Router {
     const doc = layBai(req, res);
     const g = doc && lay(req, res);
     if (!doc || !g) return;
+    // Bài đang đăng/hẹn giờ vẫn phải đạt đủ luật khi lưu (nếu không bản xem trước sẽ làm bài thật biến mất khỏi site).
+    if (doc.trangThai !== 'nhap') {
+      const kt0 = kiemTraDayDu(d.db, d.config.anhDir, g.bai, g.noiDung, doc.bai.slug);
+      if (!kt0.dat) return void traLoiLuat(res, kt0.loi);
+    }
     let phienSo: number;
     try {
       ({ phienSo } = luuBai(
         d.db,
-        { id: doc.id, ngonNgu: 'vi', bai: g.bai as never, noiDung: g.noiDung, trangThai: doc.trangThai, henGio: doc.henGio ?? undefined, nguoiId: req.nguoiDung!.id, phienSo: g.phienSo, kiemTra: 'co-ban' },
+        { id: doc.id, ngonNgu: 'vi', bai: g.bai as never, noiDung: g.noiDung, trangThai: doc.trangThai, henGio: doc.henGio ?? undefined, nguoiId: req.nguoiDung!.id, phienSo: g.phienSo, kiemTra: doc.trangThai === 'nhap' ? 'co-ban' : 'day-du' },
         d.now,
       ));
     } catch (e) {

@@ -40,6 +40,11 @@
   let xemTruoc = $state({ dang: false, url: '', thongBao: '' });
   let trinh = $state<TrinhSoanThao>();
   let khoiTao = true;
+  // Ảnh chụp dữ liệu lần cuối đã đồng bộ với máy chủ (nạp xong / lưu xong): chỉ tự lưu khi nội dung KHÁC mốc này.
+  let moc = '';
+  const datMoc = () => (moc = JSON.stringify(duLieu()));
+  let banLocal = $state<{ bai: BaiForm; noiDung: string } | null>(null);
+  const khoaLocal = `vtt-nhap-${idDau ?? 'moi'}`;
 
   let anhBaseUrl = $derived(phien.publicBaseUrl || location.origin);
   let canTraNhanh = $derived(bai.loai === 'nhat-ky' || bai.loai === 'review');
@@ -78,10 +83,11 @@
     phienSo = r.phienSo as number;
     const bt = r.banNhapTuLuu as { bai: Record<string, unknown>; noiDung: string } | undefined;
     banTuLuu = bt ? { bai: tuApi(bt.bai), noiDung: bt.noiDung } : null;
+    datMoc();
   }
 
   const tuLuu = taoTuLuu<{ bai: Record<string, unknown>; noiDung: string }>({
-    khoa: `vtt-nhap-${idDau ?? 'moi'}`,
+    khoa: khoaLocal,
     khiDoiTrangThai: (s) => (tuLuuTT = s),
     luu: async (dl) => {
       if (id === null) {
@@ -106,6 +112,15 @@
         loiChung = e instanceof LoiApi ? e.loi : 'Không tải được bài.';
       } finally {
         daTai = true;
+        try {
+          const tho = localStorage.getItem(khoaLocal);
+          if (tho) {
+            const d = JSON.parse(tho) as { bai: Record<string, unknown>; noiDung: string };
+            banLocal = { bai: tuApi(d.bai), noiDung: d.noiDung };
+          }
+        } catch {
+          /* localStorage không dùng được: bỏ qua */
+        }
         queueMicrotask(() => (khoiTao = false));
       }
     })();
@@ -115,7 +130,7 @@
   // Mọi thay đổi → tự lưu (bỏ qua lần nạp ban đầu và khi đang khoá vì xung đột).
   $effect(() => {
     const dl = { bai: lamSach(bai), noiDung };
-    if (!daTai || khoiTao || khoaLuu || thungRac) return;
+    if (!daTai || khoiTao || khoaLuu || thungRac || JSON.stringify(dl) === moc) return;
     tuLuu.doi(dl);
   });
   // Đổi loại bài sang nhật ký/review thì mở sẵn khối Tra nhanh.
@@ -154,6 +169,7 @@
         const r = await goiApi<{ phienSo: number }>('PUT', `/bai/${id}`, { ...duLieu(), phienSo });
         phienSo = r.phienSo;
       }
+      datMoc();
       return true;
     } catch (e) {
       xuLyLoi(e);
@@ -269,6 +285,20 @@
     khoaLuu = false;
     napTuApi(await goiApi<Record<string, unknown>>('GET', `/bai/${id}`));
   }
+  const dungBanLocal = () => {
+    if (!banLocal) return;
+    bai = banLocal.bai;
+    noiDung = banLocal.noiDung;
+    boBanLocal();
+  };
+  const boBanLocal = () => {
+    banLocal = null;
+    try {
+      localStorage.removeItem(khoaLocal);
+    } catch {
+      /* bỏ qua */
+    }
+  };
   const dungBanTuLuu = () => {
     if (!banTuLuu) return;
     bai = banTuLuu.bai;
@@ -294,6 +324,13 @@
 {:else}
   {#if loiChung}<p class="thong-bao-loi" role="alert">{loiChung}</p>{/if}
   {#if thongBao}<p class="thong-bao-ok" role="status">{thongBao}</p>{/if}
+
+  {#if banLocal}
+    <div class="the" role="status">
+      <p>Lần trước có thay đổi chưa lưu được lên máy chủ (mất mạng?). Khôi phục lại chúng?</p>
+      <div class="hang-nut"><button type="button" onclick={dungBanLocal}>Khôi phục bản chưa lưu</button><button type="button" class="phu" onclick={boBanLocal}>Bỏ qua</button></div>
+    </div>
+  {/if}
 
   {#if banTuLuu}
     <div class="the" role="status">

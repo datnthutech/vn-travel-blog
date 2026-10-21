@@ -13,13 +13,29 @@ const TOKEN = 'ghp_bi_mat_khong_duoc_lo_123456';
 const SHA = 'c'.repeat(40);
 
 // DB mẫu: một bài đã đăng và một bài nháp (để kiểm tra production không có nháp).
-const BAI_MAU = parseBai(readFileSync(join(import.meta.dirname, '../../../site/src/content/bai-viet/vung-tau-can-ho-banh-canh.md'), 'utf8'));
+// Mã ảnh thật là chuỗi hex không có dấu gạch ngang (quy tắc của kiemTraBai) nên đổi mã của bài mẫu cho khớp.
+const BAI_MAU = (() => {
+  const g = parseBai(readFileSync(join(import.meta.dirname, '../../../site/src/content/bai-viet/vung-tau-can-ho-banh-canh.md'), 'utf8'));
+  const doi = (x: string) => x.replaceAll('demo-bien', 'demobien').replaceAll('demo-can-ho', 'democanho');
+  return { bai: JSON.parse(doi(JSON.stringify(g.bai))) as typeof g.bai, noiDung: doi(g.noiDung) };
+})();
 let db: Db;
 beforeEach(() => {
   db = moDb(':memory:');
+  db.prepare("INSERT INTO tinh (slug, du_lieu) VALUES ('vung-tau', ?)").run(JSON.stringify({ ten: 'Vũng Tàu', slug: 'vung-tau', gioiThieu: 'g', anhBia: { ma: 'demobien', alt: 'y' }, moTa: 'm' }));
   luuBai(db, { ngonNgu: 'vi', bai: BAI_MAU.bai, noiDung: BAI_MAU.noiDung, trangThai: 'da-dang' });
   luuBai(db, { ngonNgu: 'vi', bai: { ...BAI_MAU.bai, slug: 'bai-nhap', tieuDe: 'Nháp' }, noiDung: 'x', trangThai: 'nhap' });
 });
+
+// Thư mục ảnh giả có đủ mã ảnh mà bài mẫu dùng (bản nháp vào preview phải qua kiểm tra tham chiếu ảnh).
+function anhThu(): string {
+  const d = mkdtempSync(join(tmpdir(), 'vtt-anh-'));
+  for (const ma of ['demobien', 'democanho']) {
+    mkdirSync(join(d, ma));
+    writeFileSync(join(d, ma, 'meta.json'), '{"rong":1600,"cao":1067}');
+  }
+  return d;
+}
 
 function configTam(): Config {
   return {
@@ -29,7 +45,7 @@ function configTam(): Config {
     allowedGithubUser: 'chu-blog',
     publicBaseUrl: 'https://vntraveltips.monai.click',
     previewBaseUrl: 'https://nhap-vntraveltips.monai.click',
-    anhDir: '/data/anh',
+    anhDir: anhThu(),
     dataDir: mkdtempSync(join(tmpdir(), 'vtt-data-')),
     siteDir: '',
     previewDir: '',

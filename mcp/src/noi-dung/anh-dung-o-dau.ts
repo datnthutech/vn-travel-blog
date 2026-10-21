@@ -20,7 +20,7 @@ function them<T>(m: Map<string, T[]>, ma: string, v: T) {
 export function timAnhDungO(db: Db): DungO {
   const bai = new Map<string, number[]>();
   const tinh = new Map<string, string[]>();
-  for (const r of db.prepare('SELECT bai_id, du_lieu, noi_dung FROM ban_dich').all() as { bai_id: number; du_lieu: string; noi_dung: string }[]) {
+  for (const r of db.prepare('SELECT bai_id, du_lieu, noi_dung, nhap_tu_luu FROM ban_dich').all() as { bai_id: number; du_lieu: string; noi_dung: string; nhap_tu_luu: string | null }[]) {
     let d: { anhBia?: { ma?: unknown }; diaDiem?: { anh?: { ma?: unknown }[] }[] } = {};
     try {
       d = JSON.parse(r.du_lieu);
@@ -30,6 +30,12 @@ export function timAnhDungO(db: Db): DungO {
     if (typeof d.anhBia?.ma === 'string') them(bai, d.anhBia.ma, r.bai_id);
     for (const dd of d.diaDiem ?? []) for (const a of dd.anh ?? []) if (typeof a?.ma === 'string') them(bai, a.ma, r.bai_id);
     for (const m of r.noi_dung.matchAll(ANH_TRONG_THAN)) them(bai, m[1]!, r.bai_id);
+    // Bản tự lưu chưa lưu chính thức cũng đang giữ ảnh (xoá ảnh sẽ làm hỏng bài khi người dùng "Dùng bản tự lưu").
+    if (r.nhap_tu_luu) {
+      const tho = r.nhap_tu_luu;
+      for (const m of tho.matchAll(/\banh:([A-Za-z0-9]{1,64})/g)) them(bai, m[1]!, r.bai_id);
+      for (const m of tho.matchAll(/"ma"\s*:\s*"([A-Za-z0-9]{1,64})"/g)) them(bai, m[1]!, r.bai_id);
+    }
   }
   for (const r of db.prepare('SELECT slug, du_lieu FROM tinh').all() as { slug: string; du_lieu: string }[]) {
     try {

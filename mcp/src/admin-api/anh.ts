@@ -93,7 +93,7 @@ export function anhRouter(d: DepsAnh): Router {
         for (const f of files) {
           try {
             const kq = await xuLyAnh(await readFile(f.path), d.config.anhDir, {});
-            d.db.prepare('INSERT OR REPLACE INTO anh (ma, ten_goc, rong, cao, byte, tai_len_luc, nguoi_dung_id) VALUES (?,?,?,?,?,?,?)').run(
+            d.db.prepare('INSERT INTO anh (ma, ten_goc, rong, cao, byte, tai_len_luc, nguoi_dung_id) VALUES (?,?,?,?,?,?,?) ON CONFLICT(ma) DO UPDATE SET byte = excluded.byte').run(
               kq.ma, f.originalname, kq.rong, kq.cao, dungLuongThuMuc(join(d.config.anhDir, kq.ma)), d.now(), req.nguoiDung!.id,
             );
             ok.push(kq);

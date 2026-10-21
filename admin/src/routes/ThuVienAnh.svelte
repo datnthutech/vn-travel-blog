@@ -19,11 +19,19 @@
   let ok = $state('');
 
   const MB = (b: number) => `${(b / 1024 / 1024).toFixed(1)} MB`;
-  async function tai() {
+  let seq = 0;
+  let hen: ReturnType<typeof setTimeout> | undefined;
+  async function taiODia() {
+    oDia = await goiApi('GET', '/o-dia');
+  }
+  // Chỉ kết quả của lần gọi mới nhất được hiển thị; dung lượng ổ chỉ hỏi khi cần (khởi đầu, tải lên, xoá).
+  async function tai(kemODia = false) {
+    const luot = ++seq;
     const r = await goiApi<{ anh: Anh[]; tong: number }>('GET', `/anh?trang=${trang}&q=${encodeURIComponent(q)}`);
+    if (luot !== seq) return;
     ds = r.anh;
     tong = r.tong;
-    oDia = await goiApi('GET', '/o-dia');
+    if (kemODia) await taiODia();
   }
   async function chonAnh(a: Anh) {
     mo = a.ma;
@@ -52,12 +60,12 @@
       await goiApi('DELETE', `/anh/${a.ma}`);
       mo = null;
       ok = 'Đã xoá ảnh.';
-      await tai();
+      await tai(true);
     } catch (e) {
       loi = e instanceof LoiApi ? e.loi : thongBaoLoi(e);
     }
   }
-  onMount(() => void tai().catch((e) => (loi = thongBaoLoi(e))));
+  onMount(() => void tai(true).catch((e) => (loi = thongBaoLoi(e))));
 </script>
 
 <h1>Thư viện ảnh</h1>
@@ -65,9 +73,9 @@
 {#if loi}<p class="thong-bao-loi" role="alert">{loi}</p>{/if}
 {#if ok}<p class="thong-bao-ok" role="status">{ok}</p>{/if}
 
-<TaiAnhLen khiXong={() => void tai()} />
+<TaiAnhLen khiXong={() => void tai(true)} />
 <label for="q-anh">Tìm ảnh</label>
-<input id="q-anh" type="text" bind:value={q} oninput={() => { trang = 1; void tai(); }} placeholder="tên file hoặc mô tả" />
+<input id="q-anh" type="text" bind:value={q} oninput={() => { trang = 1; clearTimeout(hen); hen = setTimeout(() => void tai(), 300); }} placeholder="tên file hoặc mô tả" />
 
 <ul class="luoi">
   {#each ds as a (a.ma)}

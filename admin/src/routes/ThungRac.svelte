@@ -6,12 +6,21 @@
 
   interface Tom { id: number; tieuDe: string; slug: string; suaLuc: number }
   let ds = $state<Tom[]>([]);
+  let tong = $state(0);
+  let trang = $state(1);
   let loi = $state('');
   let ok = $state('');
   const gioVN = (ms: number) => new Date(ms + 7 * 3600_000).toISOString().slice(0, 16).replace('T', ' ');
 
   async function tai() {
-    ds = (await goiApi<{ bai: Tom[] }>('GET', '/bai?trangThai=thung-rac')).bai;
+    const r = await goiApi<{ bai: Tom[]; tong: number }>('GET', `/bai?trangThai=thung-rac&trang=${trang}`);
+    // Xoá hẳn/khôi phục hết trang cuối thì lùi về trang trước.
+    if (r.bai.length === 0 && trang > 1) {
+      trang -= 1;
+      return tai();
+    }
+    ds = r.bai;
+    tong = r.tong;
   }
   async function lam(viec: () => Promise<unknown>, thanhCong: string) {
     loi = '';
@@ -42,4 +51,9 @@
       </li>
     {/each}
   </ul>
+  <div class="hang-nut">
+    <button class="phu" disabled={trang <= 1} onclick={() => { trang -= 1; void tai(); }}>Trang trước</button>
+    <span class="nhat">Trang {trang} · {tong} bài</span>
+    <button class="phu" disabled={trang * 20 >= tong} onclick={() => { trang += 1; void tai(); }}>Trang sau</button>
+  </div>
 </div>

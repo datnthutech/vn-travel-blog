@@ -19,7 +19,10 @@
   const TEN = { nhap: 'Nháp', 'da-dang': 'Đã đăng', 'hen-gio': 'Hẹn giờ' } as const;
   const gioVN = (ms: number) => new Date(ms + 7 * 3600_000).toISOString().slice(0, 16).replace('T', ' ');
 
+  let seq = 0; // chỉ kết quả của lần gọi MỚI NHẤT được hiển thị (tránh kết quả cũ đến muộn ghi đè)
+  let hen: ReturnType<typeof setTimeout> | undefined;
   async function tai() {
+    const luot = ++seq;
     dangTai = true;
     loi = '';
     try {
@@ -28,17 +31,20 @@
       if (trangThai) qs.set('trangThai', trangThai);
       if (tinh) qs.set('tinh', tinh);
       const r = await goiApi<{ bai: Tom[]; tong: number }>('GET', `/bai?${qs}`);
+      if (luot !== seq) return;
       ds = r.bai;
       tong = r.tong;
     } catch (e) {
-      loi = thongBaoLoi(e);
+      if (luot === seq) loi = thongBaoLoi(e);
     } finally {
-      dangTai = false;
+      if (luot === seq) dangTai = false;
     }
   }
+  // Gõ tìm kiếm: đợi 300 ms sau phím cuối rồi mới gọi.
   const loc = () => {
     trang = 1;
-    void tai();
+    clearTimeout(hen);
+    hen = setTimeout(() => void tai(), 300);
   };
   onMount(() => {
     void goiApi<{ tinh: typeof tinhDs }>('GET', '/tinh').then((r) => (tinhDs = r.tinh)).catch(() => {});

@@ -6,14 +6,24 @@ import { stringify } from 'yaml';
 import { serializeBai } from '../bai/serialize';
 import type { Db } from '../db/ket-noi';
 import { lietKeBai } from './bai';
+import { kiemTraDayDu } from './kiem-tra';
 
-export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'preview'): { soBai: number } {
+/**
+ * `anhDir` (nếu có): bản nháp đưa vào preview còn phải qua kiểm tra tham chiếu (ảnh/tỉnh có thật), nếu không một nháp
+ * trỏ tới ảnh không tồn tại sẽ làm hỏng build preview của mọi người.
+ */
+export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'preview', anhDir?: string): { soBai: number } {
   rmSync(dich, { recursive: true, force: true });
   mkdirSync(join(dich, 'bai-viet'), { recursive: true });
   mkdirSync(join(dich, 'tinh'), { recursive: true });
 
   // Bản nháp còn thiếu trường (chưa qua schema) không xuất được: Astro sẽ báo lỗi và làm hỏng cả build.
-  const bai = lietKeBai(db, 'vi').filter((b) => b.hopLe && (target === 'preview' || b.trangThai === 'da-dang'));
+  const bai = lietKeBai(db, 'vi').filter(
+    (b) =>
+      b.hopLe &&
+      (target === 'preview' || b.trangThai === 'da-dang') &&
+      (!anhDir || b.trangThai === 'da-dang' || kiemTraDayDu(db, anhDir, b.bai, b.noiDung, b.bai.slug).dat),
+  );
   for (const b of bai) writeFileSync(join(dich, 'bai-viet', `${b.bai.slug}.md`), serializeBai(b.bai, b.noiDung));
 
   for (const r of db.prepare('SELECT slug, du_lieu FROM tinh ORDER BY slug').all() as { slug: string; du_lieu: string }[]) {

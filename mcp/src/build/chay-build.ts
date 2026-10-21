@@ -120,7 +120,7 @@ export function taoChayBuild(config: Config, db: Db, exec: Exec = chayLenh): () 
         const nguon = join(repo, 'site', 'dist');
         rmSync(nguon, { recursive: true, force: true });
         const noiDungDir = join(xuatDir, target);
-        xuatNoiDung(db, noiDungDir, target);
+        xuatNoiDung(db, noiDungDir, target, config.anhDir);
         const b = await exec('npm', ['run', 'build', '-w', 'site'], {
           cwd: repo,
           env: { ...envBuild, ...them, BUILD_TARGET: target, SITE_URL: siteUrl, NOI_DUNG_DIR: noiDungDir },

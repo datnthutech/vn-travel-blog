@@ -131,7 +131,7 @@ export function themRedirectKhiDoiUrl(db: Db, urlCu: string, urlMoi: string): vo
   if (urlCu === urlMoi) return;
   db.prepare('UPDATE redirect SET den = ? WHERE den = ?').run(urlMoi, urlCu);
   db.prepare('DELETE FROM redirect WHERE tu = ?').run(urlMoi);
-  db.prepare('DELETE FROM redirect WHERE tu = den');
+  db.prepare('DELETE FROM redirect WHERE tu = den').run();
   db.prepare('INSERT OR REPLACE INTO redirect (tu, den) VALUES (?, ?)').run(urlCu, urlMoi);
 }
 
