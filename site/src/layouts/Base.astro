@@ -5,6 +5,7 @@ import { coNoindex } from '../lib/noindex';
 import SeoHead from '../components/SeoHead.astro';
 import AdScript from '../components/AdScript.astro';
 import { goatcounterScript } from '../lib/analytics';
+import Menu from '../components/Menu.astro';
 interface Props {
   title: string;
   moTa?: string;
@@ -29,9 +30,9 @@ const gc = goatcounterScript();
     <slot name="head" />
   </head>
   <body>
-    <header class="site-header"><a href="/">VNTravelTips</a></header>
+    <header class="site-header"><a href="/">VNTravelTips</a><Menu vitri="dauTrang" /></header>
     <main><slot /></main>
-    <footer class="site-footer">© VNTravelTips — nhật ký du lịch của một gia đình nhỏ</footer>
+    <footer class="site-footer">© VNTravelTips — nhật ký du lịch của một gia đình nhỏ<Menu vitri="chanTrang" /></footer>
     <AdScript />
   </body>
 </html>

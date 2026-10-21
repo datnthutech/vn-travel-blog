@@ -4,3 +4,4 @@ export * from './tham-chieu';
 export * from './redirects';
 export * from './slug';
 export * from './url';
+export * from './menu';

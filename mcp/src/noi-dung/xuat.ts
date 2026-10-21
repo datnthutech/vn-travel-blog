@@ -6,6 +6,7 @@ import { stringify } from 'yaml';
 import { serializeBai } from '../bai/serialize';
 import type { Db } from '../db/ket-noi';
 import { lietKeBai } from './bai';
+import { docCaiDat } from './cai-dat';
 import { kiemTraDayDu } from './kiem-tra';
 
 /**
@@ -29,6 +30,10 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
   for (const r of db.prepare('SELECT slug, du_lieu FROM tinh ORDER BY slug').all() as { slug: string; du_lieu: string }[]) {
     writeFileSync(join(dich, 'tinh', `${r.slug}.md`), `---\n${stringify(JSON.parse(r.du_lieu), { lineWidth: 0 })}---\n`);
   }
+
+  // Menu: chỉ ghi khi chủ blog đã lưu; thiếu thì site dùng menu mặc định. Mục có đích chưa đăng bị site ẩn lúc build.
+  const menu = docCaiDat(db, 'menu');
+  if (menu) writeFileSync(join(dich, 'menu.json'), JSON.stringify(menu, null, 2) + '\n');
 
   // Build kiểm tra: đích phải là bài đang đăng, nguồn không được đè lên một bài có thật. Bài bị gỡ/vào thùng rác thì
   // redirect liên quan bỏ qua (không làm hỏng build); dữ liệu trong DB vẫn giữ để dùng lại khi bài được đăng lại.

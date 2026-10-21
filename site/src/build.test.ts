@@ -151,11 +151,11 @@ describe('build với NOI_DUNG_DIR', () => {
     }
     return d;
   }
-  const buildPreview = (noiDung: string) => {
+  const buildPreview = (noiDung: string, target: 'preview' | 'production' = 'preview') => {
     const o = mkdtempSync(join(tmpdir(), 'vtt-nd-out-'));
     execFileSync('npx', ['astro', 'build', '--outDir', o], {
       cwd: __dirname + '/..',
-      env: { ...process.env, BUILD_TARGET: 'preview', NOI_DUNG_DIR: noiDung },
+      env: { ...process.env, BUILD_TARGET: target, NOI_DUNG_DIR: noiDung },
       stdio: 'pipe',
     });
     return o;
@@ -183,6 +183,31 @@ describe('build với NOI_DUNG_DIR', () => {
       buildPreview(nd);
     } catch (e) {
       expect(String((e as { stderr?: Buffer }).stderr ?? e)).toMatch(/chuyên mục "an-uong" không tồn tại/);
+    }
+  }, 240_000);
+
+  it('menu: mục trỏ bài nháp có ở preview nhưng KHÔNG có trong HTML production; mục hợp lệ luôn có', () => {
+    const nd = taoThuMuc((_f, t) => t);
+    writeFileSync(
+      join(nd, 'menu.json'),
+      JSON.stringify({
+        dauTrang: [
+          { nhan: 'Bãi biển êm', loai: 'bai', giaTri: 'top-bai-bien-cho-be' },
+          { nhan: 'Facebook', loai: 'link', giaTri: 'https://facebook.com/vntraveltips', con: [{ nhan: 'Giới thiệu', loai: 'trang', giaTri: 'gioi-thieu' }] },
+        ],
+        chanTrang: [{ nhan: 'Chính sách', loai: 'trang', giaTri: 'chinh-sach-lien-ket' }],
+      }),
+    );
+    const preview = readFileSync(join(buildPreview(nd), 'index.html'), 'utf8');
+    const prod = readFileSync(join(buildPreview(nd, 'production'), 'index.html'), 'utf8');
+    expect(preview).toContain('Bãi biển êm');
+    expect(preview).toContain('href="/kinh-nghiem/top-bai-bien-cho-be/"');
+    expect(prod).not.toContain('Bãi biển êm');
+    expect(prod).not.toContain('top-bai-bien-cho-be');
+    for (const html of [preview, prod]) {
+      expect(html).toContain('href="https://facebook.com/vntraveltips"');
+      expect(html).toContain('href="/gioi-thieu/"'); // mục con
+      expect(html).toContain('href="/chinh-sach-lien-ket/"'); // chân trang
     }
   }, 240_000);
 });
