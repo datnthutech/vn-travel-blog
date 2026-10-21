@@ -82,8 +82,18 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
   // Bản dịch cấu trúc (chuyên mục, tỉnh, trang, menu, site) và chuỗi giao diện của các ngôn ngữ ĐANG BẬT.
   const dangBat = new Set(maNgonNguDangBat(db));
   const dcRows = (db.prepare('SELECT loai, khoa, ngon_ngu, du_lieu FROM dich_cau_truc ORDER BY loai, khoa, ngon_ngu').all() as { loai: string; khoa: string; ngon_ngu: string; du_lieu: string }[]).filter((r) => dangBat.has(r.ngon_ngu));
-  writeFileSync(join(dich, 'dich-cau-truc.json'), JSON.stringify(dcRows.filter((r) => r.loai !== 'giao-dien').map((r) => ({ loai: r.loai, khoa: r.khoa, ngonNgu: r.ngon_ngu, duLieu: JSON.parse(r.du_lieu) })), null, 2) + '\n');
+  writeFileSync(join(dich, 'dich-cau-truc.json'), JSON.stringify(dcRows.filter((r) => r.loai !== 'giao-dien' && r.loai !== 'trang').map((r) => ({ loai: r.loai, khoa: r.khoa, ngonNgu: r.ngon_ngu, duLieu: JSON.parse(r.du_lieu) })), null, 2) + '\n');
   mkdirSync(join(dich, 'giao-dien'), { recursive: true });
+  // Trang tĩnh đã dịch → trang-dich/<mã>/<slug đã dịch>.md (frontmatter slugGoc = slug trang tiếng Việt). Chỉ khi trang gốc cũng được xuất;
+  // production chỉ lấy bản `da-dang`, preview lấy cả nháp.
+  mkdirSync(join(dich, 'trang-dich'), { recursive: true });
+  const slugTrangXuat = new Set(trangXuat.map((t) => t.slug));
+  for (const r of dcRows.filter((x) => x.loai === 'trang' && slugTrangXuat.has(x.khoa))) {
+    const du = JSON.parse(r.du_lieu) as { tieuDe: string; moTa: string; noiDung: string; slug: string; trangThai?: string };
+    if (!du.tieuDe?.trim() || (target === 'production' && du.trangThai !== 'da-dang')) continue;
+    mkdirSync(join(dich, 'trang-dich', r.ngon_ngu), { recursive: true });
+    writeFileSync(join(dich, 'trang-dich', r.ngon_ngu, `${du.slug}.md`), `---\n${stringify({ tieuDe: du.tieuDe, moTa: du.moTa ?? '', slugGoc: r.khoa }, { lineWidth: 0 })}---\n\n${du.noiDung ?? ''}\n`);
+  }
   for (const r of dcRows.filter((x) => x.loai === 'giao-dien')) writeFileSync(join(dich, 'giao-dien', `${r.ngon_ngu}.json`), JSON.stringify(JSON.parse(r.du_lieu), null, 2) + '\n');
 
   // Cài đặt site: chỉ ghi khi đã có (server khởi tạo lần đầu từ env); thiếu thì site dùng mặc định + env.

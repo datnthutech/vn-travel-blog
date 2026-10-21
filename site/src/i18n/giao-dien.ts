@@ -1,11 +1,11 @@
-// Chuỗi giao diện theo ngôn ngữ. `vi.json` là chuỗi gốc (nằm trong code); ngôn ngữ khác lấy từ giao-dien/<mã>.json do MCP xuất từ DB
+// Chuỗi giao diện theo ngôn ngữ. chuỗi gốc nằm ở packages/schema/src/giao-dien-vi.json; ngôn ngữ khác lấy từ giao-dien/<mã>.json do MCP xuất từ DB
 // (NOI_DUNG_DIR). Thiếu khoá → rơi về tiếng Việt (build vẫn chạy; script write-build-json liệt kê khoá thiếu vào build.json).
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import vi from './vi.json';
+import { CHUOI_GIAO_DIEN_VI, type KhoaGiaoDien } from '@vntraveltips/schema';
 
-export type KhoaGiaoDien = keyof typeof vi;
-export const CHUOI_VI = vi as Record<string, string>;
+export type { KhoaGiaoDien };
+export const CHUOI_VI = CHUOI_GIAO_DIEN_VI;
 
 const nho = new Map<string, Record<string, string>>();
 export function chuoiNgonNgu(ngonNgu: string, env: Record<string, string | undefined> = process.env): Record<string, string> {

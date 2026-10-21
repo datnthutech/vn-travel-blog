@@ -268,7 +268,8 @@ describe('build với NOI_DUNG_DIR', () => {
     expect(readFileSync(join(prev, 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8')).not.toContain('/api/cong-khai/ban-tin/dang-ky');
   }, 360_000);
 
-  it('đa ngôn ngữ: /en/… có lang, hreflang (vi/en/x-default), sitemap, RSS, chuỗi giao diện theo giao-dien/en.json (thiếu → chuỗi vi + build.json liệt kê); bài chỉ có vi không có hreflang thừa; URL tiếng Việt không đổi', () => {
+  /** Thư mục nội dung có bài vi + bản dịch en của bài vung-tau (đã đăng), ngon-ngu.json và giao-dien/en.json (chỉ 2 khoá). */
+  function taoNdEn(): string {
     const nd = taoThuMuc((f, t) => (f.endsWith('.md') ? t.replace('draft: true', 'draft: false') : t));
     const slugVi = 'vung-tau-can-ho-banh-canh';
     const vi = readFileSync(join(nd, `bai-viet/${slugVi}.md`), 'utf8');
@@ -284,6 +285,11 @@ describe('build với NOI_DUNG_DIR', () => {
     writeFileSync(join(nd, 'ngon-ngu.json'), JSON.stringify([{ ma: 'vi', ten: 'Tiếng Việt', thuTu: 0 }, { ma: 'en', ten: 'English', thuTu: 1 }]));
     mkdirSync(join(nd, 'giao-dien'), { recursive: true });
     writeFileSync(join(nd, 'giao-dien/en.json'), JSON.stringify({ 'tra-nhanh': 'Quick facts', 'trang-chu': 'Home' }));
+    return nd;
+  }
+
+  it('đa ngôn ngữ: /en/… có lang, hreflang (vi/en/x-default), sitemap, RSS, chuỗi giao diện theo giao-dien/en.json (thiếu → chuỗi vi + build.json liệt kê); bài chỉ có vi không có hreflang thừa; URL tiếng Việt không đổi', () => {
+    const nd = taoNdEn();
     const o = buildPreview(nd, 'production');
     const docO = (p: string) => readFileSync(join(o, p, 'index.html'), 'utf8');
 
@@ -323,6 +329,52 @@ describe('build với NOI_DUNG_DIR', () => {
     expect(Object.keys(thieu)).toEqual(['en']);
     expect(thieu.en).toContain('thoi-gian');
     expect(thieu.en).not.toContain('tra-nhanh');
+  }, 360_000);
+
+  it('bản dịch cấu trúc: menu en chỉ giữ mục có bản dịch đã đăng (nhãn dịch, href /en/…), trang tĩnh dịch có URL /en/<slug>/, tên chuyên mục/tỉnh/site dịch hiện ở trang en', () => {
+    const nd = taoNdEn();
+    writeFileSync(
+      join(nd, 'menu.json'),
+      JSON.stringify({
+        dauTrang: [
+          { nhan: 'Giới thiệu', loai: 'trang', giaTri: 'gioi-thieu' },
+          { nhan: 'Liên hệ', loai: 'trang', giaTri: 'lien-he' },
+          { nhan: 'Bài Vũng Tàu', loai: 'bai', giaTri: 'vung-tau-can-ho-banh-canh' },
+          { nhan: 'Tỉnh', loai: 'tinh', giaTri: 'vung-tau' },
+        ],
+        chanTrang: [],
+      }),
+    );
+    mkdirSync(join(nd, 'trang-dich/en'), { recursive: true });
+    writeFileSync(join(nd, 'trang-dich/en/about-us.md'), '---\ntieuDe: About us\nmoTa: ""\nslugGoc: gioi-thieu\n---\n\nWe are a small family.\n');
+    writeFileSync(
+      join(nd, 'dich-cau-truc.json'),
+      JSON.stringify([
+        { loai: 'menu', khoa: 'dauTrang.0', ngonNgu: 'en', duLieu: { nhan: 'About' } },
+        { loai: 'menu', khoa: 'dauTrang.2', ngonNgu: 'en', duLieu: { nhan: 'Vung Tau post' } },
+        { loai: 'tinh', khoa: 'vung-tau', ngonNgu: 'en', duLieu: { ten: 'Vung Tau city', gioiThieu: 'A seaside city.', moTa: '', anhBiaAlt: '' } },
+        { loai: 'chuyen-muc', khoa: 'an-uong', ngonNgu: 'en', duLieu: { ten: 'Food', moTa: '' } },
+        { loai: 'site', khoa: 'site', ngonNgu: 'en', duLieu: { tenSite: 'VNTravelTips EN', moTaMacDinh: 'Family travel diary' } },
+      ]),
+    );
+    const o = buildPreview(nd, 'production');
+    const docO = (p: string) => readFileSync(join(o, p, 'index.html'), 'utf8');
+    const trang = docO('en/vung-tau/vung-tau-apartment');
+    const menu = /<nav class="menu menu-dauTrang"[\s\S]*?<\/nav>/.exec(trang)![0];
+    expect(menu).toContain('<a href="/en/about-us/">About</a>'); // trang đã dịch → URL slug dịch, nhãn dịch
+    expect(menu).not.toContain('lien-he'); // trang chưa có bản dịch → ẩn
+    expect(menu).toContain('<a href="/en/vung-tau/vung-tau-apartment/">Vung Tau post</a>'); // bài → URL bản dịch
+    expect(menu).toContain('/en/vung-tau/">Tỉnh</a>'); // tỉnh có bài dịch → hiện, nhãn chưa dịch giữ tiếng Việt
+    expect(docO('en/about-us')).toContain('We are a small family.');
+    expect(docO('en/about-us')).toContain('<html lang="en"');
+    expect(docO('en/vung-tau')).toContain('Vung Tau city');
+    expect(docO('en/vung-tau')).toContain('A seaside city.');
+    expect(docO('en/chu-de/an-uong')).toContain('Food');
+    expect(docO('en')).toContain('VNTravelTips EN');
+    // trang vi không bị ảnh hưởng: menu tiếng Việt vẫn đủ 4 mục với nhãn gốc
+    const menuVi = /<nav class="menu menu-dauTrang"[\s\S]*?<\/nav>/.exec(docO('gioi-thieu'))![0];
+    expect(menuVi).toContain('>Liên hệ</a>');
+    expect(menuVi).toContain('>Giới thiệu</a>');
   }, 360_000);
 
   it('bình luận: production có khung (data-bai) và script nhỏ ≤ 5 KB gzip; preview KHÔNG có khung; bài không có maBai (mẫu local) không hiện', async () => {

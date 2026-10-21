@@ -27,6 +27,10 @@ export async function giaiMenuNgonNgu(vitri: 'dauTrang' | 'chanTrang', ngonNgu: 
   };
   const href = (m: Pick<MucMenu, 'loai' | 'giaTri'>): string | null => {
     if (m.loai === 'bai') return bangBai.get(m.giaTri) ?? null;
+    if (m.loai === 'trang') {
+      const t = trang.find((x) => x.slugGoc === m.giaTri); // trang đã dịch → URL theo slug ĐÃ DỊCH
+      return t ? `/${ngonNgu}/${t.slug}/` : null;
+    }
     const h = duongDanMuc(m, { ...du, bai: [] });
     if (!h) return null;
     if (m.loai === 'link') return h;

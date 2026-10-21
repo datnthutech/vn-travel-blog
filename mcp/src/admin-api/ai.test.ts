@@ -9,7 +9,7 @@ type Moi = Awaited<ReturnType<typeof dungAdmin>>;
 let m: Moi;
 let goi: any[];
 let traVe: (params: any) => unknown | Promise<unknown>;
-const KEY = 'sk-ant-api03-KHOA-BI-MAT-KHONG-DUOC-LO-ra-ngoai';
+const KEY = 'khoa-gia-lap-khong-duoc-lo-ra-ngoai-1234'; // cố ý KHÔNG có dạng khoá thật (bộ quét bí mật của repo public)
 const HDR = new Headers();
 
 /** Bản dịch "tốt" dựng từ phần chữ của bản gốc (đổi tiêu đề). */
@@ -140,7 +140,7 @@ describe('dịch bài bằng AI', () => {
     expect(r.status).toBe(503);
     expect(r.body.maLoi).toBe(maLoi);
     expect(r.body.loi).toMatch(mau);
-    expect(JSON.stringify(r.body)).not.toMatch(/ECONNRESET|boom|slow down|sk-ant/);
+    expect(JSON.stringify(r.body)).not.toMatch(/ECONNRESET|boom|slow down|khoa-gia-lap/);
     expect(JSON.stringify(m.db.prepare('SELECT * FROM nhat_ky').all())).not.toContain(KEY);
     expect(m.db.prepare("SELECT chi_tiet FROM nhat_ky WHERE loai = 'dich-ai-loi'").get()).toEqual({ chi_tiet: JSON.stringify({ ngonNgu: 'en', maLoi }) });
   });
