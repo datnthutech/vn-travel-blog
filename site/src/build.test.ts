@@ -2,7 +2,7 @@
 // Ghim các hành vi mà test đơn vị không thấy được: khối rỗng không hiện, URL đúng, nháp không lọt production.
 // Hai bài mẫu đang là nháp (draft: true): production KHÔNG có; bản preview CÓ. Các kiểm tra nội dung bài dùng bản preview.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -138,4 +138,51 @@ describe('build production', () => {
     expect(html).toMatch(/<img[^>]*fetchpriority="high"/);
     expect(html).toMatch(/<img[^>]*width="1600"[^>]*height="1067"/);
   });
+});
+
+// Build từ nội dung "xuất từ DB" (NOI_DUNG_DIR): chuyên mục đổi tên/đổi slug phải dựng đúng trang, chuyên mục lạ phải làm build dừng.
+describe('build với NOI_DUNG_DIR', () => {
+  const GOC = join(__dirname, 'content');
+  function taoThuMuc(sua: (f: string, nd: string) => string): string {
+    const d = mkdtempSync(join(tmpdir(), 'vtt-nd-'));
+    cpSync(GOC, d, { recursive: true });
+    for (const f of ['chuyen-muc.json', 'bai-viet/top-bai-bien-cho-be.md', 'bai-viet/vung-tau-can-ho-banh-canh.md']) {
+      writeFileSync(join(d, f), sua(f, readFileSync(join(d, f), 'utf8')));
+    }
+    return d;
+  }
+  const buildPreview = (noiDung: string) => {
+    const o = mkdtempSync(join(tmpdir(), 'vtt-nd-out-'));
+    execFileSync('npx', ['astro', 'build', '--outDir', o], {
+      cwd: __dirname + '/..',
+      env: { ...process.env, BUILD_TARGET: 'preview', NOI_DUNG_DIR: noiDung },
+      stdio: 'pipe',
+    });
+    return o;
+  };
+
+  it('đổi slug chuyên mục an-uong → am-thuc: có /chu-de/am-thuc/ (tên mới), không còn /chu-de/an-uong/', () => {
+    const nd = taoThuMuc((f, t) => (f === 'chuyen-muc.json' ? t.replace('"an-uong", "ten": "Ăn uống"', '"am-thuc", "ten": "Ẩm thực"') : t.replace(/an-uong/g, 'am-thuc')));
+    const o = buildPreview(nd);
+    expect(existsSync(join(o, 'chu-de/am-thuc/index.html'))).toBe(true);
+    expect(readFileSync(join(o, 'chu-de/am-thuc/index.html'), 'utf8')).toContain('Ẩm thực');
+    expect(existsSync(join(o, 'chu-de/an-uong/index.html'))).toBe(false);
+  }, 120_000);
+
+  it('redirect trang chuyên mục cũ → mới được chấp nhận và ghi ra redirects.json', () => {
+    const nd = taoThuMuc((f, t) => (f === 'chuyen-muc.json' ? t.replace('"an-uong", "ten": "Ăn uống"', '"am-thuc", "ten": "Ẩm thực"') : t.replace(/an-uong/g, 'am-thuc')));
+    writeFileSync(join(nd, 'redirects.json'), JSON.stringify([{ tu: '/chu-de/an-uong/', den: '/chu-de/am-thuc/' }]));
+    const o = buildPreview(nd);
+    expect(JSON.parse(readFileSync(join(o, 'redirects.json'), 'utf8'))).toEqual([{ tu: '/chu-de/an-uong/', den: '/chu-de/am-thuc/' }]);
+  }, 120_000);
+
+  it('bài dùng chuyên mục không có trong chuyen-muc.json → build dừng, nêu rõ chuyên mục', () => {
+    const nd = taoThuMuc((f, t) => (f === 'chuyen-muc.json' ? t.replace(/\{ "slug": "an-uong".*\},?\n/, '') : t));
+    expect(() => buildPreview(nd)).toThrow();
+    try {
+      buildPreview(nd);
+    } catch (e) {
+      expect(String((e as { stderr?: Buffer }).stderr ?? e)).toMatch(/chuyên mục "an-uong" không tồn tại/);
+    }
+  }, 240_000);
 });

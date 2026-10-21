@@ -1,7 +1,7 @@
 // Xuất nội dung từ DB ra file đúng định dạng cũ (bai-viet/*.md, tinh/*.md, redirects.json) để Astro build đọc qua NOI_DUNG_DIR.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { urlBai } from '@vntraveltips/schema';
+import { urlBai, urlChuyenMuc, urlTinh } from '@vntraveltips/schema';
 import { stringify } from 'yaml';
 import { serializeBai } from '../bai/serialize';
 import type { Db } from '../db/ket-noi';
@@ -32,8 +32,23 @@ export function xuatNoiDung(db: Db, dich: string, target: 'production' | 'previe
 
   // Build kiểm tra: đích phải là bài đang đăng, nguồn không được đè lên một bài có thật. Bài bị gỡ/vào thùng rác thì
   // redirect liên quan bỏ qua (không làm hỏng build); dữ liệu trong DB vẫn giữ để dùng lại khi bài được đăng lại.
-  const urlDaDang = new Set(bai.filter((b) => b.trangThai === 'da-dang').map((b) => urlBai(b.bai)));
-  const urlTatCa = new Set(bai.map((b) => urlBai(b.bai)));
+  // Trang hub cũng là đích hợp lệ: trang chuyên mục (chỉ khi có bài), trang tỉnh (mọi tỉnh).
+  const urlHub = [
+    ...new Set(bai.flatMap((b) => b.bai.chuyenMuc ?? [])).values(),
+  ].map(urlChuyenMuc).concat((db.prepare('SELECT slug FROM tinh').all() as { slug: string }[]).map((t) => urlTinh(t.slug)));
+  const urlDaDang = new Set([...bai.filter((b) => b.trangThai === 'da-dang').map((b) => urlBai(b.bai)), ...urlHub]);
+  const urlTatCa = new Set([...bai.map((b) => urlBai(b.bai)), ...urlHub]);
+  writeFileSync(
+    join(dich, 'chuyen-muc.json'),
+    JSON.stringify(
+      (db.prepare('SELECT slug, ten, mo_ta, anh_bia, thu_tu FROM chuyen_muc ORDER BY thu_tu, slug').all() as { slug: string; ten: string; mo_ta: string; anh_bia: string | null; thu_tu: number }[]).map((c) => ({
+        slug: c.slug, ten: c.ten, moTa: c.mo_ta, ...(c.anh_bia ? { anhBia: JSON.parse(c.anh_bia) } : {}), thuTu: c.thu_tu,
+      })),
+      null,
+      2,
+    ) + '\n',
+  );
+
   const redirects = (db.prepare('SELECT tu, den FROM redirect ORDER BY tu').all() as { tu: string; den: string }[]).filter(
     (r) => urlDaDang.has(r.den) && !urlTatCa.has(r.tu),
   );

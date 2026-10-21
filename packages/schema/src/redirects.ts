@@ -13,8 +13,9 @@ export interface Redirect {
 const DUONG_DAN = /^\/([a-z0-9][a-z0-9.-]*\/)*$/;
 export const duongDanRedirectHopLe = (p: string): boolean => DUONG_DAN.test(p) && !p.includes('..');
 
-export function kiemTraRedirects(daDang: { slug: string; tinh?: string }[], redirects: Redirect[]): Redirect[] {
-  const urlThat = new Set(daDang.map((b) => urlBai(b)));
+/** `urlKhac`: các URL có thật khác ngoài bài (trang chuyên mục, trang tỉnh, trang tĩnh) — cũng là đích hợp lệ và không được bị đè. */
+export function kiemTraRedirects(daDang: { slug: string; tinh?: string }[], redirects: Redirect[], urlKhac: string[] = []): Redirect[] {
+  const urlThat = new Set([...daDang.map((b) => urlBai(b)), ...urlKhac]);
   const cacTu = new Set<string>();
 
   for (const r of redirects) {

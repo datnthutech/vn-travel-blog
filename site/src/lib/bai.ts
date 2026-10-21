@@ -2,6 +2,7 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 import type { BaiViet, Tinh } from '@vntraveltips/schema';
 import { buildTarget } from './build-target';
+import { layChuyenMuc } from './chuyen-muc';
 import { locBaiViet } from './loc-bai';
 
 export async function layTinh(): Promise<Tinh[]> {
@@ -15,6 +16,6 @@ export async function layBaiViet(): Promise<BaiViet[]> {
 // Kèm entry gốc của Astro để trang gọi render() lấy phần nội dung Markdown.
 export async function layBaiVietDayDu(): Promise<{ bai: BaiViet; entry: CollectionEntry<'bai-viet'> }[]> {
   const [entries, tinh] = await Promise.all([getCollection('bai-viet'), layTinh()]);
-  const conLai = new Set(locBaiViet(entries.map((e) => e.data), tinh, buildTarget()).map((b) => b.slug));
+  const conLai = new Set(locBaiViet(entries.map((e) => e.data), tinh, buildTarget(), layChuyenMuc()).map((b) => b.slug));
   return entries.filter((e) => conLai.has(e.data.slug)).map((e) => ({ bai: e.data, entry: e }));
 }

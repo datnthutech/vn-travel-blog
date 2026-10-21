@@ -193,4 +193,19 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    phienBan: 7,
+    sql: `
+      CREATE TABLE chuyen_muc (
+        slug TEXT PRIMARY KEY,
+        ten TEXT NOT NULL,
+        mo_ta TEXT NOT NULL DEFAULT '',
+        anh_bia TEXT,
+        thu_tu INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT INTO chuyen_muc (slug, ten, thu_tu) VALUES
+        ('sinh-thai', 'Khu sinh thái', 0), ('an-uong', 'Ăn uống', 1), ('vui-choi', 'Vui chơi', 2),
+        ('luu-tru', 'Lưu trú', 3), ('di-chuyen', 'Di chuyển', 4);
+    `,
+  },
 ];

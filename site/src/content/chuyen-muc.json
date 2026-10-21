@@ -1,0 +1,7 @@
+[
+  { "slug": "sinh-thai", "ten": "Khu sinh thái", "moTa": "", "thuTu": 0 },
+  { "slug": "an-uong", "ten": "Ăn uống", "moTa": "", "thuTu": 1 },
+  { "slug": "vui-choi", "ten": "Vui chơi", "moTa": "", "thuTu": 2 },
+  { "slug": "luu-tru", "ten": "Lưu trú", "moTa": "", "thuTu": 3 },
+  { "slug": "di-chuyen", "ten": "Di chuyển", "moTa": "", "thuTu": 4 }
+]

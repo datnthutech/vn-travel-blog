@@ -16,5 +16,6 @@ export function layDanhSachTinh(db: Db): Tinh[] {
 export function kiemTraDayDu(db: Db, anhDir: string, bai: BaiViet | unknown, noiDung: string, slugDangSua?: string): KetQuaKiemTra {
   const baiKhac = (db.prepare("SELECT slug FROM ban_dich WHERE ngon_ngu = 'vi'").all() as { slug: string }[]).filter((r) => r.slug !== slugDangSua);
   const maAnhHopLe = (ma: string) => MA_ANH.test(ma) && existsSync(join(anhDir, ma, 'meta.json'));
-  return kiemTraBai({ ...(bai as object), draft: false }, layDanhSachTinh(db), baiKhac, noiDung, maAnhHopLe);
+  const chuyenMuc = db.prepare('SELECT slug FROM chuyen_muc').all() as { slug: string }[];
+  return kiemTraBai({ ...(bai as object), draft: false }, layDanhSachTinh(db), baiKhac, noiDung, maAnhHopLe, chuyenMuc);
 }

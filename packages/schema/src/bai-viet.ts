@@ -48,7 +48,8 @@ export const baiVietSchema = z
     moTa: z.string().min(120, 'moTa tối thiểu 120 ký tự').max(160, 'moTa tối đa 160 ký tự'),
     loai: z.enum(['nhat-ky', 'review', 'top-list', 'cam-nang']),
     tinh: slug.optional(),
-    chuyenMuc: z.array(z.enum(['sinh-thai', 'an-uong', 'vui-choi', 'luu-tru', 'di-chuyen'])).default([]),
+    // Chuyên mục do chủ blog quản lý (bảng chuyen_muc / chuyen-muc.json): ở đây chỉ kiểm dạng slug; tồn tại hay không do kiemTraThamChieu.
+    chuyenMuc: z.array(slug).default([]),
     tags: z.array(z.string()).default([]),
     anhBia: anhSchema,
     ngayDi: z.coerce.date().optional(),

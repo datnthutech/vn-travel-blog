@@ -17,6 +17,7 @@ export function kiemTraBai(
   baiKhac: { slug: string }[],
   noiDung = '',
   maAnhHopLe?: (ma: string) => boolean,
+  chuyenMuc?: { slug: string }[],
 ): KetQuaKiemTra {
   const kq = baiVietSchema.safeParse(duLieu);
   if (!kq.success) {
@@ -31,7 +32,7 @@ export function kiemTraBai(
   const goiY: string[] = [];
 
   // Tham chiếu: chỉ giữ các lỗi nói về chính bài này.
-  for (const l of kiemTraThamChieu([{ slug: bai.slug, tinh: bai.tinh }, ...baiKhac], tinh)) {
+  for (const l of kiemTraThamChieu([{ slug: bai.slug, tinh: bai.tinh, chuyenMuc: bai.chuyenMuc }, ...baiKhac], tinh, chuyenMuc)) {
     if (l.includes(`"${bai.slug}"`)) loi.push(l.replace(/^Slug "([^"]+)" bị trùng$/, 'Slug "$1" bị trùng với một bài khác'));
   }
 

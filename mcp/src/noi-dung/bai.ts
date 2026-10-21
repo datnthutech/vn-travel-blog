@@ -124,6 +124,23 @@ export function luuBai(db: Db, input: LuuBaiInput, now: () => number = Date.now)
 }
 
 /**
+ * Biến đổi `du_lieu` của MỌI bài (mọi trạng thái, kể cả thùng rác): `fn` sửa trực tiếp object và trả true nếu có đổi.
+ * Dùng khi đổi slug/xoá chuyên mục, tỉnh, tag. Trả số bài đã đổi. Không tự gọi danhDauNoiDungDoi (người gọi làm).
+ */
+export function bienDoiDuLieuBai(db: Db, fn: (du: Record<string, unknown>, baiId: number) => boolean): number {
+  const upd = db.prepare('UPDATE ban_dich SET du_lieu = ?, sua_luc = ?, phien_so = phien_so + 1 WHERE bai_id = ? AND ngon_ngu = ?');
+  let n = 0;
+  for (const r of db.prepare('SELECT bai_id, ngon_ngu, du_lieu FROM ban_dich').all() as { bai_id: number; ngon_ngu: string; du_lieu: string }[]) {
+    const du = JSON.parse(r.du_lieu) as Record<string, unknown>;
+    if (!fn(du, r.bai_id)) continue;
+    upd.run(JSON.stringify(du), Date.now(), r.bai_id, r.ngon_ngu);
+    if (r.ngon_ngu === 'vi') db.prepare('UPDATE bai SET tinh = ? WHERE id = ?').run(typeof du.tinh === 'string' ? du.tinh : null, r.bai_id);
+    n++;
+  }
+  return n;
+}
+
+/**
  * Ghi redirect URL cũ → mới. Các redirect đang trỏ vào URL cũ được trỏ thẳng sang URL mới (không có chuỗi 301);
  * redirect nào có nguồn trùng URL thật mới thì bỏ (kẻo đè lên bài đang có).
  */
