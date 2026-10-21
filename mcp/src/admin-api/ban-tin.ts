@@ -81,6 +81,7 @@ export function banTinRouter(d: { config: Config; db: Db; mail: DichVuMail; now:
     if (!bt) return void res.status(404).json({ loi: 'Không tìm thấy bản tin' });
     if (bt.trangThai === 'da-gui') return void res.status(409).json({ loi: 'Bản tin này đã gửi xong' });
     const kq = xepHangGui(d.db, d.mail, { banTinId: bt.id, publicBaseUrl: d.config.publicBaseUrl, nguoiGuiId: req.nguoiDung!.id, now: d.now });
+    if (kq.soNguoiNhan === 0) return void res.status(400).json({ loi: 'Chưa có người đăng ký đã xác nhận nào cùng ngôn ngữ với bản tin này' });
     nhatKy(req, 'ban-tin-gui', { banTinId: bt.id, soNguoiNhan: kq.soNguoiNhan, moiXep: kq.moiXep });
     res.json({ soNguoiNhan: kq.soNguoiNhan, moiXep: kq.moiXep });
   });

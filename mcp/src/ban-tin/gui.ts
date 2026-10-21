@@ -33,7 +33,6 @@ export function xepHangGui(db: Db, mail: DichVuMail, o: { banTinId: number; publ
   const bt = docBanTin(db, o.banTinId);
   if (!bt) throw new Error('Không tìm thấy bản tin');
   return db.transaction(() => {
-    if (bt.trangThai === 'nhap') db.prepare("UPDATE ban_tin SET trang_thai = 'dang-gui', gui_luc = ?, nguoi_gui_id = ? WHERE id = ?").run(o.now(), o.nguoiGuiId, bt.id);
     const chua = db
       .prepare(
         `SELECT n.id, n.email, n.token_huy FROM nguoi_dang_ky n
@@ -42,6 +41,9 @@ export function xepHangGui(db: Db, mail: DichVuMail, o: { banTinId: number; publ
          ORDER BY n.id`,
       )
       .all(bt.ngonNgu, bt.id) as { id: number; email: string; token_huy: string }[];
+    // Không có ai để gửi thì KHÔNG đổi trạng thái (nếu không bản nháp bị khoá vĩnh viễn ở 'da-gui' với 0 người nhận).
+    if (bt.trangThai === 'nhap' && chua.length === 0) return { soNguoiNhan: 0, moiXep: 0 };
+    if (bt.trangThai === 'nhap') db.prepare("UPDATE ban_tin SET trang_thai = 'dang-gui', gui_luc = ?, nguoi_gui_id = ? WHERE id = ?").run(o.now(), o.nguoiGuiId, bt.id);
     const ghi = db.prepare('INSERT INTO ban_tin_gui (ban_tin_id, nguoi_dang_ky_id, mail_id) VALUES (?,?,NULL) ON CONFLICT(ban_tin_id, nguoi_dang_ky_id) DO NOTHING');
     const gan = db.prepare('UPDATE ban_tin_gui SET mail_id = ? WHERE ban_tin_id = ? AND nguoi_dang_ky_id = ?');
     for (const n of chua) {

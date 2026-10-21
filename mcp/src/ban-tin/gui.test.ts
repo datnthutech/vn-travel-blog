@@ -87,6 +87,18 @@ describe('không xếp trùng', () => {
   });
 });
 
+describe('không có người nhận', () => {
+  it('gửi khi chưa ai (cùng ngôn ngữ) xác nhận → không xếp gì và bản nháp VẪN là nháp, sửa/gửi lại được', () => {
+    nguoi('en@x.vn', 'en');
+    const id = banTin('vi');
+    expect(xep(id)).toEqual({ soNguoiNhan: 0, moiXep: 0 });
+    expect(tienDo(db, id).dangCho).toBe(0);
+    expect((db.prepare('SELECT trang_thai FROM ban_tin WHERE id = ?').get(id) as { trang_thai: string }).trang_thai).toBe('nhap');
+    nguoi('vi@x.vn');
+    expect(xep(id)).toEqual({ soNguoiNhan: 1, moiXep: 1 });
+  });
+});
+
 describe('người huỷ trong lúc đang gửi', () => {
   it('mail chưa đi của người đã huỷ (hoặc bị xoá) bị bỏ ở bước truocKhiGui; mail người khác vẫn đi', async () => {
     them('gmail', 500, true);

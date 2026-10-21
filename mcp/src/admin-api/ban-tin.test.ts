@@ -33,6 +33,7 @@ describe('soạn', () => {
     expect((await m.chinh.gui('post', '/ban-tin', { tieuDe: 'x', noiDung: 'y', ngonNgu: '../x' })).status).toBe(400);
     expect((await m.chinh.gui('put', `/ban-tin/${bt.id}`, { tieuDe: 'Đổi', noiDung: 'Mới' })).body).toMatchObject({ tieuDe: 'Đổi', noiDung: 'Mới' });
     expect((await m.chinh.gui('get', '/ban-tin')).body.banTin).toHaveLength(1);
+    nguoi('doc@x.vn'); // phải có người nhận thì "Gửi" mới khoá bản tin
     await m.chinh.gui('post', `/ban-tin/${bt.id}/gui`);
     expect((await m.chinh.gui('put', `/ban-tin/${bt.id}`, { tieuDe: 'Muộn', noiDung: 'x' })).status).toBe(409);
     expect((await m.chinh.gui('put', '/ban-tin/9999', { tieuDe: 'x', noiDung: 'y' })).status).toBe(404);
@@ -82,6 +83,16 @@ describe('tổng quan', () => {
     nguoi('a@x.vn');
     dangKy(m.db, 'cho@x.vn', 'vi', m.dongHo.v);
     expect((await m.chinh.gui('get', '/tong-quan')).body.nguoiDangKyBanTin).toBe(1);
+  });
+});
+
+describe('gửi khi chưa có người nhận', () => {
+  it('→ 400 và bản tin vẫn là nháp (còn sửa được)', async () => {
+    const bt = await tao();
+    const r = await m.chinh.gui('post', `/ban-tin/${bt.id}/gui`);
+    expect(r.status).toBe(400);
+    expect((await m.chinh.gui('get', `/ban-tin/${bt.id}/tien-do`)).body.trangThai).toBe('nhap');
+    expect((await m.chinh.gui('put', `/ban-tin/${bt.id}`, { tieuDe: 'Vẫn sửa được', noiDung: 'x' })).status).toBe(200);
   });
 });
 

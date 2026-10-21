@@ -173,4 +173,17 @@ describe('bộ lọc trước khi gửi', () => {
     expect(dv.thongKeHomNay()[0]!.daGui).toBe(1);
     expect((await dv.xuLyHangDoi()).conCho).toBe(0);
   });
+
+  it('bộ lọc ném lỗi → mail đó ở lại hàng đợi, các mail khác vẫn được xử lý (không chặn cả lượt)', async () => {
+    them('gmail', 10, 0, true);
+    dv.gui(mailThuong('loi@x.vn'));
+    dv.gui(mailThuong('ok@x.vn'));
+    dv.themBoLoc((_id, den) => {
+      if (den === 'loi@x.vn') throw new Error('db khoá');
+      return true;
+    });
+    const r = await dv.xuLyHangDoi();
+    expect(r).toEqual({ daGui: 1, conCho: 1 });
+    expect(goi.map((g) => g.den)).toEqual(['ok@x.vn']);
+  });
 });

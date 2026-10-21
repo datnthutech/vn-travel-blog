@@ -126,7 +126,15 @@ export function taoDichVuMail(
         .all(TOI_DA_MOI_LUOT) as { id: number; loai: LoaiMail; den: string; tieu_de: string; html: string; text: string; headers: string | null }[];
       let daGui = 0;
       for (const r of cho) {
-        if (boLoc.some((f) => !f(r.id, r.den))) {
+        let giuLai = false;
+        let bo = false;
+        try {
+          bo = boLoc.some((f) => !f(r.id, r.den));
+        } catch {
+          giuLai = true; // bộ lọc lỗi: để mail chờ lượt sau (không gửi bừa, cũng không chặn các mail còn lại)
+        }
+        if (giuLai) continue;
+        if (bo) {
           db.prepare("UPDATE mail_hang_doi SET trang_thai = 'bo-qua', html = '', text = '' WHERE id = ?").run(r.id);
           nhatKy({ mailId: r.id, den: r.den, loai: r.loai, ketQua: 'bo-qua', loi: 'Bộ lọc loại mail này trước khi gửi (người nhận đã huỷ?)' });
           continue;
