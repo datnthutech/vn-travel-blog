@@ -18,6 +18,7 @@ import { chuyenHuongHandler } from './chuyen-huong';
 import type { Config } from './config';
 import { moDb, type Db } from './db/ket-noi';
 import { taoDichVuMail, type DichVuMail } from './mail/dich-vu';
+import type { DichVuAi } from './ai/dich-vu';
 import { taoMcpServer } from './mcp/server';
 import { webhookRouter } from './webhook/github';
 
@@ -26,6 +27,8 @@ export type AppDeps = TaiAnhDeps & OAuthDeps & {
   hangDoi?: HangDoiBuild;
   db?: Db;
   mail?: DichVuMail;
+  /** Dịch vụ AI (test truyền bản giả; mặc định dùng SDK Anthropic thật khi chủ blog đã nhập API key). */
+  dichVuAi?: DichVuAi;
   /** Thư mục bản build giao diện quản trị (mặc định admin/dist cạnh mcp/). */
   adminDist?: string;
   /** Giới hạn tải ảnh của /api/admin/anh (mặc định 25 MB/ảnh, 20 ảnh/lần); test truyền số nhỏ. */
@@ -62,7 +65,7 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   const db = deps.db ?? moDb(':memory:');
   const mail = deps.mail ?? taoDichVuMail(db, { khoaBiMat: config.khoaBiMat, now: deps.now });
   dangKyBoLocBanTin(db, mail);
-  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, hangDoi, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaAnhByte, toiDaFile: deps.toiDaAnhFile }));
+  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, dichVuAi: deps.dichVuAi, hangDoi, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaAnhByte, toiDaFile: deps.toiDaAnhFile }));
 
   app.use('/quan-tri', trangQuanTriRouter(deps.adminDist ?? process.env.ADMIN_DIST ?? fileURLToPath(new URL('../../admin/dist', import.meta.url))));
 

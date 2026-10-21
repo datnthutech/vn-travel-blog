@@ -52,3 +52,11 @@ export function caiDatSiteMacDinh(env: Record<string, string | undefined> = {}):
     binhLuan: { bat: false, tuCam: [] },
   });
 }
+
+/** Cài đặt AI dịch bài: chỉ `model` (API key nằm riêng trong bảng bi_mat, khoá `ai.apiKey`, không bao giờ ra API/log). Lưu ở khoá `ai` riêng, không nằm trong cai-dat.json của site. */
+export const MODEL_AI_MAC_DINH = 'claude-opus-5-5';
+export const caiDatAiSchema = z.object({
+  nhaCungCap: z.literal('anthropic').default('anthropic'),
+  model: z.string().trim().regex(/^claude-[a-z0-9.-]{2,60}$/, 'tên model không hợp lệ').default(MODEL_AI_MAC_DINH),
+});
+export type CaiDatAi = z.infer<typeof caiDatAiSchema>;

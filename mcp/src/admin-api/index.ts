@@ -19,6 +19,8 @@ import { binhLuanRouter } from './binh-luan';
 import { banTinRouter } from './ban-tin';
 import { ngonNguRouter } from './ngon-ngu';
 import { banDichRouter } from './ban-dich';
+import { aiRouter } from './ai';
+import { taoDichVuAi, type DichVuAi } from '../ai/dich-vu';
 import { nhatKyRouter } from './nhat-ky';
 import { loiMoiCongKhaiRouter, taiKhoanRouter } from './tai-khoan';
 import { haiLopRouter } from './hai-lop';
@@ -32,6 +34,8 @@ export interface DepsAdminApi {
   now?: () => number;
   cho?: (ms: number) => Promise<void>;
   mail: DichVuMail;
+  /** Dịch vụ AI dịch bài (mặc định dùng SDK Anthropic thật; test truyền bản giả). */
+  dichVuAi?: DichVuAi;
   hangDoi: HangDoiBuild;
   conDungLuong?: (anhDir: string) => Promise<boolean>;
   toiDaByte?: number;
@@ -55,6 +59,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(xacThucDaDangNhap(d));
   r.use(haiLopRouter(d));
   r.use(baiRouter({ config: d.config, db: d.db, now: d.now, hangDoi: deps.hangDoi }));
+  r.use(aiRouter({ config: d.config, db: d.db, dichVu: deps.dichVuAi ?? taoDichVuAi(d.db, { khoaBiMat: d.config.khoaBiMat }), now: d.now }));
   r.use(banDichRouter({ config: d.config, db: d.db, now: d.now, hangDoi: deps.hangDoi }));
   r.use(taiKhoanRouter({ config: d.config, db: d.db, mail: deps.mail, now: d.now }));
   r.use(binhLuanRouter({ config: d.config, db: d.db, mail: deps.mail, hangDoi: deps.hangDoi, now: d.now }));

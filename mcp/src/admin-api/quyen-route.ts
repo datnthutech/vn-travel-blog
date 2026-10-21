@@ -65,6 +65,12 @@ export const QUYEN_ROUTE: KhaiBaoRoute[] = [
   L('POST', '/bai/:id/ban-dich/:ngonNgu/kiem-tra', 'ban-dich.kiem-tra'),
   L('GET', '/bai/:id/ban-dich/:ngonNgu/phien-ban', 'bai.xem'),
   L('GET', '/bai/:id/ban-dich/:ngonNgu/phien-ban/:pid', 'bai.xem'),
+  // Dịch bằng AI + cài đặt AI
+  L('POST', '/bai/:id/ban-dich/:ngonNgu/dich-ai', 'bai.sua'),
+  L('POST', '/dich-ai/chuoi', 'cau-truc.sua'),
+  L('GET', '/cai-dat/ai', 'cai-dat.sua'),
+  L('PUT', '/cai-dat/ai', 'cai-dat.sua'),
+  L('POST', '/cai-dat/ai/thu', 'cai-dat.sua'),
   // Bình luận
   L('GET', '/binh-luan', 'chi-dang-nhap'), // người viết chỉ thấy bình luận ở bài của mình (lọc ở máy chủ)
   L('PUT', '/binh-luan/:id', 'binh-luan.an-xoa'),
