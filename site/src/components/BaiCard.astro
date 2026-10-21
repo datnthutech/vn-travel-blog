@@ -1,0 +1,24 @@
+---
+// Thẻ bài viết dùng ở trang chủ, hub tỉnh, chuyên mục, loại bài.
+import { urlBai, type BaiViet } from '@vntraveltips/schema';
+import Picture from './Picture.astro';
+interface Props {
+  bai: BaiViet;
+}
+const { bai } = Astro.props;
+---
+
+<article class="the-bai">
+  <a href={urlBai(bai)}>
+    <Picture ma={bai.anhBia.ma} alt={bai.anhBia.alt} sizes="(min-width: 800px) 360px, 100vw" />
+    <h3>{bai.tieuDe}</h3>
+  </a>
+  <p>{bai.moTa}</p>
+</article>
+
+<style>
+  .the-bai { margin: 0 0 24px; }
+  .the-bai a { text-decoration: none; color: inherit; }
+  .the-bai h3 { margin: 8px 0 4px; color: var(--bien); }
+  .the-bai p { margin: 0; font-size: 0.95rem; }
+</style>

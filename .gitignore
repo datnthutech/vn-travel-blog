@@ -1,0 +1,18 @@
+# Phụ thuộc và kết quả build
+node_modules
+dist
+.astro
+
+# Bí mật (deploy/.env chứa token, không bao giờ commit)
+.env
+
+# Rác hệ điều hành / log npm
+.DS_Store
+npm-debug.log*
+
+# Thư mục làm việc cục bộ của Claude Code / superpowers
+.superpowers/
+.claude/worktrees/
+
+# Tài liệu thiết kế/kế hoạch: giữ trên máy, KHÔNG đưa lên repo public (có chi tiết vận hành)
+docs/

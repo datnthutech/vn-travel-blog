@@ -1,0 +1,20 @@
+---
+// Trang theo loại bài: /loai/[nhat-ky|review|top-list|cam-nang]/ — chỉ tạo cho loại đã có bài.
+import Base from '../../layouts/Base.astro';
+import BaiCard from '../../components/BaiCard.astro';
+import { layBaiViet } from '../../lib/bai';
+import { TEN_LOAI } from '../../lib/breadcrumb';
+
+export async function getStaticPaths() {
+  const bai = await layBaiViet();
+  return (Object.keys(TEN_LOAI) as (keyof typeof TEN_LOAI)[])
+    .map((loai) => ({ params: { loai }, props: { loai, bai: bai.filter((b) => b.loai === loai) } }))
+    .filter((p) => p.props.bai.length > 0);
+}
+const { loai, bai } = Astro.props;
+---
+
+<Base title={`${TEN_LOAI[loai]} — VNTravelTips`}>
+  <h1>{TEN_LOAI[loai]}</h1>
+  {bai.map((b) => <BaiCard bai={b} />)}
+</Base>

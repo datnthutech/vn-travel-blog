@@ -1,0 +1,29 @@
+---
+// Hiển thị một ảnh theo mã ảnh. Sinh <picture> với AVIF + WebP ở 480/960/1600px;
+// width/height lấy từ meta.json để trình duyệt giữ chỗ trước (không nhảy bố cục).
+// Ảnh bìa truyền uuTien → tải sớm (fetchpriority="high"); ảnh còn lại lazy-load.
+import { layAnhMeta } from '../lib/anh';
+import { srcsetAnh } from '../lib/anh-url';
+interface Props {
+  ma: string;
+  alt: string;
+  uuTien?: boolean;
+  sizes?: string;
+}
+const { ma, alt, uuTien = false, sizes = '(min-width: 800px) 760px, 100vw' } = Astro.props;
+const { rong, cao } = await layAnhMeta(ma);
+---
+
+<picture>
+  <source type="image/avif" srcset={srcsetAnh(ma, 'avif')} sizes={sizes} />
+  <source type="image/webp" srcset={srcsetAnh(ma, 'webp')} sizes={sizes} />
+  <img
+    src={`/anh/${ma}/960.webp`}
+    alt={alt}
+    width={rong}
+    height={cao}
+    decoding="async"
+    loading={uuTien ? 'eager' : 'lazy'}
+    fetchpriority={uuTien ? 'high' : undefined}
+  />
+</picture>

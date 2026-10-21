@@ -1,0 +1,16 @@
+---
+// Câu hỏi thường gặp. Không có FAQ thì không hiện gì.
+interface Props {
+  faq: { hoi: string; dap: string }[];
+}
+const { faq } = Astro.props;
+---
+
+{
+  faq.length > 0 && (
+    <section>
+      <h2>Câu hỏi thường gặp</h2>
+      {faq.map((f) => <details><summary>{f.hoi}</summary><p>{f.dap}</p></details>)}
+    </section>
+  )
+}

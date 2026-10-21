@@ -1,0 +1,73 @@
+# Compose cho VNTravelTips (local lẫn VPS). Hai service:
+# - vntraveltips-mcp: MCP + OAuth + xử lý ảnh + build site; clone repo và build trong volume vntraveltips_data.
+# - vntraveltips-web: nginx phục vụ site / preview / ảnh từ cùng volume (chỉ đọc).
+# Chỉ publish 127.0.0.1:8090 (web) và 127.0.0.1:8091 (mcp) — nginx trên host proxy tới đây, không mở cổng ra internet.
+# Project "vntraveltips", mạng "vntraveltips", volume "vntraveltips_data": không đụng container/volume/mạng khác trên VPS.
+# Chạy qua ./deploy.sh (không chạy trực tiếp bằng docker compose up nếu chưa có deploy/.env).
+name: vntraveltips
+
+# Log của Docker mặc định không tự xoay vòng → trên VPS (ổ đĩa dùng chung với dịch vụ khác) sẽ đầy dần.
+# Mỗi container giữ tối đa 3 file × 10 MB.
+x-logging: &log-gioi-han
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  vntraveltips-mcp:
+    build:
+      # Context là thư mục gốc repo vì mcp dùng chung packages/schema.
+      context: ..
+      dockerfile: mcp/Dockerfile
+    container_name: vntraveltips-mcp
+    logging: *log-gioi-han
+    restart: unless-stopped
+    env_file: .env
+    # Đường dẫn cố định trong container (ghi đè .env): ảnh và site phải nằm trong volume mà web đọc được.
+    environment:
+      DATA_DIR: /data
+      ANH_DIR: /data/anh
+    ports:
+      - "127.0.0.1:8091:8091"
+    # Giới hạn bộ nhớ: RAM của VPS có hạn và dùng chung; build site ~300–500 MB, xử lý ảnh từng ảnh một.
+    mem_limit: 768m
+    volumes:
+      - vntraveltips_data:/data
+    networks:
+      - vntraveltips
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8091/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  vntraveltips-web:
+    build:
+      context: ./web
+    container_name: vntraveltips-web
+    logging: *log-gioi-han
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:80"
+    mem_limit: 64m
+    volumes:
+      # Chỉ đọc: web không được ghi vào site/preview/ảnh.
+      - vntraveltips_data:/data:ro
+    networks:
+      - vntraveltips
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz-web"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  vntraveltips_data:
+    name: vntraveltips_data
+
+networks:
+  vntraveltips:
+    name: vntraveltips

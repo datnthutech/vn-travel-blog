@@ -1,0 +1,20 @@
+---
+// Tìm kiếm tĩnh bằng Pagefind: chỉ mục được sinh sau `astro build` (xem script build), chạy hoàn toàn ở trình duyệt.
+// Lúc `npm run dev` chưa có chỉ mục, trang hiện thông báo thay vì lỗi.
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Tìm kiếm — VNTravelTips">
+  <link slot="head" href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+  <h1>Tìm kiếm</h1>
+  <div id="tim-kiem"></div>
+  <noscript>Cần bật JavaScript để dùng tìm kiếm.</noscript>
+  <script is:inline src="/pagefind/pagefind-ui.js"></script>
+  <script is:inline>
+    if (window.PagefindUI) {
+      new PagefindUI({ element: '#tim-kiem', showSubResults: false, translations: { placeholder: 'Tìm bài viết…' } });
+    } else {
+      document.getElementById('tim-kiem').textContent = 'Tìm kiếm chỉ hoạt động trên bản đã build.';
+    }
+  </script>
+</Base>

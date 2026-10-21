@@ -1,0 +1,21 @@
+---
+// Một ô quảng cáo. Khi ads.enabled = false (mặc định) thì KHÔNG render gì cả.
+// Khi bật: giữ sẵn chiều cao (minHeight) để không nhảy bố cục; script tải chậm nằm ở AdScript.astro.
+import { ads } from '../config/ads';
+interface Props {
+  viTri: 'sauTraNhanh' | 'giuaBai' | 'cuoiBai';
+}
+const { viTri } = Astro.props;
+---
+
+{
+  ads.enabled && (
+    <div class="ad-slot" style={`min-height:${ads.minHeight[viTri]}px`} aria-label="Quảng cáo">
+      <ins class="adsbygoogle" style="display:block" data-ad-client={ads.client} data-ad-slot={ads.slots[viTri]} data-ad-format="auto" data-full-width-responsive="true" />
+    </div>
+  )
+}
+
+<style>
+  .ad-slot { margin: 24px 0; background: #eef5f6; }
+</style>

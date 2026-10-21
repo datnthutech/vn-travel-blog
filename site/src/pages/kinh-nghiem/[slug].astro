@@ -1,0 +1,15 @@
+---
+// Bài không thuộc tỉnh nào (Top N, đồ mang cho bé...): /kinh-nghiem/[slug]/.
+import BaiVietLayout from '../../layouts/BaiViet.astro';
+import { layBaiVietDayDu } from '../../lib/bai';
+
+export async function getStaticPaths() {
+  const dayDu = await layBaiVietDayDu();
+  return dayDu
+    .filter((x) => !x.bai.tinh)
+    .map((x) => ({ params: { slug: x.bai.slug }, props: { bai: x.bai, entry: x.entry } }));
+}
+const { bai, entry } = Astro.props;
+---
+
+<BaiVietLayout bai={bai} entry={entry} />

@@ -1,0 +1,22 @@
+---
+// Mục lục tự động từ các tiêu đề ## và ### trong nội dung Markdown (Astro cung cấp headings khi render).
+interface Props {
+  headings: { depth: number; slug: string; text: string }[];
+}
+const muc = Astro.props.headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{
+  muc.length >= 2 && (
+    <nav class="toc" aria-label="Mục lục">
+      <strong>Mục lục</strong>
+      <ol>{muc.map((h) => <li class={`d${h.depth}`}><a href={`#${h.slug}`}>{h.text}</a></li>)}</ol>
+    </nav>
+  )
+}
+
+<style>
+  .toc { margin: 16px 0; padding: 12px 16px; border-left: 4px solid var(--ngoc); background: #fff; }
+  ol { margin: 6px 0 0; padding-left: 20px; }
+  .d3 { margin-left: 16px; }
+</style>

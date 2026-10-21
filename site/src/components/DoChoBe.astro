@@ -1,0 +1,24 @@
+---
+// "Đồ nên mang cho bé" — link (nếu có) là affiliate nên gắn rel="sponsored nofollow noopener".
+import { REL_AFFILIATE } from '../lib/affiliate';
+interface Props {
+  doMang: { ten: string; ghiChu?: string; link?: string }[];
+}
+const { doMang } = Astro.props;
+---
+
+{
+  doMang.length > 0 && (
+    <section>
+      <h2>Đồ nên mang cho bé</h2>
+      <ul>
+        {doMang.map((d) => (
+          <li>
+            {d.link ? <a href={d.link} rel={REL_AFFILIATE} target="_blank">{d.ten}</a> : d.ten}
+            {d.ghiChu && <> — {d.ghiChu}</>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

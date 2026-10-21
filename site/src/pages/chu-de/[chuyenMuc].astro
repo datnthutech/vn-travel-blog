@@ -1,0 +1,21 @@
+---
+// Trang chuyên mục: /chu-de/[chuyen-muc]/ — chỉ tạo cho chuyên mục đã có bài.
+import Base from '../../layouts/Base.astro';
+import BaiCard from '../../components/BaiCard.astro';
+import { layBaiViet } from '../../lib/bai';
+import { TEN_CHUYEN_MUC } from '../../lib/chuyen-muc';
+
+export async function getStaticPaths() {
+  const bai = await layBaiViet();
+  return Object.keys(TEN_CHUYEN_MUC)
+    .map((muc) => ({ params: { chuyenMuc: muc }, props: { muc, bai: bai.filter((b) => b.chuyenMuc.includes(muc as any)) } }))
+    .filter((p) => p.props.bai.length > 0);
+}
+const { muc, bai } = Astro.props;
+const ten = TEN_CHUYEN_MUC[muc];
+---
+
+<Base title={`${ten} — VNTravelTips`} moTa={`Các bài về ${ten.toLowerCase()} khi đi du lịch cùng bé nhỏ.`}>
+  <h1>{ten}</h1>
+  {bai.map((b) => <BaiCard bai={b} />)}
+</Base>

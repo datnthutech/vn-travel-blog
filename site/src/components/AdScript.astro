@@ -1,0 +1,24 @@
+---
+// Nạp script AdSense CHẬM: chỉ khi ads.enabled, sau sự kiện load và lúc trình duyệt rảnh, để không ảnh hưởng Core Web Vitals.
+import { ads } from '../config/ads';
+const src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(ads.client)}`;
+---
+
+{
+  ads.enabled && (
+    <script is:inline define:vars={{ src }}>
+      {`
+      window.addEventListener('load', function () {
+        var chay = window.requestIdleCallback || function (f) { return setTimeout(f, 1500); };
+        chay(function () {
+          var s = document.createElement('script');
+          s.async = true; s.src = src; s.crossOrigin = 'anonymous';
+          s.onload = function () {
+            document.querySelectorAll('ins.adsbygoogle').forEach(function () { (window.adsbygoogle = window.adsbygoogle || []).push({}); });
+          };
+          document.head.appendChild(s);
+        });
+      });`}
+    </script>
+  )
+}

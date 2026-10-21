@@ -1,0 +1,78 @@
+# Mẫu nginx TRÊN HOST (VPS) cho VNTravelTips. CHỈ proxy — không phục vụ file tĩnh (việc đó do container vntraveltips-web).
+# Chủ blog TỰ tạo file từ mẫu này (vd /etc/nginx/sites-available/vntraveltips), bật bằng symlink vào sites-enabled,
+# rồi chạy theo thứ tự: sudo nginx -t  →  sudo systemctl reload nginx  →  sudo certbot --nginx (thêm TLS cho hai host).
+# Không sửa các site khác đang có trên VPS.
+# Đích: 127.0.0.1:8090 (vntraveltips-web) và 127.0.0.1:8091 (vntraveltips-mcp) — chỉ lắng nghe trên loopback.
+
+server {
+    listen 80;
+    server_name vntraveltips.monai.click;
+
+    # MCP endpoint (Streamable HTTP) — tắt buffer để stream chạy mượt.
+    location /mcp {
+        proxy_pass http://127.0.0.1:8091;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Trang tải ảnh (nhiều ảnh cùng lúc → cho phép body lớn, không đệm request).
+    location /tai-anh/ {
+        proxy_pass http://127.0.0.1:8091;
+        client_max_body_size 200m;
+        proxy_request_buffering off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Claude tự khám phá endpoint OAuth qua /.well-known/oauth-authorization-server và oauth-protected-resource/mcp.
+    location /.well-known/oauth- {
+        proxy_pass http://127.0.0.1:8091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Đăng nhập OAuth (MCP + /admin).
+    location /oauth/ {
+        proxy_pass http://127.0.0.1:8091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Webhook GitHub (push vào main → build lại trong container mcp).
+    location /webhook/github {
+        proxy_pass http://127.0.0.1:8091;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Mọi đường dẫn còn lại (site, /anh/, /admin, redirect) tới container web.
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+
+server {
+    listen 80;
+    server_name nhap-vntraveltips.monai.click;
+
+    # Bản xem trước: toàn bộ về container web (container web tự thêm X-Robots-Tag noindex).
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}

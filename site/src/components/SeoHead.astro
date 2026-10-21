@@ -1,0 +1,32 @@
+---
+// Thẻ SEO trong <head>: canonical, mô tả, Open Graph, Twitter card, JSON-LD.
+// Trang nào có dữ liệu riêng (bài viết) truyền thêm moTa, anh, jsonLd; trang khác dùng mặc định của blog.
+import { SITE } from '../config/site';
+interface Props {
+  title: string;
+  moTa?: string;
+  duongDan?: string;
+  anh?: string;
+  loai?: 'website' | 'article';
+  jsonLd?: object[];
+}
+const { title, moTa = SITE.moTa, duongDan = Astro.url.pathname, anh, loai = 'website', jsonLd = [] } = Astro.props;
+const canonical = new URL(duongDan, Astro.site).toString();
+const anhOg = anh ? new URL(anh, Astro.site).toString() : undefined;
+---
+
+<meta name="description" content={moTa} />
+<link rel="canonical" href={canonical} />
+<link rel="alternate" type="application/rss+xml" title={SITE.ten} href="/rss.xml" />
+<meta property="og:site_name" content={SITE.ten} />
+<meta property="og:type" content={loai} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={moTa} />
+<meta property="og:url" content={canonical} />
+<meta property="og:locale" content="vi_VN" />
+{anhOg && <meta property="og:image" content={anhOg} />}
+<meta name="twitter:card" content={anhOg ? 'summary_large_image' : 'summary'} />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={moTa} />
+{anhOg && <meta name="twitter:image" content={anhOg} />}
+{jsonLd.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o)} />)}

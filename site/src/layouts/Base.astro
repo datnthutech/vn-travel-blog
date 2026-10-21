@@ -1,0 +1,37 @@
+---
+// Khung HTML chung cho mọi trang: <head> (SEO), CSS toàn cục, header/footer.
+import '../styles/global.css';
+import { coNoindex } from '../lib/noindex';
+import SeoHead from '../components/SeoHead.astro';
+import AdScript from '../components/AdScript.astro';
+import { goatcounterScript } from '../lib/analytics';
+interface Props {
+  title: string;
+  moTa?: string;
+  duongDan?: string;
+  anh?: string;
+  loai?: 'website' | 'article';
+  jsonLd?: object[];
+}
+const { title, ...seo } = Astro.props;
+const gc = goatcounterScript();
+---
+
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {coNoindex() && <meta name="robots" content="noindex, nofollow" />}
+    <SeoHead title={title} {...seo} />
+    {gc && <script is:inline async data-goatcounter={gc.endpoint} src={gc.src}></script>}
+    <slot name="head" />
+  </head>
+  <body>
+    <header class="site-header"><a href="/">VNTravelTips</a></header>
+    <main><slot /></main>
+    <footer class="site-footer">© VNTravelTips — nhật ký du lịch của một gia đình nhỏ</footer>
+    <AdScript />
+  </body>
+</html>

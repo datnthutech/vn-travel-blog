@@ -1,0 +1,18 @@
+---
+// Bài viết có tỉnh: /[tinh]/[slug]/. Giao diện nằm ở layouts/BaiViet.astro.
+import BaiVietLayout from '../../layouts/BaiViet.astro';
+import { layBaiVietDayDu, layTinh } from '../../lib/bai';
+
+export async function getStaticPaths() {
+  const [dayDu, tinh] = await Promise.all([layBaiVietDayDu(), layTinh()]);
+  return dayDu
+    .filter((x) => x.bai.tinh)
+    .map((x) => ({
+      params: { tinh: x.bai.tinh!, slug: x.bai.slug },
+      props: { bai: x.bai, entry: x.entry, tinh: tinh.find((t) => t.slug === x.bai.tinh)! },
+    }));
+}
+const { bai, entry, tinh } = Astro.props;
+---
+
+<BaiVietLayout bai={bai} entry={entry} tinh={tinh} />

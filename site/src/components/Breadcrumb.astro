@@ -1,0 +1,15 @@
+---
+// Đường dẫn Trang chủ › Tỉnh › Loại bài (xem lib/breadcrumb.ts).
+import type { MucBreadcrumb } from '../lib/breadcrumb';
+interface Props {
+  muc: MucBreadcrumb[];
+}
+---
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  {Astro.props.muc.map((m, i) => (<>{i > 0 && ' › '}<a href={m.url}>{m.ten}</a></>))}
+</nav>
+
+<style>
+  .breadcrumb { font-size: 0.9rem; margin: 8px 0; }
+</style>
