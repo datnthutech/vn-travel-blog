@@ -7,7 +7,11 @@
   import DangNhap from './routes/DangNhap.svelte';
   import DatLai from './routes/DatLai.svelte';
   import Mail from './routes/Mail.svelte';
+  import DanhSachBai from './routes/DanhSachBai.svelte';
+  import LichSuBai from './routes/LichSuBai.svelte';
   import SoanBai from './routes/SoanBai.svelte';
+  import ThuVienAnh from './routes/ThuVienAnh.svelte';
+  import ThungRac from './routes/ThungRac.svelte';
   import QuenMatKhau from './routes/QuenMatKhau.svelte';
   import ThietBi from './routes/ThietBi.svelte';
   import TongQuan from './routes/TongQuan.svelte';
@@ -16,6 +20,9 @@
   const CONG_KHAI = [`${GOC}/dang-nhap`, `${GOC}/quen-mat-khau`, `${GOC}/dat-lai`];
   const MUC = [
     { duong: GOC, ten: 'Tổng quan' },
+    { duong: `${GOC}/bai`, ten: 'Bài viết' },
+    { duong: `${GOC}/anh`, ten: 'Ảnh' },
+    { duong: `${GOC}/thung-rac`, ten: 'Thùng rác' },
     { duong: `${GOC}/thiet-bi`, ten: 'Tài khoản & thiết bị' },
     { duong: `${GOC}/mail`, ten: 'Cài đặt mail' },
   ];
@@ -74,6 +81,14 @@
   <main class="khung">
     {#if dieuHuong.duong === `${GOC}/bat-totp`}
       <BatTotp />
+    {:else if dieuHuong.duong === `${GOC}/bai`}
+      <DanhSachBai />
+    {:else if dieuHuong.duong === `${GOC}/anh`}
+      <ThuVienAnh />
+    {:else if dieuHuong.duong === `${GOC}/thung-rac`}
+      <ThungRac />
+    {:else if /^\/quan-tri\/bai\/\d+\/lich-su$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<LichSuBai id={Number(dieuHuong.duong.split('/')[3])} />{/key}
     {:else if dieuHuong.duong === `${GOC}/bai/moi`}
       {#key 'moi'}<SoanBai idBanDau={null} />{/key}
     {:else if /^\/quan-tri\/bai\/\d+$/.test(dieuHuong.duong)}

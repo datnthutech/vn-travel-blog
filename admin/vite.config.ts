@@ -2,10 +2,12 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: '/quan-tri/',
   plugins: [svelte()],
   build: { outDir: 'dist', emptyOutDir: true },
   // Chạy `npm run dev -w @vntraveltips/admin`: API đi tới dịch vụ mcp đang chạy ở cổng 8091.
   server: { proxy: { '/api': 'http://127.0.0.1:8091' } },
-});
+  // Test component Svelte chạy trong jsdom: cần bản "browser" của Svelte (có mount), không phải bản server.
+  resolve: { conditions: mode === 'test' ? ['browser'] : [] },
+}));
