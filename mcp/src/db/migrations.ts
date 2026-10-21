@@ -178,4 +178,19 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE ban_dich ADD COLUMN hen_gio_nguoi_id INTEGER; -- người đặt hẹn giờ (sẽ là người đăng khi tới hạn)
     `,
   },
+  {
+    phienBan: 6,
+    sql: `
+      CREATE TABLE anh (
+        ma TEXT PRIMARY KEY,
+        ten_goc TEXT NOT NULL DEFAULT '',
+        rong INTEGER NOT NULL,
+        cao INTEGER NOT NULL,
+        byte INTEGER NOT NULL DEFAULT 0,
+        tai_len_luc INTEGER NOT NULL,
+        nguoi_dung_id INTEGER,
+        alt_mac_dinh TEXT NOT NULL DEFAULT ''
+      );
+    `,
+  },
 ];

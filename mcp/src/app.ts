@@ -25,6 +25,9 @@ export type AppDeps = TaiAnhDeps & OAuthDeps & {
   mail?: DichVuMail;
   /** Thư mục bản build giao diện quản trị (mặc định admin/dist cạnh mcp/). */
   adminDist?: string;
+  /** Giới hạn tải ảnh của /api/admin/anh (mặc định 25 MB/ảnh, 20 ảnh/lần); test truyền số nhỏ. */
+  toiDaAnhByte?: number;
+  toiDaAnhFile?: number;
   /** Chờ ms mili giây (làm chậm tài khoản bị dò); test truyền bản giả. */
   cho?: (ms: number) => Promise<void>;
 };
@@ -55,7 +58,7 @@ export function createApp(config: Config, deps: AppDeps = {}) {
   // Trang quản trị: API cần đăng nhập. Body JSON giới hạn 1 MB; cookie phiên đọc bằng cookie-parser.
   const db = deps.db ?? moDb(':memory:');
   const mail = deps.mail ?? taoDichVuMail(db, { khoaBiMat: config.khoaBiMat, now: deps.now });
-  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, hangDoi }));
+  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail, hangDoi, conDungLuong: deps.conDungLuong, toiDaByte: deps.toiDaAnhByte, toiDaFile: deps.toiDaAnhFile }));
 
   app.use('/quan-tri', trangQuanTriRouter(deps.adminDist ?? process.env.ADMIN_DIST ?? fileURLToPath(new URL('../../admin/dist', import.meta.url))));
 

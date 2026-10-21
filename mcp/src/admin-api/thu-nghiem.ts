@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
-import { createApp } from '../app';
+import { createApp, type AppDeps } from '../app';
 import type { HangDoiBuild } from '../build/hang-doi';
 import { loadConfig } from '../config';
 import { moDb } from '../db/ket-noi';
@@ -19,7 +19,7 @@ export interface PhienThu {
   gui: (method: 'get' | 'post' | 'put' | 'patch' | 'delete', url: string, body?: object) => request.Test;
 }
 
-export async function dungAdmin(opt: { vaiTro?: VaiTro; email?: string } = {}) {
+export async function dungAdmin(opt: { vaiTro?: VaiTro; email?: string; deps?: Partial<AppDeps> } = {}) {
   const db = moDb(':memory:');
   const anhDir = mkdtempSync(join(tmpdir(), 'vtt-anh-'));
   const dongHo = { v: Date.UTC(2026, 9, 21, 3, 0, 0) };
@@ -35,7 +35,7 @@ export async function dungAdmin(opt: { vaiTro?: VaiTro; email?: string } = {}) {
     GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'w', KHOA_BI_MAT: 'a'.repeat(64),
     DATA_DIR: mkdtempSync(join(tmpdir(), 'vtt-data-')),
   });
-  const app = createApp(config, { db, now: () => dongHo.v, hangDoi, cho: async () => {} });
+  const app = createApp(config, { db, now: () => dongHo.v, hangDoi, cho: async () => {}, ...opt.deps });
   let dem = 0;
   async function dangNhap(email: string, ten: string, vaiTro: VaiTro = opt.vaiTro ?? 'quan-ly'): Promise<PhienThu> {
     const nguoi = await taoNguoiDung(db, { email, ten, vaiTro, matKhau: MK }, () => dongHo.v);

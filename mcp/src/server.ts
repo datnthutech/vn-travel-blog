@@ -6,6 +6,7 @@ import { taoHangDoiBuild } from './build/hang-doi';
 import { khiKhoiDong } from './build/khoi-dong';
 import { loadConfig } from './config';
 import { duongDanDb, moDb } from './db/ket-noi';
+import { dongBoAnh } from './admin-api/anh';
 import { xuLyHenGio } from './noi-dung/hen-gio';
 import { taoDichVuMail } from './mail/dich-vu';
 import { donSaoLuu, saoLuu } from './db/sao-luu';
@@ -31,6 +32,8 @@ setInterval(() => {
     .catch((e) => console.error('Xử lý hàng đợi mail lỗi:', (e as Error).message))
     .finally(() => (dangGuiMail = false));
 }, 30_000).unref();
+// Đưa ảnh đã có trên đĩa (tải trước đây qua /tai-anh) vào bảng thư viện ảnh.
+dongBoAnh(db, config.anhDir);
 const hangDoi = taoHangDoiBuild(taoChayBuild(config, db));
 // Mỗi 60 giây: đăng các bài hẹn giờ đã tới hạn (giờ Việt Nam) rồi xếp một lượt build nếu có.
 setInterval(() => {
