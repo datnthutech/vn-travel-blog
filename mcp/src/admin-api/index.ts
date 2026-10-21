@@ -3,7 +3,9 @@
 import { Router } from 'express';
 import type { Config } from '../config';
 import type { Db } from '../db/ket-noi';
+import type { DichVuMail } from '../mail/dich-vu';
 import { kiemCsrfGhi, yeuCauDangNhap } from '../tai-khoan/middleware';
+import { mailRouter } from './mail';
 import { laHttps, xacThucCongKhai, xacThucDaDangNhap, type DepsXacThuc } from './xac-thuc';
 
 export interface DepsAdminApi {
@@ -11,6 +13,7 @@ export interface DepsAdminApi {
   db: Db;
   now?: () => number;
   cho?: (ms: number) => Promise<void>;
+  mail: DichVuMail;
 }
 
 export function adminApiRouter(deps: DepsAdminApi): Router {
@@ -25,6 +28,7 @@ export function adminApiRouter(deps: DepsAdminApi): Router {
   r.use(yeuCauDangNhap({ db: d.db, now: d.now, khoaBiMat: d.config.khoaBiMat, secure: laHttps(d.config) }));
   r.use(kiemCsrfGhi(d.config.khoaBiMat));
   r.use(xacThucDaDangNhap(d));
+  r.use(mailRouter({ db: d.db, khoaBiMat: d.config.khoaBiMat, mail: deps.mail, now: d.now }));
   r.use((_req, res) => {
     res.status(404).json({ loi: 'Không tìm thấy' });
   });

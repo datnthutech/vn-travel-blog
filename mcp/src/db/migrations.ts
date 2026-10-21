@@ -101,4 +101,59 @@ export const MIGRATIONS: Migration[] = [
       CREATE TABLE bi_mat (khoa TEXT PRIMARY KEY, gia_tri_ma_hoa TEXT NOT NULL);
     `,
   },
+  {
+    phienBan: 2,
+    sql: `
+      CREATE TABLE nha_cung_cap_mail (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ten TEXT NOT NULL,
+        host TEXT NOT NULL,
+        cong INTEGER NOT NULL,
+        bao_mat TEXT NOT NULL CHECK (bao_mat IN ('ssl', 'starttls')),
+        tai_khoan TEXT NOT NULL,
+        mat_khau_khoa TEXT, -- tên khoá trong bảng bi_mat (mật khẩu SMTP mã hoá AES-256-GCM), không phải mật khẩu
+        dia_chi_gui TEXT NOT NULL,
+        gioi_han_ngay INTEGER NOT NULL,
+        du_phong_quan_trong INTEGER NOT NULL DEFAULT 30,
+        thu_tu INTEGER NOT NULL DEFAULT 0,
+        la_chinh INTEGER NOT NULL DEFAULT 0,
+        bat INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE mail_hang_doi (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        loai TEXT NOT NULL,
+        den TEXT NOT NULL,
+        tieu_de TEXT NOT NULL,
+        html TEXT NOT NULL,
+        text TEXT NOT NULL,
+        headers TEXT,
+        tao_luc INTEGER NOT NULL,
+        thu_lai INTEGER NOT NULL DEFAULT 0,
+        trang_thai TEXT NOT NULL DEFAULT 'cho',
+        loi_cuoi TEXT
+      );
+      CREATE INDEX mail_hang_doi_trang_thai ON mail_hang_doi(trang_thai, loai, id);
+      CREATE TABLE mail_dem (
+        nha_cung_cap_id INTEGER NOT NULL,
+        ngay TEXT NOT NULL,
+        so_da_gui INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (nha_cung_cap_id, ngay)
+      );
+      CREATE TABLE mail_nhat_ky (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        luc INTEGER NOT NULL,
+        mail_id INTEGER,
+        nha_cung_cap_id INTEGER,
+        den TEXT,
+        loai TEXT,
+        ket_qua TEXT NOT NULL,
+        loi TEXT
+      );
+      CREATE TABLE mail_tam_bo_qua (
+        nha_cung_cap_id INTEGER PRIMARY KEY,
+        den_luc INTEGER NOT NULL DEFAULT 0,
+        so_loi_lien_tiep INTEGER NOT NULL DEFAULT 0
+      );
+    `,
+  },
 ];

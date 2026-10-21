@@ -12,6 +12,7 @@ import type { HangDoiBuild } from './build/hang-doi';
 import { chuyenHuongHandler } from './chuyen-huong';
 import type { Config } from './config';
 import { moDb, type Db } from './db/ket-noi';
+import { taoDichVuMail, type DichVuMail } from './mail/dich-vu';
 import { taoMcpServer } from './mcp/server';
 import { webhookRouter } from './webhook/github';
 
@@ -19,6 +20,7 @@ export type AppDeps = TaiAnhDeps & OAuthDeps & {
   github?: GithubClient;
   hangDoi?: HangDoiBuild;
   db?: Db;
+  mail?: DichVuMail;
   /** Chờ ms mili giây (làm chậm tài khoản bị dò); test truyền bản giả. */
   cho?: (ms: number) => Promise<void>;
 };
@@ -48,7 +50,8 @@ export function createApp(config: Config, deps: AppDeps = {}) {
 
   // Trang quản trị: API cần đăng nhập. Body JSON giới hạn 1 MB; cookie phiên đọc bằng cookie-parser.
   const db = deps.db ?? moDb(':memory:');
-  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho }));
+  const mail = deps.mail ?? taoDichVuMail(db, { khoaBiMat: config.khoaBiMat, now: deps.now });
+  app.use('/api/admin', express.json({ limit: '1mb' }), cookieParser(), adminApiRouter({ config, db, now: deps.now, cho: deps.cho, mail }));
 
   const oauth = createOAuth(config, deps);
   app.use(oauth.router);
