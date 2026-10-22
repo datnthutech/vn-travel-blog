@@ -4,6 +4,7 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import { unified } from '@astrojs/markdown-remark';
 import { remarkAnh } from './src/lib/remark-anh.ts';
+import { remarkAnToan } from './src/lib/remark-an-toan.ts';
 
 const production = process.env.BUILD_TARGET === 'production';
 
@@ -14,5 +15,6 @@ export default defineConfig({
   integrations: production ? [sitemap()] : [],
   // Ảnh trong thân bài viết dạng ![mô tả](anh:MÃ) → <picture> tối ưu.
   // (Astro 7: plugin remark chạy trên bộ xử lý `unified` của @astrojs/markdown-remark.)
-  markdown: { processor: unified({ remarkPlugins: [remarkAnh()] }) },
+  // remarkAnToan PHẢI đứng trước remarkAnh: làm sạch HTML/link người viết nhập, rồi mới chèn <picture> tin cậy.
+  markdown: { processor: unified({ remarkPlugins: [remarkAnToan(), remarkAnh()] }) },
 });

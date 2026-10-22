@@ -94,3 +94,15 @@ export function jsonLd(b: BaiViet, ctx: Ctx): object[] {
 
   return out;
 }
+
+// Viết JSON-LD vào <script type="application/ld+json"> an toàn: JSON.stringify không thoát "<", nên tiêu đề chứa
+// "</script>" sẽ đóng thẻ sớm và chèn được mã. Đổi < > & và U+2028/2029 thành \uXXXX — vẫn là JSON hợp lệ, cùng dữ liệu.
+export function jsonLdChoScript(o: unknown): string {
+  return JSON.stringify(o)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+

@@ -2,6 +2,7 @@
 // Thẻ SEO trong <head>: canonical, mô tả, Open Graph, Twitter card, JSON-LD.
 // Trang nào có dữ liệu riêng (bài viết) truyền thêm moTa, anh, jsonLd; trang khác dùng mặc định của blog.
 import { SITE } from '../config/site';
+import { jsonLdChoScript } from '../lib/jsonld';
 interface Props {
   ngonNgu?: string;
   /** mã ngôn ngữ → đường dẫn của CHÍNH trang này ở từng ngôn ngữ đã đăng (gồm cả trang hiện tại). ≥ 2 mục mới sinh hreflang. */
@@ -39,4 +40,4 @@ const anhOg = anhChon ? new URL(anhChon, Astro.site).toString() : undefined;
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={moTa} />
 {anhOg && <meta name="twitter:image" content={anhOg} />}
-{jsonLd.map((o) => <script type="application/ld+json" set:html={JSON.stringify(o)} />)}
+{jsonLd.map((o) => <script type="application/ld+json" set:html={jsonLdChoScript(o)} />)}
