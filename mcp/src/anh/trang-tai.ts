@@ -6,9 +6,12 @@ import { join } from 'node:path';
 import express, { type RequestHandler } from 'express';
 import multer from 'multer';
 import type { Config } from '../config';
+import type { Db } from '../db/ket-noi';
 import { conDungLuong as conDungLuongThat } from './dung-luong';
 import { ghiNhanAnh } from './gan-day';
-import { dongToken, trangThaiToken } from './token';
+import { dungLuongThuMuc } from '../admin-api/anh';
+import { timTheoId } from '../tai-khoan/nguoi-dung';
+import { dongToken, nguoiDungCuaToken, trangThaiToken } from './token';
 import { AnhKhongHopLe, xuLyAnh } from './xu-ly';
 
 export interface TaiAnhDeps {
@@ -60,7 +63,7 @@ gui.onclick = async () => {
 const MAX_BYTES = 30 * 1024 * 1024;
 const MAX_FILES = 40;
 
-export function taiAnhRouter(config: Config, deps: TaiAnhDeps = {}) {
+export function taiAnhRouter(config: Config, db: Db, deps: TaiAnhDeps = {}) {
   const maxBytes = deps.toiDaByte ?? MAX_BYTES;
   const maxFiles = deps.toiDaFile ?? MAX_FILES;
   const now = deps.now ?? Date.now;
@@ -114,13 +117,22 @@ export function taiAnhRouter(config: Config, deps: TaiAnhDeps = {}) {
     upload.array('anh', maxFiles),
     async (req, res, next) => {
       try {
+        const nguoiId = nguoiDungCuaToken(String(req.params.token));
+        // Link do một tài khoản xin: tài khoản đã bị khoá/xoá sau đó thì link cũng hết tác dụng.
+        if (nguoiId !== null) {
+          const u = timTheoId(db, nguoiId);
+          if (!u || u.biKhoa) return void res.status(403).json({ loi: 'Tài khoản đã xin link này không còn dùng được. Hãy nhờ Claude tạo link mới.' });
+        }
         const files = (req.files as Express.Multer.File[] | undefined) ?? [];
         if (!files.length) return void res.status(400).json({ loi: 'Chưa chọn ảnh nào.' });
         const ketQua: { ten: string; ok: boolean; ma?: string; loi?: string }[] = [];
         // Tuần tự từng ảnh để không vượt giới hạn RAM của container.
         for (const f of files) {
           try {
-            const { ma } = await xuLyAnh(await readFile(f.path), config.anhDir, {});
+            const kq = await xuLyAnh(await readFile(f.path), config.anhDir, {});
+            const { ma } = kq;
+            // Vào cả thư viện ảnh của trang quản trị (cùng bảng `anh`, người tải = người đã xin link qua Claude).
+            db.prepare('INSERT INTO anh (ma, ten_goc, rong, cao, byte, tai_len_luc, nguoi_dung_id) VALUES (?,?,?,?,?,?,?) ON CONFLICT(ma) DO UPDATE SET byte = excluded.byte').run(ma, f.originalname, kq.rong, kq.cao, dungLuongThuMuc(join(config.anhDir, ma)), now(), nguoiId);
             await ghiNhanAnh(config.anhDir, { ma, ten: f.originalname, luc: now() });
             ketQua.push({ ten: f.originalname, ok: true, ma });
           } catch (e) {

@@ -5,10 +5,50 @@ import { taoChayBuild } from './build/chay-build';
 import { taoHangDoiBuild } from './build/hang-doi';
 import { khiKhoiDong } from './build/khoi-dong';
 import { loadConfig } from './config';
+import { duongDanDb, moDb } from './db/ket-noi';
+import { dongBoAnh } from './admin-api/anh';
+import { khoiTaoCaiDatSite } from './noi-dung/cai-dat-site';
+import { guiCanhBaoSaoLuu } from './noi-dung/sao-luu-ngoai';
+import { xuLyHenGio } from './noi-dung/hen-gio';
+import { taoDichVuMail } from './mail/dich-vu';
+import { donSaoLuu, saoLuu } from './db/sao-luu';
 
 const config = loadConfig();
-const hangDoi = taoHangDoiBuild(taoChayBuild(config));
-createApp(config, { hangDoi }).listen(config.port, '0.0.0.0', () => {
+const db = moDb(duongDanDb(config.dataDir));
+
+// Sao lưu DB mỗi giờ vào <dataDir>/db/sao-luu, rồi dọn bản cũ (giữ 48 bản theo giờ + bản đầu mỗi ngày trong 14 ngày).
+const thuMucSaoLuu = `${config.dataDir}/db/sao-luu`;
+const saoLuuDinhKy = () =>
+  saoLuu(db, thuMucSaoLuu, Date.now())
+    .then(() => donSaoLuu(thuMucSaoLuu, Date.now()))
+    .then(() => void guiCanhBaoSaoLuu(db, mail, config.dataDir, Date.now()))
+    .catch((e) => console.error('Sao lưu DB lỗi:', (e as Error).message));
+setInterval(() => void saoLuuDinhKy(), 3_600_000).unref();
+// Gửi mail trong hàng đợi mỗi 30 giây (tối đa 20 mail mỗi lượt).
+const mail = taoDichVuMail(db, { khoaBiMat: config.khoaBiMat });
+let dangGuiMail = false;
+setInterval(() => {
+  if (dangGuiMail) return;
+  dangGuiMail = true;
+  mail
+    .xuLyHangDoi()
+    .catch((e) => console.error('Xử lý hàng đợi mail lỗi:', (e as Error).message))
+    .finally(() => (dangGuiMail = false));
+}, 30_000).unref();
+// Lần đầu: NOINDEX_ALL / GOATCOUNTER_CODE trong .env chỉ làm giá trị khởi tạo của Cài đặt site; sau đó đổi trong trang quản trị.
+khoiTaoCaiDatSite(db, { NOINDEX_ALL: config.buildEnv.NOINDEX_ALL, GOATCOUNTER_CODE: config.buildEnv.GOATCOUNTER_CODE });
+// Đưa ảnh đã có trên đĩa (tải trước đây qua /tai-anh) vào bảng thư viện ảnh.
+dongBoAnh(db, config.anhDir);
+const hangDoi = taoHangDoiBuild(taoChayBuild(config, db));
+// Mỗi 60 giây: đăng các bài hẹn giờ đã tới hạn (giờ Việt Nam) rồi xếp một lượt build nếu có.
+setInterval(() => {
+  try {
+    xuLyHenGio(db, hangDoi, Date.now());
+  } catch (e) {
+    console.error('Hẹn giờ đăng lỗi:', (e as Error).message);
+  }
+}, 60_000).unref();
+createApp(config, { hangDoi, db, mail }).listen(config.port, '0.0.0.0', () => {
   console.log(`vntraveltips-mcp đang chạy ở cổng ${config.port}`);
 });
 void khiKhoiDong(config, hangDoi);

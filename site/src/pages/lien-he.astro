@@ -1,0 +1,8 @@
+---
+// Liên hệ — trang tĩnh cố định `lien-he`, nội dung sửa trong trang quản trị.
+import TrangTinh from '../components/TrangTinh.astro';
+import { layTrangTheoSlug } from '../lib/trang';
+const trang = (await layTrangTheoSlug('lien-he'))!;
+---
+
+<TrangTinh trang={trang} />

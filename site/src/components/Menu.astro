@@ -1,0 +1,37 @@
+---
+// Menu đầu trang / chân trang. Mục có đích chưa tồn tại (vd bài còn là nháp ở bản production) tự ẩn.
+import { layBaiViet, layTinh } from '../lib/bai';
+import { layChuyenMuc } from '../lib/chuyen-muc';
+import { layTrang } from '../lib/trang';
+import { giaiMenuViTri } from '../lib/menu';
+import { giaiMenuNgonNgu } from '../lib/menu-ngon-ngu';
+import { t } from '../i18n/giao-dien';
+interface Props { vitri: 'dauTrang' | 'chanTrang'; ngonNgu?: string }
+const { vitri, ngonNgu = 'vi' } = Astro.props;
+const [bai, tinh, trang] = await Promise.all([layBaiViet(ngonNgu), layTinh(), layTrang()]);
+const coBai = new Set(bai.flatMap((b) => b.chuyenMuc));
+const muc =
+  ngonNgu === 'vi'
+    ? giaiMenuViTri(vitri, {
+        chuyenMuc: layChuyenMuc().filter((c) => coBai.has(c.slug)).map((c) => c.slug),
+        tinh: tinh.map((t) => t.slug),
+        trang: trang.map((t) => t.slug),
+        bai,
+      })
+    : await giaiMenuNgonNgu(vitri, ngonNgu);
+---
+
+{muc.length > 0 && (
+  <nav class={`menu menu-${vitri}`} aria-label={vitri === 'dauTrang' ? t(ngonNgu, 'menu-chinh') : t(ngonNgu, 'menu-chan-trang')}>
+    <ul>
+      {muc.map((m) => (
+        <li>
+          <a href={m.href}>{m.nhan}</a>
+          {m.con.length > 0 && (
+            <ul>{m.con.map((c) => <li><a href={c.href}>{c.nhan}</a></li>)}</ul>
+          )}
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

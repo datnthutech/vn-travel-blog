@@ -23,6 +23,15 @@ describe('write-build-json', () => {
     expect(json.target).toBe('production');
   });
 
+  it('ghi noiDungPhien từ NOI_DUNG_PHIEN; không đặt thì null', () => {
+    const thuMuc = mkdtempSync(join(tmpdir(), 'vtt-wbj-'));
+    mkdirSync(join(thuMuc, 'dist'));
+    execFileSync('node', [script('write-build-json.mjs')], { cwd: thuMuc, env: { PATH: process.env.PATH, NOI_DUNG_PHIEN: '42' } });
+    expect(JSON.parse(readFileSync(join(thuMuc, 'dist/build.json'), 'utf8')).noiDungPhien).toBe(42);
+    execFileSync('node', [script('write-build-json.mjs')], { cwd: thuMuc, env: { PATH: process.env.PATH } });
+    expect(JSON.parse(readFileSync(join(thuMuc, 'dist/build.json'), 'utf8')).noiDungPhien).toBeNull();
+  });
+
   it('không đặt BUILD_SHA → sha là "local"', () => {
     const thuMuc = mkdtempSync(join(tmpdir(), 'vtt-wbj-'));
     mkdirSync(join(thuMuc, 'dist'));
@@ -32,28 +41,5 @@ describe('write-build-json', () => {
     });
     const json = JSON.parse(readFileSync(join(thuMuc, 'dist/build.json'), 'utf8'));
     expect(json.sha).toBe('local');
-  });
-});
-
-describe('build-cms', () => {
-  it('điền repo từ GITHUB_REPO, không còn OWNER/REPO', () => {
-    const dist = mkdtempSync(join(tmpdir(), 'vtt-cms-'));
-    execFileSync('node', [script('build-cms.mjs'), dist], {
-      cwd: siteDir,
-      env: { PATH: process.env.PATH, GITHUB_REPO: 'chu/repo', SITE_URL: 'https://vntraveltips.monai.click' },
-    });
-    const yml = readFileSync(join(dist, 'admin/config.yml'), 'utf8');
-    expect(yml).toContain('chu/repo');
-    expect(yml).not.toContain('OWNER/REPO');
-  });
-});
-
-// Image mcp đặt NODE_ENV=production nên `npm ci` trong container bỏ qua devDependencies.
-// Gói nào script build dùng tới phải nằm trong dependencies, nếu không build trong container sẽ lỗi.
-describe('package.json của site', () => {
-  it('gói cần lúc build (@sveltia/cms cho build-cms.mjs) nằm trong dependencies', () => {
-    const pkg = JSON.parse(readFileSync(join(siteDir, 'package.json'), 'utf8'));
-    expect(pkg.dependencies).toHaveProperty('@sveltia/cms');
-    expect(pkg.devDependencies ?? {}).not.toHaveProperty('@sveltia/cms');
   });
 });

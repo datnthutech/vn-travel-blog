@@ -2,10 +2,13 @@
 // Hàm thuần: nhận bài → trả mảng object; <SeoHead> chỉ việc nhúng vào <script type="application/ld+json">.
 import { urlBai, type BaiViet, type DiaDiem, type Tinh } from '@vntraveltips/schema';
 import { SITE } from '../config/site';
+import { t } from '../i18n/giao-dien';
 
 interface Ctx {
   site: string;
   tinh?: Pick<Tinh, 'ten' | 'slug'>;
+  /** Ngôn ngữ của trang (mặc định vi): địa chỉ có tiền tố /<mã>/ và tên breadcrumb theo ngôn ngữ. */
+  ngonNgu?: string;
 }
 
 const KIEU: Record<DiaDiem['kieu'], string> = {
@@ -33,12 +36,15 @@ function diaDiemLd(d: DiaDiem) {
 }
 
 export function jsonLd(b: BaiViet, ctx: Ctx): object[] {
-  const url = abs(ctx.site, urlBai(b));
+  const tien = !ctx.ngonNgu || ctx.ngonNgu === 'vi' ? '' : `/${ctx.ngonNgu}`;
+  const ngonNgu = ctx.ngonNgu ?? 'vi';
+  const url = abs(ctx.site, tien + urlBai(b));
   const out: object[] = [];
 
   out.push({
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
+    inLanguage: ngonNgu,
     headline: b.tieuDe,
     description: b.moTa,
     image: [abs(ctx.site, `/anh/${b.anhBia.ma}/1600.webp`)],
@@ -49,13 +55,13 @@ export function jsonLd(b: BaiViet, ctx: Ctx): object[] {
   });
 
   const dau = ctx.tinh
-    ? { name: ctx.tinh.ten, item: abs(ctx.site, `/${ctx.tinh.slug}/`) }
-    : { name: 'Kinh nghiệm', item: abs(ctx.site, '/kinh-nghiem/') };
+    ? { name: ctx.tinh.ten, item: abs(ctx.site, `${tien}/${ctx.tinh.slug}/`) }
+    : { name: t(ngonNgu, 'kinh-nghiem'), item: abs(ctx.site, `${tien}/kinh-nghiem/`) };
   out.push({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { name: 'Trang chủ', item: abs(ctx.site, '/') },
+      { name: t(ngonNgu, 'trang-chu'), item: abs(ctx.site, `${tien}/`) },
       dau,
       { name: b.tieuDe, item: url },
     ].map((m, i) => ({ '@type': 'ListItem', position: i + 1, ...m })),
@@ -88,3 +94,15 @@ export function jsonLd(b: BaiViet, ctx: Ctx): object[] {
 
   return out;
 }
+
+// Viết JSON-LD vào <script type="application/ld+json"> an toàn: JSON.stringify không thoát "<", nên tiêu đề chứa
+// "</script>" sẽ đóng thẻ sớm và chèn được mã. Đổi < > & và U+2028/2029 thành \uXXXX — vẫn là JSON hợp lệ, cùng dữ liệu.
+export function jsonLdChoScript(o: unknown): string {
+  return JSON.stringify(o)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+

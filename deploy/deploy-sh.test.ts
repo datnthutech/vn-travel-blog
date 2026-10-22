@@ -12,10 +12,8 @@ const execAsync = promisify(execFile);
 const goc = join(__dirname, '..');
 const deploySh = join(goc, 'deploy.sh');
 
-const BIEN_BAT_BUOC = [
-  'GITHUB_TOKEN', 'GITHUB_REPO', 'ALLOWED_GITHUB_USER', 'PUBLIC_BASE_URL', 'PREVIEW_BASE_URL',
-  'SESSION_SECRET', 'GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET', 'GITHUB_WEBHOOK_SECRET',
-];
+// GITHUB_TOKEN là tuỳ chọn (repo public) nhưng vẫn đưa vào .env giả để test "giá trị bí mật không bị in ra".
+const BIEN_BAT_BUOC = ['GITHUB_REPO', 'PUBLIC_BASE_URL', 'PREVIEW_BASE_URL', 'SESSION_SECRET', 'GITHUB_WEBHOOK_SECRET', 'KHOA_BI_MAT'];
 const GIA_TRI_BI_MAT = 'gia-tri-bi-mat-khong-duoc-in-ra-123';
 
 // Docker giả: ghi lại mọi lệnh; trả kết quả theo lệnh (compose up, inspect health, ps cổng).
@@ -49,7 +47,7 @@ function thuMucDeploy(bien: Record<string, string> | null) {
   return dir;
 }
 
-const DU_BIEN = Object.fromEntries(BIEN_BAT_BUOC.map((k) => [k, k === 'GITHUB_TOKEN' ? GIA_TRI_BI_MAT : 'gia-tri']));
+const DU_BIEN = { ...Object.fromEntries(BIEN_BAT_BUOC.map((k) => [k, 'gia-tri'])), GITHUB_TOKEN: GIA_TRI_BI_MAT };
 // SESSION_SECRET phải ≥ 32 ký tự ở mcp; deploy.sh chỉ kiểm tra có mặt, nhưng dùng giá trị đúng cho thực tế.
 DU_BIEN.SESSION_SECRET = 'x'.repeat(40);
 
@@ -113,6 +111,15 @@ describe('deploy.sh: kiểm tra trước khi chạy', () => {
     const kq = await chayDeploy({ deployDir: dir });
     expect(kq.code).not.toBe(0);
     expect(docLog()).not.toMatch(/up -d/);
+  });
+
+  it('không có GITHUB_TOKEN (repo public) vẫn chạy được — không bị coi là thiếu biến bắt buộc', async () => {
+    const bien: Record<string, string> = { ...DU_BIEN };
+    delete bien.GITHUB_TOKEN;
+    const dir = thuMucDeploy(bien);
+    const kq = await chayDeploy({ deployDir: dir });
+    expect(kq.out).not.toMatch(/GITHUB_TOKEN/); // không bị báo thiếu biến
+    expect(docLog()).toMatch(/up -d/); // vẫn chạy tới bước compose up
   });
 
   it('thiếu biến bắt buộc → nêu TÊN biến thiếu, không in giá trị, không gọi compose up', async () => {

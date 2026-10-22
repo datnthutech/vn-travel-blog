@@ -1,17 +1,20 @@
 ---
 // Bài liên quan (cùng tỉnh / cùng chuyên mục) — giúp link nội bộ cho SEO. Không có bài nào thì không hiện.
 import { urlBai, type BaiViet } from '@vntraveltips/schema';
+import { t } from '../i18n/giao-dien';
 interface Props {
   bai: BaiViet[];
+  ngonNgu?: string;
 }
-const { bai } = Astro.props;
+const { bai, ngonNgu = 'vi' } = Astro.props;
+const tien = ngonNgu === 'vi' ? '' : `/${ngonNgu}`;
 ---
 
 {
   bai.length > 0 && (
     <section>
-      <h2>Bài liên quan</h2>
-      <ul>{bai.map((b) => <li><a href={urlBai(b)}>{b.tieuDe}</a></li>)}</ul>
+      <h2>{t(ngonNgu, 'bai-lien-quan')}</h2>
+      <ul>{bai.map((b) => <li><a href={tien + urlBai(b)}>{b.tieuDe}</a></li>)}</ul>
     </section>
   )
 }

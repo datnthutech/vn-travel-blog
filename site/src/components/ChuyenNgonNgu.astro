@@ -1,0 +1,21 @@
+---
+// Nút chuyển ngôn ngữ: chỉ liệt kê bản dịch ĐÃ ĐĂNG của CHÍNH trang này (không dẫn về trang chủ của ngôn ngữ khác).
+// Là các liên kết thường (không cần JS); không có bản dịch nào khác thì không hiện gì.
+import { t } from '../i18n/giao-dien';
+import { layNgonNguBat } from '../lib/ngon-ngu';
+interface Props { ngonNgu: string; hreflang: Record<string, string> }
+const { ngonNgu, hreflang } = Astro.props;
+const ten = new Map(layNgonNguBat().map((n) => [n.ma, n.ten]));
+const khac = Object.entries(hreflang).filter(([ma]) => ma !== ngonNgu);
+---
+
+{khac.length > 0 && (
+  <nav class="chuyen-ngon-ngu" aria-label={t(ngonNgu, 'doc-bang-ngon-ngu-khac')}>
+    {khac.map(([ma, url]) => <a href={url} hreflang={ma} lang={ma}>{ten.get(ma) ?? ma}</a>)}
+  </nav>
+)}
+
+<style>
+  .chuyen-ngon-ngu { display: flex; gap: 12px; margin-left: auto; }
+  .chuyen-ngon-ngu a { min-height: 32px; display: inline-flex; align-items: center; }
+</style>

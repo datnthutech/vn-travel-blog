@@ -1,301 +1,322 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+// Tool MCP ghi bài qua DB + phân quyền theo tài khoản OAuth (Review Focus: writer không đụng bài người khác).
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { readdirSync, readFileSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { stringify } from 'yaml';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { baiVietSchema } from '@vntraveltips/schema';
-import { parseBai, serializeBai } from '../bai/serialize';
-import { loadConfig } from '../config';
-import { BAI_DIR, TINH_DIR, duongDanBai, type ToolCtx } from './ctx';
-import { FakeGithub } from './fake-github';
-import { dangBai, goBai, suaBai, taoBanNhap, xemTrangThai } from './ghi';
+import request from 'supertest';
+import sharp from 'sharp';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { BanDichChu } from '@vntraveltips/schema';
+import { baiDayDu, dungAdmin, taoAnhGia, MK } from '../admin-api/thu-nghiem';
+import { luuBiMat } from '../bi-mat';
+import { taoMcpServer } from '../mcp/server';
+import { timTheoId, type NguoiDung } from '../tai-khoan/nguoi-dung';
+import type { ToolCtx } from './ctx';
 
-const REDIRECTS = 'site/redirects.json';
-let dir: string;
-beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'vtt-ghi-'));
-  await mkdir(join(dir, 'abc'));
-  await writeFile(join(dir, 'abc', 'meta.json'), '{"rong":1600,"cao":1067}');
-});
-afterAll(() => rm(dir, { recursive: true, force: true }));
+type Moi = Awaited<ReturnType<typeof dungAdmin>>;
+let m: Moi;
+let lanCuoi: { ok: boolean } | null;
+let dichAi: { dichBai: (g: BanDichChu, den: { ma: string; ten: string }) => Promise<unknown>; dichChuoi: () => Promise<unknown> };
 
-const fileTinh = (slug: string, ten: string) =>
-  `---\n${stringify({ ten, slug, gioiThieu: 'g', anhBia: { ma: 'abc', alt: 'y' }, moTa: 'm' })}---\n`;
-const baiData = (slug: string, over: Record<string, unknown> = {}) => ({
-  tieuDe: `Bài ${slug}`, slug, moTa: 'a'.repeat(130), loai: 'top-list', anhBia: { ma: 'abc', alt: 'Biển' },
-  ngayDang: '2026-10-19', draft: false, ...over,
-});
-const THAN = 'Thân bài. '.repeat(160) + '[link](/vung-tau/x/)';
-const fileBai = (slug: string, over: Record<string, unknown> = {}, than = THAN) =>
-  serializeBai(baiVietSchema.parse(baiData(slug, over)), than);
-
-// build: build.json có trên đĩa của bản xem trước (undefined/'loi' = chưa có file).
-// lanCuoi: kết quả build gần nhất mà hàng đợi giả báo lại.
-function setup(
-  files: Record<string, string> = {},
-  build?: { sha: string } | 'loi',
-  lanCuoi: { ok: boolean; log?: string } | null = null,
-) {
-  const gh = new FakeGithub({
-    [`${TINH_DIR}/vung-tau.md`]: fileTinh('vung-tau', 'Vũng Tàu'),
-    [`${TINH_DIR}/da-lat.md`]: fileTinh('da-lat', 'Đà Lạt'),
-    [REDIRECTS]: '[]\n',
-    ...files,
-  });
-  const dataDir = mkdtempSync(join(tmpdir(), 'vtt-data-'));
-  mkdirSync(join(dataDir, 'preview'));
-  if (build && build !== 'loi') {
-    writeFileSync(join(dataDir, 'preview', 'build.json'), JSON.stringify({ sha: build.sha, builtAt: '2026-10-20T00:00:00Z', target: 'preview' }));
-  }
-  const config = loadConfig({
-    GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
-    PUBLIC_BASE_URL: 'https://vntraveltips.monai.click', PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
-    ANH_DIR: dir, SESSION_SECRET: 'x'.repeat(32), GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec',
-    DATA_DIR: dataDir,
-  });
-  const hangDoi = {
-    yeuCau: vi.fn(),
-    trangThai: () => ({ trangThai: 'roi' as const, dangCho: false, lanCuoi: lanCuoi && { ...lanCuoi, luc: '2026-10-20T08:00:00Z', sha: 'head0' } }),
-    doiXong: async () => {},
+beforeEach(async () => {
+  lanCuoi = null;
+  dichAi = {
+    dichBai: async (g) => ({ ketQua: { ...g, tieuDe: 'Dịch thử', slug: 'dich-thu', moTa: 'b'.repeat(130) }, canhBao: ['Mất ảnh'], soToken: { vao: 1, ra: 2 } }),
+    dichChuoi: async () => ({}),
   };
-  const ctx: ToolCtx = { config, github: gh.asClient(), now: () => Date.parse('2026-10-20T08:00:00Z'), hangDoi };
-  return { gh, ctx, hangDoi };
+  m = await dungAdmin({ deps: { conDungLuong: async () => true } });
+  taoAnhGia(m.anhDir, 'anh1');
+});
+
+const nguoi = (id: number): NguoiDung => timTheoId(m.db, id)!;
+const ctxCua = (id: number, them: Partial<ToolCtx> = {}): ToolCtx => ({
+  config: m.config, db: m.db, nguoiDung: nguoi(id), now: () => m.dongHo.v,
+  hangDoi: { yeuCau: () => void m.yeuCau.so++, trangThai: () => ({ trangThai: 'roi', dangCho: false, lanCuoi: lanCuoi as never }), doiXong: async () => {} },
+  ...them,
+});
+async function ketNoi(id: number, them: Partial<ToolCtx> = {}) {
+  const server = taoMcpServer(ctxCua(id, them));
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: 'test', version: '1' });
+  await Promise.all([server.connect(a), client.connect(b)]);
+  return client;
 }
+const goi = async (c: Client, name: string, args: Record<string, unknown>) => (await c.callTool({ name, arguments: args })) as { isError?: boolean; content: { type: string; text: string }[] };
+const van = (r: { content: { text: string }[] }) => r.content[0]!.text;
+const taoNguoi = (email: string, vaiTro: 'quan-ly' | 'writer') => m.dangNhap(email, email, vaiTro).then((p) => p.nguoi.id);
+const buildPreview = (noiDungPhien: number) => {
+  mkdirSync(m.config.previewDir, { recursive: true });
+  writeFileSync(join(m.config.previewDir, 'build.json'), JSON.stringify({ noiDungPhien }));
+};
+const baiMoi = (slug: string, over: Record<string, unknown> = {}) => ({ ...baiDayDu(slug), ...over });
 
 describe('tao_ban_nhap', () => {
-  it('kiểm tra đạt → commit bài với draft:true (kể cả đầu vào draft:false), trả link xem trước', async () => {
-    const { gh, ctx } = setup();
-    const r = await taoBanNhap(ctx, { bai: baiData('moi', { tinh: 'vung-tau', draft: false }), noiDung: THAN });
-    expect(r.linkXemTruoc).toBe('https://nhap-vntraveltips.monai.click/vung-tau/moi/');
-    expect(gh.lanGhi).toHaveLength(1);
-    const luu = parseBai(gh.doc(duongDanBai('moi'))!);
-    expect(luu.bai.draft).toBe(true);
-    expect(luu.noiDung).toBe(THAN);
+  it('tạo bài nháp có tac_gia_id = người dùng của token, xuất hiện trong /api/admin/bai, có id + link xem trước + nhật ký', async () => {
+    const wId = await taoNguoi('w@x.vn', 'writer');
+    const c = await ketNoi(wId);
+    const r = await goi(c, 'tao_ban_nhap', { bai: baiMoi('bai-claude'), noiDung: 'Xin chào ![biển](anh:anh1)' });
+    expect(r.isError).toBeFalsy();
+    const kq = JSON.parse(van(r)) as { id: number; slug: string; linkXemTruoc: string };
+    expect(kq.linkXemTruoc).toBe('http://nhap.localhost:8090/kinh-nghiem/bai-claude/');
+    expect(m.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(kq.id)).toEqual({ tac_gia_id: wId });
+    const ds = (await m.chinh.gui('get', '/bai')).body.bai as { id: number; slug: string; trangThai: string }[];
+    expect(ds.find((x) => x.id === kq.id)).toMatchObject({ slug: 'bai-claude', trangThai: 'nhap' });
+    expect(m.yeuCau.so).toBeGreaterThan(0);
+    expect(m.db.prepare("SELECT chi_tiet FROM nhat_ky WHERE loai = 'tao-bai'").get()).toEqual({ chi_tiet: JSON.stringify({ qua: 'mcp', baiId: kq.id }) });
   });
 
-  it('bài không tỉnh → link /kinh-nghiem/', async () => {
-    const { ctx } = setup();
-    expect((await taoBanNhap(ctx, { bai: baiData('top'), noiDung: THAN })).linkXemTruoc).toBe('https://nhap-vntraveltips.monai.click/kinh-nghiem/top/');
+  it('luôn là nháp dù đầu vào ghi draft:false; chưa đạt kiểm tra hoặc trùng slug → isError, chưa lưu gì', async () => {
+    const c = await ketNoi(m.chinh.nguoi.id);
+    const r = await goi(c, 'tao_ban_nhap', { bai: baiMoi('a', { draft: false }), noiDung: 'x' });
+    const id = JSON.parse(van(r)).id as number;
+    expect((await m.chinh.gui('get', `/bai/${id}`)).body.trangThai).toBe('nhap');
+    const trung = await goi(c, 'tao_ban_nhap', { bai: baiMoi('a'), noiDung: 'x' });
+    expect(trung.isError).toBe(true);
+    expect(van(trung)).toMatch(/trùng/);
+    const hong = await goi(c, 'tao_ban_nhap', { bai: { tieuDe: 'Thiếu' }, noiDung: 'x' });
+    expect(hong.isError).toBe(true);
+    expect(van(hong)).toMatch(/chưa đạt kiểm tra/);
+    expect((m.db.prepare('SELECT count(*) AS n FROM bai').get() as { n: number }).n).toBe(1);
+  });
+});
+
+describe('phân quyền (Review Focus)', () => {
+  it('token writer: sua_bai / dang_bai / go_bai / dich_ai bài của NGƯỜI KHÁC → isError "không có quyền", bài không đổi', async () => {
+    const qt = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(qt, 'tao_ban_nhap', { bai: baiMoi('cua-quan-tri'), noiDung: 'x' }))).id as number;
+    const wId = await taoNguoi('w@x.vn', 'writer');
+    luuBiMat(m.db, m.config.khoaBiMat, 'ai.apiKey', 'khoa-gia-lap-12345678');
+    const w = await ketNoi(wId, { dichVuAi: dichAi as never });
+    for (const [name, args] of [['sua_bai', { id, bai: { tieuDe: 'Sửa trộm' } }], ['dang_bai', { id }], ['go_bai', { id }], ['dich_ai_ban_dich', { id, ngonNgu: 'en' }]] as const) {
+      const r = await goi(w, name, args);
+      expect(r.isError, name).toBe(true);
+      expect(van(r), name).toMatch(/không có quyền/);
+    }
+    expect((await m.chinh.gui('get', `/bai/${id}`)).body.bai.tieuDe).toBe('Bài cua-quan-tri');
+    // nhưng sửa/đăng bài của CHÍNH MÌNH thì được
+    const cua = JSON.parse(van(await goi(w, 'tao_ban_nhap', { bai: baiMoi('cua-writer'), noiDung: 'x' }))).id as number;
+    expect((await goi(w, 'sua_bai', { id: cua, bai: { tieuDe: 'Tự sửa' } })).isError).toBeFalsy();
+    expect((await m.chinh.gui('get', `/bai/${cua}`)).body.bai.tieuDe).toBe('Tự sửa');
   });
 
-  it('kiểm tra không đạt → từ chối, nêu lỗi, KHÔNG ghi gì', async () => {
-    const { gh, ctx } = setup();
-    await expect(taoBanNhap(ctx, { bai: baiData('moi', { moTa: 'ngắn' }), noiDung: THAN })).rejects.toThrow(/moTa/);
-    expect(gh.lanGhi).toHaveLength(0);
-  });
-
-  it('slug đã tồn tại → từ chối, không ghi đè', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('co')]: fileBai('co') });
-    await expect(taoBanNhap(ctx, { bai: baiData('co'), noiDung: THAN })).rejects.toThrow(/trùng/);
-    expect(gh.lanGhi).toHaveLength(0);
+  it('quản lý làm được với mọi bài; đọc (liet_ke_bai/doc_bai) mọi vai trò', async () => {
+    const qt = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(qt, 'tao_ban_nhap', { bai: baiMoi('b1'), noiDung: 'x' }))).id as number;
+    const qlId = await taoNguoi('ql@x.vn', 'quan-ly');
+    const ql = await ketNoi(qlId);
+    expect((await goi(ql, 'sua_bai', { slug: 'b1', bai: { tieuDe: 'QL sửa' } })).isError).toBeFalsy();
+    const wId = await taoNguoi('w@x.vn', 'writer');
+    const w = await ketNoi(wId);
+    expect(JSON.parse(van(await goi(w, 'liet_ke_bai', {}))).bai).toHaveLength(1);
+    expect(JSON.parse(van(await goi(w, 'doc_bai', { id }))).bai.tieuDe).toBe('QL sửa');
   });
 });
 
 describe('sua_bai', () => {
-  it('sửa thân + trường của bài nháp: 1 commit, draft và slug giữ nguyên', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true }) });
-    await suaBai(ctx, { slug: 'a', bai: { tieuDe: 'Tiêu đề mới' }, noiDung: THAN + ' thêm' });
-    expect(gh.lanGhi).toHaveLength(1);
-    const luu = parseBai(gh.doc(duongDanBai('a'))!);
-    expect(luu.bai).toMatchObject({ tieuDe: 'Tiêu đề mới', slug: 'a', draft: true });
-    expect(luu.noiDung).toBe(THAN + ' thêm');
+  it('sửa qua id hoặc slug; không đổi slug/draft; bài đã đăng tự ghi ngày cập nhật; đổi tỉnh bài đã đăng → có redirect', async () => {
+    await m.chinh.gui('post', '/tinh', { ten: 'Vũng Tàu', slug: 'vung-tau', gioiThieu: 'g', anhBia: { ma: 'anh1', alt: 'Biển' }, moTa: 'm' });
+    await m.chinh.gui('post', '/tinh', { ten: 'Đà Lạt', slug: 'da-lat', gioiThieu: 'g', anhBia: { ma: 'anh1', alt: 'Biển' }, moTa: 'm' });
+    const c = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('x', { tinh: 'vung-tau' }), noiDung: 'x' }))).id as number;
+    expect((await goi(c, 'sua_bai', { slug: 'x', bai: { slug: 'khac' } })).isError).toBe(true);
+    expect((await goi(c, 'sua_bai', { id, bai: { draft: false } })).isError).toBe(true);
+    await m.chinh.gui('post', `/bai/${id}/dang`);
+    const r = await goi(c, 'sua_bai', { id, bai: { tinh: 'da-lat' } });
+    expect(r.isError).toBeFalsy();
+    expect(JSON.parse(van(r)).ghiChu.join(' ')).toMatch(/redirect 301/);
+    expect(m.db.prepare("SELECT den FROM redirect WHERE tu = '/vung-tau/x/'").get()).toEqual({ den: '/da-lat/x/' });
+    expect((await m.chinh.gui('get', `/bai/${id}`)).body.bai.ngayCapNhat).toBeTruthy();
+    expect((await goi(c, 'sua_bai', { id: 9999 })).isError).toBe(true);
   });
 
-  it('không cho đổi draft hay slug qua sua_bai', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true }) });
-    await expect(suaBai(ctx, { slug: 'a', bai: { draft: false } })).rejects.toThrow(/dang_bai/);
-    await expect(suaBai(ctx, { slug: 'a', bai: { slug: 'b' } })).rejects.toThrow(/slug/);
-    expect(gh.lanGhi).toHaveLength(0);
-  });
-
-  it('sửa bài ĐÃ ĐĂNG tự đặt ngayCapNhat = hôm nay', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a') });
-    await suaBai(ctx, { slug: 'a', noiDung: THAN + ' sửa' });
-    expect(parseBai(gh.doc(duongDanBai('a'))!).bai.ngayCapNhat?.toISOString().slice(0, 10)).toBe('2026-10-20');
-  });
-
-  it('đổi tỉnh bài ĐÃ ĐĂNG → 1 commit chứa cả bài và redirects.json (URL cũ → mới), sửa luôn redirect cũ trỏ vào URL cũ', async () => {
-    const { gh, ctx } = setup({
-      [duongDanBai('a')]: fileBai('a', { tinh: 'vung-tau' }),
-      [REDIRECTS]: JSON.stringify([{ tu: '/cu-hon/a/', den: '/vung-tau/a/' }]),
-    });
-    await suaBai(ctx, { slug: 'a', bai: { tinh: 'da-lat' } });
-    expect(gh.lanGhi).toHaveLength(1);
-    expect(gh.lanGhi[0]).toMatchObject({ loai: 'ghiNhieuFile' });
-    expect(gh.lanGhi[0].paths.sort()).toEqual([duongDanBai('a'), REDIRECTS].sort());
-    expect(JSON.parse(gh.doc(REDIRECTS)!)).toEqual([
-      { tu: '/cu-hon/a/', den: '/da-lat/a/' },
-      { tu: '/vung-tau/a/', den: '/da-lat/a/' },
-    ]);
-  });
-
-  it('đổi tỉnh về chỗ cũ → bỏ redirect đang đè lên URL thật', async () => {
-    const { gh, ctx } = setup({
-      [duongDanBai('a')]: fileBai('a', { tinh: 'da-lat' }),
-      [REDIRECTS]: JSON.stringify([{ tu: '/vung-tau/a/', den: '/da-lat/a/' }]),
-    });
-    await suaBai(ctx, { slug: 'a', bai: { tinh: 'vung-tau' } });
-    expect(JSON.parse(gh.doc(REDIRECTS)!)).toEqual([{ tu: '/da-lat/a/', den: '/vung-tau/a/' }]);
-  });
-
-  it('đổi tỉnh bài NHÁP → không cần redirect, chỉ 1 file', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { tinh: 'vung-tau', draft: true }) });
-    await suaBai(ctx, { slug: 'a', bai: { tinh: 'da-lat' } });
-    expect(gh.lanGhi[0]).toMatchObject({ loai: 'ghiFile' });
-    expect(gh.doc(REDIRECTS)).toBe('[]\n');
-  });
-
-  it('đổi tỉnh bài NHÁP kèm cảnh báo: nếu bài từng đăng thì URL cũ sẽ 404 (không tự tạo redirect được vì bài chưa đăng)', async () => {
-    const { ctx } = setup({ [duongDanBai('a')]: fileBai('a', { tinh: 'vung-tau', draft: true }) });
-    const r = await suaBai(ctx, { slug: 'a', bai: { tinh: 'da-lat' } });
-    expect(r.ghiChu.join(' ')).toMatch(/từng đăng/i);
-    expect(r.ghiChu.join(' ')).toMatch(/\/vung-tau\/a\//);
-  });
-
-  it('sửa bài nháp KHÔNG đổi tỉnh → không cảnh báo URL', async () => {
-    const { ctx } = setup({ [duongDanBai('a')]: fileBai('a', { tinh: 'vung-tau', draft: true }) });
-    expect((await suaBai(ctx, { slug: 'a', bai: { tieuDe: 'x' } })).ghiChu.join(' ')).not.toMatch(/từng đăng/i);
-  });
-
-  it('đổi tỉnh bài đã đăng mà redirects.json hỏng → từ chối, không ghi gì', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { tinh: 'vung-tau' }), [REDIRECTS]: '{hỏng' });
-    await expect(suaBai(ctx, { slug: 'a', bai: { tinh: 'da-lat' } })).rejects.toThrow(/redirect/i);
-    expect(gh.lanGhi).toHaveLength(0);
-  });
-
-  it('đổi sang tỉnh không tồn tại / bài không có → từ chối', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true }) });
-    await expect(suaBai(ctx, { slug: 'a', bai: { tinh: 'khong-co' } })).rejects.toThrow(/khong-co/);
-    await expect(suaBai(ctx, { slug: 'khong-co', noiDung: 'x' })).rejects.toThrow(/Không có bài/);
-    expect(gh.lanGhi).toHaveLength(0);
+  it('nội dung sửa không đạt kiểm tra → isError, bài không đổi', async () => {
+    const c = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('x'), noiDung: 'x' }))).id as number;
+    const r = await goi(c, 'sua_bai', { id, noiDung: '![ảnh](https://x.vn/a.jpg)' });
+    expect(r.isError).toBe(true);
+    expect((await m.chinh.gui('get', `/bai/${id}`)).body.noiDung).toBe('x');
   });
 });
 
-describe('xem_trang_thai', () => {
-  it('preview đã build đúng commit mới nhất → previewDaCapNhat, kèm trạng thái build', async () => {
-    const { ctx } = setup({}, { sha: 'head0' });
-    const r = await xemTrangThai(ctx);
-    expect(r).toMatchObject({ previewDaCapNhat: true, commitMoiNhat: 'head0', build: { trangThai: 'roi', dangCho: false } });
-    expect(r.buildPreview?.sha).toBe('head0');
-    expect(r).not.toHaveProperty('workflow');
+describe('dang_bai / xem_trang_thai (cổng bản xem trước)', () => {
+  async function bai() {
+    const c = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('x'), noiDung: 'x' }))).id as number;
+    return { c, id };
+  }
+  const phienLuu = (id: number) => (m.db.prepare("SELECT noi_dung_phien_luu AS p FROM ban_dich WHERE bai_id = ? AND ngon_ngu = 'vi'").get(id) as { p: number }).p;
+
+  it('preview chưa build tới phiên nội dung lúc bài được lưu → isError nhắc xem_trang_thai; build xong → đăng được, bài lên da-dang', async () => {
+    const { c, id } = await bai();
+    const tt0 = JSON.parse(van(await goi(c, 'xem_trang_thai', { id })));
+    expect(tt0.bai).toMatchObject({ id, trangThai: 'nhap', previewDaCoBanNay: false });
+    const tu = await goi(c, 'dang_bai', { id });
+    expect(tu.isError).toBe(true);
+    expect(van(tu)).toMatch(/xem_trang_thai/);
+    buildPreview(phienLuu(id) - 1);
+    expect((await goi(c, 'dang_bai', { id })).isError).toBe(true);
+    buildPreview(phienLuu(id));
+    expect(JSON.parse(van(await goi(c, 'xem_trang_thai', { id }))).bai.previewDaCoBanNay).toBe(true);
+    const r = await goi(c, 'dang_bai', { slug: 'x' });
+    expect(r.isError).toBeFalsy();
+    expect(JSON.parse(van(r)).linkBai).toBe('http://localhost:8090/kinh-nghiem/x/');
+    expect((await m.chinh.gui('get', `/bai/${id}`)).body.trangThai).toBe('da-dang');
+    expect((await goi(c, 'dang_bai', { id })).isError).toBe(true); // đã đăng rồi
   });
 
-  it('preview còn build cũ → false; không đọc được build.json → false và có ghi chú', async () => {
-    expect((await xemTrangThai(setup({}, { sha: 'cu' }).ctx)).previewDaCapNhat).toBe(false);
-    const r = await xemTrangThai(setup({}, 'loi').ctx);
-    expect(r.previewDaCapNhat).toBe(false);
-    expect(r.buildPreview).toBeNull();
-    expect(r.ghiChu).toMatch(/build\.json/);
+  it('sửa bài SAU khi preview build → phải build lại mới đăng được (cổng so phiên lưu cuối, không phải phiên cũ)', async () => {
+    const { c, id } = await bai();
+    buildPreview(phienLuu(id));
+    await goi(c, 'sua_bai', { id, noiDung: 'sửa thêm' });
+    expect((await goi(c, 'dang_bai', { id })).isError).toBe(true);
+    buildPreview(phienLuu(id));
+    expect((await goi(c, 'dang_bai', { id })).isError).toBeFalsy();
   });
 
-  it('lần build gần nhất lỗi → báo kèm log rút gọn', async () => {
-    const { ctx } = setup({}, { sha: 'head0' }, { ok: false, log: 'astro lỗi' });
-    const r = await xemTrangThai(ctx);
-    expect(r.build.lanCuoi).toMatchObject({ ok: false, log: 'astro lỗi' });
-  });
-});
-
-describe('build sau khi commit (hàng đợi)', () => {
-  it('tao_ban_nhap, sua_bai, go_bai: commit thành công → yeuCau đúng 1 lần mỗi tool', async () => {
-    const { ctx, hangDoi } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true, tinh: 'vung-tau' }), [duongDanBai('b')]: fileBai('b', { tinh: 'vung-tau' }) });
-    await taoBanNhap(ctx, { bai: baiData('moi'), noiDung: THAN });
-    expect(hangDoi.yeuCau).toHaveBeenCalledTimes(1);
-    await suaBai(ctx, { slug: 'a', noiDung: THAN + ' sửa' });
-    expect(hangDoi.yeuCau).toHaveBeenCalledTimes(2);
-    await goBai(ctx, 'b');
-    expect(hangDoi.yeuCau).toHaveBeenCalledTimes(3);
+  it('build lần cuối bị lỗi và preview chưa mới → thông báo nói rõ lỗi build', async () => {
+    const { c, id } = await bai();
+    lanCuoi = { ok: false };
+    const r = await goi(await ketNoi(m.chinh.nguoi.id), 'dang_bai', { id });
+    expect(van(r)).toMatch(/build gần nhất bị lỗi/);
+    void c;
   });
 
-  it('dang_bai commit thành công → yeuCau đúng 1 lần', async () => {
-    const { ctx, hangDoi } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true, tinh: 'vung-tau' }) }, { sha: 'head0' });
-    await dangBai(ctx, 'a');
-    expect(hangDoi.yeuCau).toHaveBeenCalledTimes(1);
-  });
-
-  it('commit lỗi (bài đã tồn tại) → không gọi yeuCau', async () => {
-    const { ctx, hangDoi } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true }) });
-    await expect(taoBanNhap(ctx, { bai: baiData('a'), noiDung: THAN })).rejects.toThrow();
-    expect(hangDoi.yeuCau).not.toHaveBeenCalled();
-  });
-});
-
-describe('dang_bai (cổng an toàn)', () => {
-  it('preview chưa build commit mới nhất → từ chối, KHÔNG ghi', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true }) }, { sha: 'cu' });
-    await expect(dangBai(ctx, 'a')).rejects.toThrow(/xem trước/);
-    expect(gh.lanGhi).toHaveLength(0);
-  });
-
-  it('preview chưa theo kịp VÀ lần build cuối lỗi → từ chối, KHÔNG ghi, báo build lỗi và nhắc xem_trang_thai', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true }) }, { sha: 'cu' }, { ok: false, log: 'x' });
-    await expect(dangBai(ctx, 'a')).rejects.toThrow(/lỗi[\s\S]*xem_trang_thai/);
-    expect(gh.lanGhi).toHaveLength(0);
-  });
-
-  it('lần build cuối lỗi (vd lỗi mạng tạm thời) nhưng preview đã build đúng commit mới nhất → vẫn đăng được', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true }) }, { sha: 'head0' }, { ok: false, log: 'x' });
-    await dangBai(ctx, 'a');
-    expect(gh.lanGhi).toHaveLength(1);
-  });
-
-  it('kiểm tra không đạt → từ chối, KHÔNG ghi (kể cả khi preview mới)', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true, anhBia: { ma: 'chuaco', alt: 'a' } }) }, { sha: 'head0' });
-    await expect(dangBai(ctx, 'a')).rejects.toThrow(/chuaco/);
-    expect(gh.lanGhi).toHaveLength(0);
-  });
-
-  it('đạt + preview mới → đặt draft:false, trả link bài thật', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a', { draft: true, tinh: 'vung-tau' }) }, { sha: 'head0' });
-    const r = await dangBai(ctx, 'a');
-    expect(r.linkBai).toBe('https://vntraveltips.monai.click/vung-tau/a/');
-    expect(parseBai(gh.doc(duongDanBai('a'))!).bai.draft).toBe(false);
-    expect(gh.lanGhi).toHaveLength(1);
-  });
-
-  it('bài đã đăng rồi / không tồn tại → từ chối', async () => {
-    const { ctx } = setup({ [duongDanBai('a')]: fileBai('a') }, { sha: 'head0' });
-    await expect(dangBai(ctx, 'a')).rejects.toThrow(/đã được đăng/);
-    await expect(dangBai(ctx, 'khong-co')).rejects.toThrow(/Không có bài/);
+  it('bài chưa đạt kiểm tra đầy đủ (ảnh bìa mất) → không đăng; bài trong thùng rác → không thấy', async () => {
+    const { c, id } = await bai();
+    buildPreview(phienLuu(id));
+    m.db.prepare("UPDATE ban_dich SET du_lieu = json_set(du_lieu, '$.anhBia.ma', 'khong-co-that') WHERE bai_id = ?").run(id);
+    const r = await goi(c, 'dang_bai', { id });
+    expect(r.isError).toBe(true);
+    expect(van(r)).toMatch(/chưa đạt kiểm tra/);
+    m.db.prepare('UPDATE bai SET xoa_luc = 1 WHERE id = ?').run(id);
+    expect(van(await goi(c, 'doc_bai', { id }))).toMatch(/Không có bài/);
   });
 });
 
 describe('go_bai', () => {
-  it('đặt draft:true có hiệu lực ngay (không cần preview), KHÔNG xoá file', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('a')]: fileBai('a') }, 'loi');
-    await goBai(ctx, 'a');
-    expect(parseBai(gh.doc(duongDanBai('a'))!).bai.draft).toBe(true);
-    expect(gh.doc(duongDanBai('a'))).toBeDefined();
-    expect(gh.lanGhi).toHaveLength(1);
-  });
-
-  it('nói rõ cho Claude: bản xem trước, ảnh và lịch sử GitHub vẫn còn nội dung (go_bai KHÔNG xoá sạch)', async () => {
-    const { ctx } = setup({ [duongDanBai('a')]: fileBai('a') });
-    const { ghiChu } = await goBai(ctx, 'a');
-    expect(ghiChu).toMatch(/bản xem trước/);
-    expect(ghiChu).toMatch(/ảnh/);
-    expect(ghiChu).toMatch(/GitHub/);
-    expect(ghiChu).toMatch(/riêng tư/);
-  });
-
-  it('gỡ bài đang là đích của redirect → gỡ luôn redirect đó trong cùng commit (nếu không build sẽ lỗi và bài vẫn còn trên mạng)', async () => {
-    const { gh, ctx } = setup({
-      [duongDanBai('a')]: fileBai('a', { tinh: 'vung-tau' }),
-      [REDIRECTS]: JSON.stringify([{ tu: '/cu/a/', den: '/vung-tau/a/' }, { tu: '/khac/', den: '/kinh-nghiem/b/' }]),
-    });
-    await goBai(ctx, 'a');
-    expect(gh.lanGhi).toHaveLength(1);
-    expect(gh.lanGhi[0].paths.sort()).toEqual([duongDanBai('a'), REDIRECTS].sort());
-    expect(JSON.parse(gh.doc(REDIRECTS)!)).toEqual([{ tu: '/khac/', den: '/kinh-nghiem/b/' }]);
-  });
-
-  it('bài không tồn tại → từ chối; bài đã là nháp → báo đã gỡ, không ghi', async () => {
-    const { gh, ctx } = setup({ [duongDanBai('n')]: fileBai('n', { draft: true }) });
-    await expect(goBai(ctx, 'khong-co')).rejects.toThrow(/Không có bài/);
-    const r = await goBai(ctx, 'n');
-    expect(r.commitSha).toBeUndefined();
-    expect(gh.lanGhi).toHaveLength(0);
+  it('gỡ bài đã đăng về nháp (kèm cảnh báo bản xem trước/ảnh còn nội dung); bài đã là nháp → báo; writer bài người khác → từ chối', async () => {
+    const c = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('x'), noiDung: 'x' }))).id as number;
+    expect(JSON.parse(van(await goi(c, 'go_bai', { id }))).ghiChu).toMatch(/đã là nháp/);
+    await m.chinh.gui('post', `/bai/${id}/dang`);
+    const r = await goi(c, 'go_bai', { slug: 'x' });
+    expect(r.isError).toBeFalsy();
+    expect(van(r)).toMatch(/xem trước/);
+    expect((await m.chinh.gui('get', `/bai/${id}`)).body.trangThai).toBe('nhap');
   });
 });
 
-void BAI_DIR;
+describe('ảnh', () => {
+  it('ảnh tải qua link một lần xuất hiện trong thư viện ảnh admin với đúng người tải', async () => {
+    const wId = await taoNguoi('w@x.vn', 'writer');
+    const c = await ketNoi(wId, { conDungLuong: async () => true });
+    const link = JSON.parse(van(await goi(c, 'tao_link_tai_anh', {}))).url as string;
+    const token = link.split('/tai-anh/')[1]!;
+    const jpeg = await sharp({ create: { width: 64, height: 48, channels: 3, background: { r: 200, g: 90, b: 40 } } }).jpeg().toBuffer();
+    const up = await request(m.app).post(`/tai-anh/${token}`).attach('anh', jpeg, 'anh-thu.jpg');
+    expect(up.status).toBe(200);
+    const ma = up.body.ketQua[0].ma as string;
+    const thuVien = (await m.chinh.gui('get', '/anh')).body.anh as { ma: string }[];
+    expect(thuVien.map((x) => x.ma)).toContain(ma);
+    expect(m.db.prepare('SELECT nguoi_dung_id FROM anh WHERE ma = ?').get(ma)).toEqual({ nguoi_dung_id: wId });
+    expect(JSON.parse(van(await goi(c, 'liet_ke_anh', { gioiHan: 5 }))).map?.((x: { ma: string }) => x.ma) ?? []).toContain(ma);
+  });
+});
+
+describe('dich_ai_ban_dich', () => {
+  it('trả bản dịch + cảnh báo nhưng KHÔNG lưu gì (không bản dịch mới, không phiên bản mới)', async () => {
+    luuBiMat(m.db, m.config.khoaBiMat, 'ai.apiKey', 'khoa-gia-lap-12345678');
+    await m.chinh.gui('post', '/ngon-ngu', { ma: 'en', ten: 'English' });
+    const c = await ketNoi(m.chinh.nguoi.id, { dichVuAi: dichAi as never });
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('x'), noiDung: 'x' }))).id as number;
+    const truoc = m.db.prepare('SELECT (SELECT count(*) FROM ban_dich) AS bd, (SELECT count(*) FROM phien_ban) AS pb').get();
+    const r = await goi(c, 'dich_ai_ban_dich', { id, ngonNgu: 'en' });
+    expect(r.isError).toBeFalsy();
+    const kq = JSON.parse(van(r));
+    expect(kq.ketQua).toMatchObject({ tieuDe: 'Dịch thử' });
+    expect(kq.canhBao).toEqual(['Mất ảnh']);
+    expect(kq.ghiChu).toMatch(/CHƯA LƯU/);
+    expect(m.db.prepare('SELECT (SELECT count(*) FROM ban_dich) AS bd, (SELECT count(*) FROM phien_ban) AS pb').get()).toEqual(truoc);
+    expect((await goi(c, 'dich_ai_ban_dich', { id, ngonNgu: 'fr' })).isError).toBe(true);
+  });
+});
+
+describe('review GĐ8', () => {
+  it('bài cũ chưa có mốc phiên (noi_dung_phien_luu NULL) → cổng dùng phiên HIỆN TẠI: phải build lại một lần rồi đăng được (không kẹt vĩnh viễn)', async () => {
+    const c = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('cu'), noiDung: 'x' }))).id as number;
+    m.db.prepare("UPDATE ban_dich SET noi_dung_phien_luu = NULL WHERE bai_id = ?").run(id);
+    const hienTai = Number((m.db.prepare("SELECT gia_tri FROM he_thong WHERE khoa = 'noi_dung_phien'").get() as { gia_tri: string }).gia_tri);
+    buildPreview(hienTai - 1);
+    expect((await goi(c, 'dang_bai', { id })).isError).toBe(true);
+    buildPreview(hienTai);
+    expect((await goi(c, 'dang_bai', { id })).isError).toBeFalsy();
+  });
+
+  it('migration 16 backfill: mọi bài có sẵn có mốc phiên (không NULL) sau khi migrate', () => {
+    expect(m.db.prepare('SELECT count(*) AS n FROM ban_dich WHERE noi_dung_phien_luu IS NULL').get()).toEqual({ n: 0 });
+  });
+
+  it('dich_ai_ban_dich: tiêu đề không chữ Latin → slug "<mã>-<id>"; lỗi AI ghi nhật ký dich-ai-loi (không ghi nội dung)', async () => {
+    luuBiMat(m.db, m.config.khoaBiMat, 'ai.apiKey', 'khoa-gia-lap-12345678');
+    await m.chinh.gui('post', '/ngon-ngu', { ma: 'ru', ten: 'Русский' });
+    const ai = { dichBai: async (g: BanDichChu) => ({ ketQua: { ...g, tieuDe: 'Привет, мир', slug: 'bai-viet', moTa: 'b'.repeat(130) }, canhBao: [], soToken: { vao: 1, ra: 1 } }), dichChuoi: async () => ({}) };
+    const c = await ketNoi(m.chinh.nguoi.id, { dichVuAi: ai as never });
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('x'), noiDung: 'x' }))).id as number;
+    expect(JSON.parse(van(await goi(c, 'dich_ai_ban_dich', { id, ngonNgu: 'ru' }))).ketQua.slug).toBe(`ru-${id}`);
+    const { LoiAi } = await import('../ai/dich-vu');
+    const hong = { dichBai: async () => { throw new LoiAi('het-han-muc'); }, dichChuoi: async () => ({}) };
+    const c2 = await ketNoi(m.chinh.nguoi.id, { dichVuAi: hong as never });
+    expect((await goi(c2, 'dich_ai_ban_dich', { id, ngonNgu: 'ru' })).isError).toBe(true);
+    expect(m.db.prepare("SELECT chi_tiet FROM nhat_ky WHERE loai = 'dich-ai-loi'").get()).toEqual({ chi_tiet: JSON.stringify({ qua: 'mcp', ngonNgu: 'ru', maLoi: 'het-han-muc' }) });
+  });
+
+  it('link tải ảnh của tài khoản đã bị KHOÁ sau khi xin → 403; liet_ke_anh của writer chỉ thấy ảnh của chính mình', async () => {
+    const wId = await taoNguoi('w@x.vn', 'writer');
+    const c = await ketNoi(wId, { conDungLuong: async () => true });
+    const token = (JSON.parse(van(await goi(c, 'tao_link_tai_anh', {}))).url as string).split('/tai-anh/')[1]!;
+    const jpeg = await sharp({ create: { width: 64, height: 48, channels: 3, background: { r: 10, g: 90, b: 140 } } }).jpeg().toBuffer();
+    const ok = await request(m.app).post(`/tai-anh/${token}`).attach('anh', jpeg, 'cua-w.jpg');
+    expect(ok.status).toBe(200);
+    // ảnh của quản trị (qua link khác) — writer không được thấy
+    const qt = await ketNoi(m.chinh.nguoi.id, { conDungLuong: async () => true });
+    const tokenQt = (JSON.parse(van(await goi(qt, 'tao_link_tai_anh', {}))).url as string).split('/tai-anh/')[1]!;
+    const jpeg2 = await sharp({ create: { width: 64, height: 48, channels: 3, background: { r: 200, g: 20, b: 40 } } }).jpeg().toBuffer();
+    const maQt = (await request(m.app).post(`/tai-anh/${tokenQt}`).attach('anh', jpeg2, 'cua-qt.jpg')).body.ketQua[0].ma as string;
+    const thay = (await c.callTool({ name: 'liet_ke_anh', arguments: { gioiHan: 10 } })) as { content: { type: string; text: string }[] };
+    const ds = JSON.parse(thay.content[0]!.text) as { ma: string }[];
+    expect(ds.map((x) => x.ma)).toContain(ok.body.ketQua[0].ma);
+    expect(ds.map((x) => x.ma)).not.toContain(maQt);
+    // khoá tài khoản → link đã xin không còn dùng được
+    const tokenW2 = (JSON.parse(van(await goi(c, 'tao_link_tai_anh', {}))).url as string).split('/tai-anh/')[1]!;
+    m.db.prepare('UPDATE nguoi_dung SET bi_khoa = 1 WHERE id = ?').run(wId);
+    const r = await request(m.app).post(`/tai-anh/${tokenW2}`).attach('anh', jpeg, 'sau-khoa.jpg');
+    expect(r.status).toBe(403);
+  });
+
+  it('go_bai có kiểm tra phiên bản: bài vừa bị sửa chen sau khi đọc → báo lỗi, không ghi đè bằng bản cũ', async () => {
+    const c = await ketNoi(m.chinh.nguoi.id);
+    const id = JSON.parse(van(await goi(c, 'tao_ban_nhap', { bai: baiMoi('x'), noiDung: 'x' }))).id as number;
+    await m.chinh.gui('post', `/bai/${id}/dang`);
+    // mô phỏng người khác sửa chen: tăng phien_so ngay sau khi tool đọc — tool đọc rồi ghi cùng đồng bộ nên kiểm bằng cách gọi luuBai với phienSo cũ qua ctx giả
+    const { luuBai, docBai } = await import('../noi-dung/bai');
+    const d = docBai(m.db, id)!;
+    luuBai(m.db, { id, ngonNgu: 'vi', bai: d.bai, noiDung: 'bản mới của người khác', trangThai: 'da-dang', nguoiId: m.chinh.nguoi.id }, () => m.dongHo.v);
+    expect(() => luuBai(m.db, { id, ngonNgu: 'vi', bai: d.bai, noiDung: d.noiDung, trangThai: 'nhap', nguoiId: m.chinh.nguoi.id, phienSo: d.phienSo }, () => m.dongHo.v)).toThrow();
+    expect((await goi(c, 'go_bai', { id })).isError).toBeFalsy(); // không có ai chen giữa lúc tool chạy → vẫn gỡ được bình thường
+    expect((await m.chinh.gui('get', `/bai/${id}`)).body.noiDung).toBe('bản mới của người khác');
+  });
+});
+
+describe('gỡ hẳn code ghi GitHub', () => {
+  it('không file nào dưới mcp/src còn import github/client, fake-github hay @octokit (kể cả test)', () => {
+    const duyet = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? duyet(join(d, f)) : [join(d, f)]));
+    const goc = join(import.meta.dirname, '..');
+    const vi = duyet(goc)
+      .filter((f) => f.endsWith('.ts') && !f.endsWith('ghi.test.ts'))
+      .filter((f) => /github\/client|fake-github|@octokit|GithubClient/.test(readFileSync(f, 'utf8')));
+    expect(vi).toEqual([]);
+    expect(JSON.parse(readFileSync(join(goc, '..', 'package.json'), 'utf8')).dependencies['@octokit/rest']).toBeUndefined();
+  });
+});
+void MK;

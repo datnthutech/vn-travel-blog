@@ -8,15 +8,17 @@ export type TrangThaiToken = 'ok' | 'khong-co' | 'het-han' | 'da-dong';
 interface Phien {
   hetHan: number;
   daDong: boolean;
+  /** Người dùng admin đã xin link (qua MCP): ảnh tải lên bằng link này ghi nhận cho họ. */
+  nguoiDungId: number | null;
 }
 const kho = new Map<string, Phien>();
 const bam = (t: string) => createHash('sha256').update(t).digest('hex');
 
 export const TTL_MAC_DINH = 30 * 60_000;
 
-export function taoToken(ttlMs = TTL_MAC_DINH, now: () => number = Date.now): string {
+export function taoToken(ttlMs = TTL_MAC_DINH, now: () => number = Date.now, nguoiDungId: number | null = null): string {
   const t = randomBytes(32).toString('hex');
-  kho.set(bam(t), { hetHan: now() + ttlMs, daDong: false });
+  kho.set(bam(t), { hetHan: now() + ttlMs, daDong: false, nguoiDungId });
   // dọn các phiên đã hết hạn để bộ nhớ không phình
   for (const [k, p] of kho) if (p.hetHan < now() - TTL_MAC_DINH) kho.delete(k);
   return t;
@@ -36,3 +38,5 @@ export function dongToken(t: string): void {
   const p = kho.get(bam(t));
   if (p) p.daDong = true;
 }
+
+export const nguoiDungCuaToken = (t: string): number | null => kho.get(bam(t))?.nguoiDungId ?? null;

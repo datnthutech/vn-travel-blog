@@ -1,229 +1,216 @@
-// Các tool GHI vào GitHub: tạo nháp, sửa, xem trạng thái build, đăng, gỡ.
+// Các tool GHI bài qua CÙNG lớp nội dung (SQLite, `luuBai`) với trang quản trị: cùng luật kiểm tra, cùng phiên bản/lịch sử, cùng 409.
+// Mọi tool kiểm `coQuyen(ctx.nguoiDung, …)` — token MCP của người viết chỉ đụng được bài của chính họ, giống API admin.
 // Nguyên tắc an toàn (thiết kế mục 10):
-//  - Bài chỉ lên production qua dang_bai; dang_bai từ chối nếu kiểm tra không đạt HOẶC bản xem trước chưa build từ đúng
-//    commit mới nhất trên main (nghĩa là người dùng chưa thể đã xem đúng bản sắp đăng).
-//  - go_bai (gỡ khẩn cấp) có hiệu lực ngay, không qua cổng nào, và không xoá file.
-//  - Mọi lần ghi kèm sha đã đọc → có ai sửa chen vào thì báo xung đột chứ không ghi đè.
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { baiVietSchema, kiemTraRedirects, urlBai, type BaiViet, type Redirect } from '@vntraveltips/schema';
+//  - Bài chỉ lên production qua dang_bai; dang_bai từ chối nếu kiểm tra không đạt HOẶC bản xem trước chưa build tới phiên nội dung
+//    lúc bài được lưu lần cuối (nghĩa là chưa ai có thể đã xem đúng bản sắp đăng).
+//  - go_bai (gỡ khẩn cấp) có hiệu lực khi build xong, không xoá dữ liệu.
+import { baiVietSchema, coQuyen, urlBai, type BaiViet, type HanhDong } from '@vntraveltips/schema';
+import { docBuildJson } from '../admin-api/build';
 import type { TrangThaiBuild } from '../build/hang-doi';
-import { serializeBai } from '../bai/serialize';
-import { REDIRECTS_PATH, duongDanBai, type ToolCtx } from './ctx';
-import { docBai, kiemTraBaiTool, lietKeBai } from './doc';
+import { ngayVN } from '../mail/ngay-vn';
+import { luuBai, XungDotPhienBan, type BaiDoc } from '../noi-dung/bai';
+import { slugBanDich, truongChuBanGoc } from '../noi-dung/ban-dich';
+import { lietKeNgonNgu } from '../noi-dung/ngon-ngu';
+import { docNoiDungPhien } from '../noi-dung/phien-noi-dung';
+import { LoiAi } from '../ai/dich-vu';
+import { ghiNhatKy } from '../tai-khoan/nhat-ky';
+import type { ToolCtx } from './ctx';
+import { kiemTraBaiToolTuDb, timBai, type ThamChieuBai } from './doc-db';
 
 const dongLoi = (l: string[]) => l.map((x) => `- ${x}`).join('\n');
-// Thông điệp commit một dòng, không xuống dòng/ký tự lạ từ tiêu đề.
-const tomTat = (tien: string, tieuDe: string) => `${tien}: ${tieuDe}`.replace(/\s+/g, ' ').slice(0, 100);
-const homNay = (ctx: ToolCtx) => new Date(ctx.now()).toISOString().slice(0, 10);
+const MO_TA_QUYEN: Record<string, string> = { 'bai.tao': 'tạo bài', 'bai.sua': 'sửa bài này', 'bai.dang': 'đăng/gỡ bài này', 'ban-dich.kiem-tra': 'đánh dấu bản dịch' };
 
-async function docRedirects(ctx: ToolCtx): Promise<{ redirects: Redirect[]; sha?: string }> {
-  const f = await ctx.github.docFile(REDIRECTS_PATH);
-  if (!f) return { redirects: [] };
-  try {
-    const d = JSON.parse(f.noiDung);
-    if (!Array.isArray(d) || d.some((r) => typeof r?.tu !== 'string' || typeof r?.den !== 'string')) throw new Error();
-    return { redirects: d as Redirect[], sha: f.sha };
-  } catch {
-    throw new Error(`${REDIRECTS_PATH} bị hỏng (không phải mảng {tu, den}). Hãy sửa file redirect rồi thử lại.`);
+/** Kiểm quyền như API admin; thiếu quyền → ném lỗi (tool trả isError). */
+export function canQuyen(ctx: ToolCtx, hd: HanhDong, tacGiaId?: number | null): void {
+  if (!coQuyen(ctx.nguoiDung, hd, { tacGiaId })) {
+    throw new Error(`Tài khoản của bạn không có quyền ${MO_TA_QUYEN[hd] ?? hd}${hd === 'bai.tao' ? '' : ' (người viết chỉ làm được với bài của chính mình)'}.`);
   }
 }
-const jsonRedirects = (r: Redirect[]) => JSON.stringify(r, null, 2) + '\n';
+/** Kiểm quyền trên MỘT bài: tác giả lấy từ DB (writer chỉ làm được với bài của mình). */
+export function canQuyenBai(ctx: ToolCtx, hd: HanhDong, baiId: number): void {
+  const tacGia = (ctx.db.prepare('SELECT tac_gia_id FROM bai WHERE id = ?').get(baiId) as { tac_gia_id: number | null } | undefined)?.tac_gia_id;
+  canQuyen(ctx, hd, tacGia);
+}
+const nhatKy = (ctx: ToolCtx, loai: string, chiTiet: object) =>
+  ghiNhatKy(ctx.db, { nguoiDungId: ctx.nguoiDung.id, loai, chiTiet: { qua: 'mcp', ...chiTiet } }, ctx.now);
+
+const loiLuu = (e: unknown): Error => {
+  if (e instanceof XungDotPhienBan) return new Error(`Bài vừa được ${e.nguoiSua ?? 'người khác'} sửa (lần lưu cuối); hãy doc_bai lại rồi sửa tiếp.`);
+  if (/UNIQUE/.test((e as Error).message)) return new Error('Slug này đã có bài khác dùng.');
+  return e as Error;
+};
 
 // ---------- tao_ban_nhap ----------
 export async function taoBanNhap(
   ctx: ToolCtx,
   input: { bai: Record<string, unknown>; noiDung: string },
-): Promise<{ slug: string; commitSha: string; linkXemTruoc: string; ghiChu: string }> {
+): Promise<{ id: number; slug: string; linkXemTruoc: string; ghiChu: string }> {
+  canQuyen(ctx, 'bai.tao');
   const duLieu = { ...input.bai, draft: true }; // luôn là nháp, bất kể đầu vào
-  const kt = await kiemTraBaiTool(ctx, { bai: duLieu, noiDung: input.noiDung });
+  const kt = await kiemTraBaiToolTuDb(ctx, { bai: duLieu, noiDung: input.noiDung });
   if (!kt.dat) throw new Error(`Bài chưa đạt kiểm tra, chưa lưu gì cả:\n${dongLoi(kt.loi)}`);
   const bai = baiVietSchema.parse(duLieu);
-  const { commitSha } = await ctx.github.ghiFile(duongDanBai(bai.slug), serializeBai(bai, input.noiDung), tomTat('Thêm bản nháp', bai.tieuDe));
+  let id: number;
+  try {
+    ({ id } = luuBai(ctx.db, { ngonNgu: 'vi', bai, noiDung: input.noiDung, trangThai: 'nhap', nguoiId: ctx.nguoiDung.id }, ctx.now));
+  } catch (e) {
+    throw loiLuu(e);
+  }
   ctx.hangDoi.yeuCau();
+  nhatKy(ctx, 'tao-bai', { baiId: id });
   return {
+    id,
     slug: bai.slug,
-    commitSha,
     linkXemTruoc: `${ctx.config.previewBaseUrl}${urlBai(bai)}`,
-    ghiChu: 'Bản xem trước sẽ có sau vài phút (đợi build). Dùng xem_trang_thai để biết khi nào xong.',
+    ghiChu: `Bản xem trước sẽ có sau vài phút (đợi build). Dùng xem_trang_thai để biết khi nào xong. Chủ blog cũng sửa được bài này ở ${ctx.config.publicBaseUrl}/quan-tri/bai/${id}.`,
   };
 }
 
 // ---------- sua_bai ----------
 export async function suaBai(
   ctx: ToolCtx,
-  input: { slug: string; bai?: Record<string, unknown>; noiDung?: string },
-): Promise<{ slug: string; commitSha: string; ghiChu: string[] }> {
+  input: ThamChieuBai & { bai?: Record<string, unknown>; noiDung?: string },
+): Promise<{ id: number; slug: string; ghiChu: string[] }> {
+  const cu = timBai(ctx, input);
+  canQuyenBai(ctx, 'bai.sua', cu.id);
   const patch = { ...(input.bai ?? {}) };
   if ('draft' in patch) throw new Error('Không đổi trạng thái đăng qua sua_bai. Dùng dang_bai (đăng) hoặc go_bai (gỡ).');
-  if (patch.slug !== undefined && patch.slug !== input.slug) throw new Error('Không đổi slug của bài đã tạo (URL không được đổi).');
+  if (patch.slug !== undefined && patch.slug !== cu.bai.slug) throw new Error('Không đổi slug của bài đã tạo (URL không được đổi).');
 
-  const cu = await docBai(ctx, input.slug);
-  const daDang = !cu.bai.draft;
+  const daDang = cu.trangThai === 'da-dang';
   const gop: Record<string, unknown> = { ...cu.bai, ...patch };
   if (patch.tinh === null) delete gop.tinh; // tinh: null = bỏ tỉnh
-  if (daDang && patch.ngayCapNhat === undefined) gop.ngayCapNhat = homNay(ctx);
+  if (daDang && patch.ngayCapNhat === undefined) gop.ngayCapNhat = ngayVN(ctx.now());
   const noiDung = input.noiDung ?? cu.noiDung;
 
-  const kt = await kiemTraBaiTool(ctx, { bai: gop, noiDung, slugDangSua: input.slug });
+  const kt = await kiemTraBaiToolTuDb(ctx, { bai: gop, noiDung, slugDangSua: cu.bai.slug });
   if (!kt.dat) throw new Error(`Bài chưa đạt kiểm tra, chưa lưu gì cả:\n${dongLoi(kt.loi)}`);
   const moi: BaiViet = baiVietSchema.parse(gop);
-  const duongDan = duongDanBai(input.slug);
-  const text = serializeBai(moi, noiDung);
-  const msg = tomTat('Sửa bài', moi.tieuDe);
   const ghiChu = ['Bản xem trước và site sẽ cập nhật sau khi build xong (xem_trang_thai).'];
-
-  // Đổi tỉnh của bài ĐÃ ĐĂNG làm đổi URL → bắt buộc kèm redirect 301 cho URL cũ, cùng một commit.
-  if (daDang && moi.tinh !== cu.bai.tinh) {
-    const urlCu = urlBai(cu.bai);
-    const urlMoi = urlBai(moi);
-    const { redirects, sha: shaR } = await docRedirects(ctx);
-    const tiep = redirects
-      .filter((r) => r.tu !== urlMoi) // redirect đang đè lên URL thật mới thì bỏ
-      .map((r) => (r.den === urlCu ? { ...r, den: urlMoi } : r)); // các redirect cũ trỏ vào URL cũ → trỏ thẳng URL mới
-    if (!tiep.some((r) => r.tu === urlCu)) tiep.push({ tu: urlCu, den: urlMoi });
-    const daDangKhac = (await lietKeBai(ctx, { draft: false })).bai.filter((b) => b.slug !== input.slug);
-    try {
-      kiemTraRedirects([...daDangKhac, { slug: moi.slug, tinh: moi.tinh }], tiep); // kiểm tra trước khi ghi
-    } catch (e) {
-      throw new Error(`Redirect không hợp lệ, chưa lưu gì cả: ${(e as Error).message}`);
-    }
-    const { commitSha } = await ctx.github.ghiNhieuFile(
-      [
-        { path: duongDan, noiDung: text, shaCu: cu.sha },
-        { path: REDIRECTS_PATH, noiDung: jsonRedirects(tiep), shaCu: shaR },
-      ],
-      msg,
-    );
-    ctx.hangDoi.yeuCau();
-    ghiChu.push(`Đã thêm redirect 301: ${urlCu} → ${urlMoi}`);
-    return { slug: input.slug, commitSha, ghiChu };
+  try {
+    luuBai(ctx.db, { id: cu.id, ngonNgu: 'vi', bai: moi, noiDung, trangThai: cu.trangThai, henGio: cu.henGio ?? undefined, nguoiId: ctx.nguoiDung.id, phienSo: cu.phienSo }, ctx.now);
+  } catch (e) {
+    throw loiLuu(e);
   }
-
+  ctx.hangDoi.yeuCau();
+  nhatKy(ctx, 'sua-bai', { baiId: cu.id });
+  // Đổi tỉnh của bài ĐÃ ĐĂNG làm đổi URL → luuBai đã tự thêm redirect 301 (cả URL các bản dịch).
+  if (daDang && moi.tinh !== cu.bai.tinh) ghiChu.push(`Đã thêm redirect 301: ${urlBai(cu.bai)} → ${urlBai(moi)}`);
   if (!daDang && moi.tinh !== cu.bai.tinh) {
     ghiChu.push(
       `URL của bài đổi từ ${urlBai(cu.bai)} sang ${urlBai(moi)}. Nếu bài này TỪNG đăng trước đây, URL cũ sẽ báo 404 ` +
         '(không tự tạo redirect được vì bài đang là nháp) — hãy báo chủ blog trước khi dang_bai.',
     );
   }
-  const { commitSha } = await ctx.github.ghiFile(duongDan, text, msg, cu.sha);
-  ctx.hangDoi.yeuCau();
-  return { slug: input.slug, commitSha, ghiChu };
+  return { id: cu.id, slug: cu.bai.slug, ghiChu };
 }
 
 // ---------- xem_trang_thai ----------
 export interface TrangThai {
-  commitMoiNhat: string;
-  buildPreview: { sha: string; builtAt: string } | null;
-  previewDaCapNhat: boolean;
   build: TrangThaiBuild;
+  previewNoiDungPhien: number | null;
+  productionNoiDungPhien: number | null;
   linkXemTruoc: string;
+  bai?: { id: number; slug: string; trangThai: string; noiDungPhienLuu: number; previewDaCoBanNay: boolean; linkXemTruoc: string };
   ghiChu?: string;
 }
 
-// build.json do bản build preview ghi lúc build; đọc thẳng từ volume (cùng đĩa với container web).
-export async function xemTrangThai(ctx: ToolCtx): Promise<TrangThai> {
-  const commitMoiNhat = await ctx.github.shaMoiNhat();
-  let buildPreview: TrangThai['buildPreview'] = null;
-  let ghiChu: string | undefined;
-  try {
-    const d = JSON.parse(await readFile(join(ctx.config.previewDir, 'build.json'), 'utf8')) as { sha?: string; builtAt?: string };
-    if (typeof d.sha !== 'string') throw new Error('thiếu sha');
-    buildPreview = { sha: d.sha, builtAt: String(d.builtAt ?? '') };
-  } catch {
-    ghiChu = 'Chưa đọc được build.json của bản xem trước (chưa build lần nào hoặc đang build).';
+// Bài chưa có mốc (dữ liệu cũ trước migration 16 mà chưa được backfill) → dùng phiên nội dung HIỆN TẠI: phải build lại một lần mới đăng được.
+const phienLuu = (ctx: ToolCtx, id: number): number =>
+  (ctx.db.prepare("SELECT noi_dung_phien_luu AS p FROM ban_dich WHERE bai_id = ? AND ngon_ngu = 'vi'").get(id) as { p: number | null }).p ?? docNoiDungPhien(ctx.db);
+
+// build.json do bản build ghi lúc build (noiDungPhien); đọc thẳng từ volume (cùng đĩa với container web).
+export async function xemTrangThai(ctx: ToolCtx, ref?: ThamChieuBai): Promise<TrangThai> {
+  const [previewNoiDungPhien, productionNoiDungPhien] = await Promise.all([docBuildJson(ctx.config.previewDir), docBuildJson(ctx.config.siteDir)]);
+  const tt: TrangThai = { build: ctx.hangDoi.trangThai(), previewNoiDungPhien, productionNoiDungPhien, linkXemTruoc: ctx.config.previewBaseUrl };
+  if (previewNoiDungPhien === null) tt.ghiChu = 'Chưa đọc được build.json của bản xem trước (chưa build lần nào hoặc đang build).';
+  if (ref && (ref.id !== undefined || ref.slug !== undefined)) {
+    const d = timBai(ctx, ref);
+    const p = phienLuu(ctx, d.id);
+    tt.bai = {
+      id: d.id, slug: d.bai.slug, trangThai: d.trangThai, noiDungPhienLuu: p,
+      previewDaCoBanNay: previewNoiDungPhien !== null && previewNoiDungPhien >= p,
+      linkXemTruoc: `${ctx.config.previewBaseUrl}${urlBai(d.bai)}`,
+    };
   }
-  return {
-    commitMoiNhat,
-    buildPreview,
-    previewDaCapNhat: buildPreview?.sha === commitMoiNhat,
-    build: ctx.hangDoi.trangThai(),
-    linkXemTruoc: ctx.config.previewBaseUrl,
-    ...(ghiChu ? { ghiChu } : {}),
-  };
+  return tt;
 }
 
 // ---------- dang_bai ----------
-export async function dangBai(
-  ctx: ToolCtx,
-  slug: string,
-): Promise<{ slug: string; commitSha: string; linkBai: string; ghiChu: string }> {
-  const { bai, noiDung, sha } = await docBai(ctx, slug);
-  if (!bai.draft) throw new Error(`Bài "${slug}" đã được đăng rồi.`);
+export async function dangBai(ctx: ToolCtx, ref: ThamChieuBai): Promise<{ id: number; slug: string; linkBai: string; ghiChu: string }> {
+  const d: BaiDoc = timBai(ctx, ref);
+  canQuyenBai(ctx, 'bai.dang', d.id);
+  if (d.trangThai === 'da-dang') throw new Error(`Bài "${d.bai.slug}" đã được đăng rồi.`);
 
-  const kt = await kiemTraBaiTool(ctx, { bai: { ...bai, draft: false }, noiDung, slugDangSua: slug });
+  const bai = { ...d.bai, ngayDang: d.bai.ngayDang ?? ngayVN(ctx.now()), draft: false } as BaiViet;
+  const kt = await kiemTraBaiToolTuDb(ctx, { bai, noiDung: d.noiDung, slugDangSua: d.bai.slug });
   if (!kt.dat) throw new Error(`Bài chưa đạt kiểm tra nên chưa đăng:\n${dongLoi(kt.loi)}`);
 
-  // Điều kiện duy nhất: bản xem trước đã build đúng commit mới nhất (chủ blog đã xem đúng thứ sắp đăng).
-  // Một lần build lỗi sau đó (vd lỗi mạng tạm thời) không chặn đăng nếu bản xem trước vẫn đúng.
-  const tt = await xemTrangThai(ctx);
-  if (!tt.previewDaCapNhat && tt.build.lanCuoi?.ok === false) {
-    throw new Error('Bản xem trước chưa có commit mới nhất vì lần build gần nhất bị lỗi (site vẫn giữ bản cũ). Hãy xem lỗi bằng xem_trang_thai, sửa bài rồi thử lại.');
-  }
-  if (!tt.previewDaCapNhat) {
+  // Cổng: bản xem trước đã build tới phiên nội dung lúc bài được lưu lần cuối (chủ blog đã có thể xem đúng thứ sắp đăng).
+  const tt = await xemTrangThai(ctx, { id: d.id });
+  if (!tt.bai!.previewDaCoBanNay) {
+    if (tt.build.lanCuoi?.ok === false) {
+      throw new Error('Bản xem trước chưa có bản mới nhất của bài vì lần build gần nhất bị lỗi (site vẫn giữ bản cũ). Hãy xem lỗi bằng xem_trang_thai, sửa bài rồi thử lại.');
+    }
     throw new Error(
-      `Bản xem trước chưa build từ commit mới nhất (xem trước: ${tt.buildPreview?.sha.slice(0, 7) ?? 'chưa có'}, mới nhất: ${tt.commitMoiNhat.slice(0, 7)}). ` +
+      `Bản xem trước chưa build tới bản mới nhất của bài (xem trước: phiên ${tt.previewNoiDungPhien ?? 'chưa có'}, bài lưu ở phiên ${tt.bai!.noiDungPhienLuu ?? '?'}). ` +
         'Hãy đợi build xong (xem_trang_thai), mở link xem trước kiểm tra lại rồi đăng.',
     );
   }
-
-  const { commitSha } = await ctx.github.ghiFile(
-    duongDanBai(slug),
-    serializeBai({ ...bai, draft: false }, noiDung),
-    tomTat('Đăng bài', bai.tieuDe),
-    sha,
-  );
+  try {
+    luuBai(ctx.db, { id: d.id, ngonNgu: 'vi', bai, noiDung: d.noiDung, trangThai: 'da-dang', nguoiId: ctx.nguoiDung.id, phienSo: d.phienSo }, ctx.now);
+  } catch (e) {
+    throw loiLuu(e);
+  }
   ctx.hangDoi.yeuCau();
-  return {
-    slug,
-    commitSha,
-    linkBai: `${ctx.config.publicBaseUrl}${urlBai(bai)}`,
-    ghiChu: 'Bài sẽ hiện trên site sau vài phút, khi build xong.',
-  };
+  nhatKy(ctx, 'dang-bai', { baiId: d.id });
+  return { id: d.id, slug: d.bai.slug, linkBai: `${ctx.config.publicBaseUrl}${urlBai(bai)}`, ghiChu: 'Bài sẽ hiện trên site sau vài phút, khi build xong.' };
 }
 
 // ---------- go_bai ----------
-export async function goBai(
-  ctx: ToolCtx,
-  slug: string,
-): Promise<{ slug: string; commitSha?: string; ghiChu: string }> {
-  const { bai, noiDung, sha } = await docBai(ctx, slug);
-  if (bai.draft) return { slug, ghiChu: 'Bài này đã là nháp (đã gỡ khỏi site).' };
-
-  const text = serializeBai({ ...bai, draft: true }, noiDung);
-  const msg = tomTat('Gỡ bài', bai.tieuDe);
-  const url = urlBai(bai);
-
-  // Một redirect trỏ vào bài vừa gỡ sẽ làm build lỗi (đích không tồn tại) → site giữ bản cũ → bài VẪN còn trên mạng.
-  // Vì vậy gỡ luôn các redirect đó trong cùng commit. Nếu redirects.json hỏng, vẫn gỡ bài (ưu tiên khẩn cấp) và cảnh báo.
-  let moiRedirects: { redirects: Redirect[]; sha?: string } | null = null;
-  const ghiChu = [
-    'Đã đặt draft: bài biến mất khỏi site chính sau khi build xong (vài phút).',
-    'LƯU Ý nếu gỡ vì lộ thông tin riêng tư: go_bai KHÔNG xoá sạch — bản xem trước (nhap-vntraveltips…) vẫn hiển thị bài nháp, ' +
-      'các ảnh trong thư mục anh/ của volume vntraveltips_data vẫn truy cập được nếu biết mã ảnh, và nội dung vẫn nằm trong lịch sử GitHub. ' +
-      'Hãy báo chủ blog xoá ảnh trên VPS (và xoá/viết lại nội dung trong GitHub) nếu cần xoá hẳn.',
-  ];
+export async function goBai(ctx: ToolCtx, ref: ThamChieuBai): Promise<{ id: number; slug: string; ghiChu: string }> {
+  const d = timBai(ctx, ref);
+  canQuyenBai(ctx, 'bai.dang', d.id);
+  if (d.trangThai === 'nhap') return { id: d.id, slug: d.bai.slug, ghiChu: 'Bài này đã là nháp (đã gỡ khỏi site).' };
   try {
-    const r = await docRedirects(ctx);
-    if (r.redirects.some((x) => x.den === url)) moiRedirects = { redirects: r.redirects.filter((x) => x.den !== url), sha: r.sha };
-  } catch {
-    ghiChu.push(`CẢNH BÁO: ${REDIRECTS_PATH} bị hỏng, build có thể lỗi. Hãy sửa file này ngay để việc gỡ bài có hiệu lực.`);
+    luuBai(ctx.db, { id: d.id, ngonNgu: 'vi', bai: d.bai, noiDung: d.noiDung, trangThai: 'nhap', nguoiId: ctx.nguoiDung.id, phienSo: d.phienSo }, ctx.now); // phienSo: có người sửa chen thì báo lỗi thay vì ghi đè bằng bản cũ
+  } catch (e) {
+    throw loiLuu(e);
   }
-
-  if (moiRedirects) {
-    const { commitSha } = await ctx.github.ghiNhieuFile(
-      [
-        { path: duongDanBai(slug), noiDung: text, shaCu: sha },
-        { path: REDIRECTS_PATH, noiDung: jsonRedirects(moiRedirects.redirects), shaCu: moiRedirects.sha },
-      ],
-      msg,
-    );
-    ghiChu.push('Đã gỡ kèm các redirect trỏ vào bài này.');
-    ctx.hangDoi.yeuCau();
-    return { slug, commitSha, ghiChu: ghiChu.join(' ') };
-  }
-  const { commitSha } = await ctx.github.ghiFile(duongDanBai(slug), text, msg, sha);
   ctx.hangDoi.yeuCau();
-  return { slug, commitSha, ghiChu: ghiChu.join(' ') };
+  nhatKy(ctx, 'go-bai', { baiId: d.id });
+  return {
+    id: d.id,
+    slug: d.bai.slug,
+    ghiChu:
+      'Đã chuyển về nháp: bài biến khỏi site chính sau khi build xong (vài phút); các bản dịch của bài cũng biến theo. ' +
+      'LƯU Ý nếu gỡ vì lộ thông tin riêng tư: go_bai KHÔNG xoá sạch — bản xem trước (nhap-vntraveltips…) vẫn hiển thị bài nháp, ' +
+      'ảnh trong thư mục anh/ của VPS vẫn truy cập được nếu biết mã ảnh, và lịch sử phiên bản trong trang quản trị vẫn giữ nội dung. ' +
+      'Hãy báo chủ blog xoá ảnh/xoá hẳn bài (thùng rác) nếu cần.',
+  };
 }
 
+// ---------- dich_ai_ban_dich ----------
+/** Dịch bằng AI và TRẢ bản dịch để Claude đưa người dùng xem — KHÔNG lưu, KHÔNG đăng. */
+export async function dichAiBanDich(ctx: ToolCtx, input: ThamChieuBai & { ngonNgu: string }): Promise<{ ketQua: unknown; canhBao: string[]; ghiChu: string }> {
+  if (!ctx.dichVuAi) throw new Error('Chưa cấu hình AI dịch bài (chủ blog nhập API key ở /quan-tri/cai-dat-ai).');
+  const d = timBai(ctx, input);
+  canQuyenBai(ctx, 'bai.sua', d.id);
+  const den = lietKeNgonNgu(ctx.db).find((n) => n.ma === input.ngonNgu && n.ma !== 'vi' && n.bat);
+  if (!den) throw new Error(`Chưa có ngôn ngữ "${input.ngonNgu}" đang bật (thêm ở /quan-tri/ngon-ngu).`);
+  const goc = truongChuBanGoc(ctx.db, d.id);
+  if (!goc) throw new Error('Bản tiếng Việt chưa đủ trường theo luật bài viết nên chưa dịch được.');
+  let kq;
+  try {
+    kq = await ctx.dichVuAi.dichBai(goc, den);
+  } catch (e) {
+    if (e instanceof LoiAi) nhatKy(ctx, 'dich-ai-loi', { ngonNgu: den.ma, maLoi: e.maLoi }); // như API admin: ghi mã lỗi, không ghi nội dung
+    throw e;
+  }
+  nhatKy(ctx, 'dich-ai', { baiId: d.id, ngonNgu: den.ma, tokenVao: kq.soToken.vao, tokenRa: kq.soToken.ra });
+  return {
+    ketQua: { ...kq.ketQua, slug: slugBanDich(ctx.db, den.ma, d.id, kq.ketQua.tieuDe, kq.ketQua.slug) },
+    canhBao: kq.canhBao,
+    ghiChu: `CHƯA LƯU gì cả. Hãy đưa bản dịch cho người dùng đọc; họ lưu/đăng ở ${ctx.config.publicBaseUrl}/quan-tri/bai/${d.id}/ban-dich/${den.ma}.`,
+  };
+}

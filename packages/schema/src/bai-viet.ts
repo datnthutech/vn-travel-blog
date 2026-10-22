@@ -48,7 +48,8 @@ export const baiVietSchema = z
     moTa: z.string().min(120, 'moTa tối thiểu 120 ký tự').max(160, 'moTa tối đa 160 ký tự'),
     loai: z.enum(['nhat-ky', 'review', 'top-list', 'cam-nang']),
     tinh: slug.optional(),
-    chuyenMuc: z.array(z.enum(['sinh-thai', 'an-uong', 'vui-choi', 'luu-tru', 'di-chuyen'])).default([]),
+    // Chuyên mục do chủ blog quản lý (bảng chuyen_muc / chuyen-muc.json): ở đây chỉ kiểm dạng slug; tồn tại hay không do kiemTraThamChieu.
+    chuyenMuc: z.array(slug).default([]),
     tags: z.array(z.string()).default([]),
     anhBia: anhSchema,
     ngayDi: z.coerce.date().optional(),
@@ -60,6 +61,12 @@ export const baiVietSchema = z
       .array(z.object({ ten: z.string(), ghiChu: z.string().optional(), link: z.string().url().optional() }))
       .default([]),
     faq: z.array(z.object({ hoi: z.string(), dap: z.string() })).default([]),
+    /** Mã bài trong DB: `xuatNoiDung` ghi vào frontmatter để trang bài nạp bình luận (bài mẫu chạy local không có thì không hiện bình luận). */
+    maBai: z.number().int().positive().optional(),
+    /** Chỉ file bản dịch có: mã ngôn ngữ của bản dịch (bản tiếng Việt không ghi, mặc định 'vi'). */
+    ngonNgu: z.string().optional(),
+    /** `xuatNoiDung` ghi: URL các bản dịch/bản gốc ĐÃ ĐĂNG của bài này (mã ngôn ngữ → URL) để site dựng hreflang và nút chuyển ngôn ngữ. */
+    banDich: z.record(z.string(), z.string()).optional(),
     hopTac: z.boolean().default(false),
     draft: z.boolean().default(false),
   })

@@ -4,10 +4,12 @@ import type { DiaDiem } from '@vntraveltips/schema';
 import { sao } from '../lib/stars';
 import Picture from './Picture.astro';
 import { REL_AFFILIATE } from '../lib/affiliate';
+import { t } from '../i18n/giao-dien';
 interface Props {
   diaDiem: DiaDiem[];
+  ngonNgu?: string;
 }
-const { diaDiem } = Astro.props;
+const { diaDiem, ngonNgu = 'vi' } = Astro.props;
 ---
 
 <ul class="dia-diem">
@@ -17,15 +19,15 @@ const { diaDiem } = Astro.props;
         {d.anh[0] && <Picture ma={d.anh[0].ma} alt={d.anh[0].alt} sizes="(min-width: 800px) 360px, 100vw" />}
         <strong>{d.ten}</strong>
         {d.diem && <span class="sao"> {sao(d.diem)}</span>}
-        {d.khoangGia && <div>Giá: {d.khoangGia}</div>}
-        {d.gioMoCua && <div>Giờ mở cửa: {d.gioMoCua}</div>}
-        {d.diaChi && <div>Địa chỉ: {d.diaChi}</div>}
-        {d.thanThienVoiBe && <div>Với bé: {d.thanThienVoiBe}</div>}
-        {d.uuDiem.length > 0 && <div>Ưu điểm: {d.uuDiem.join(', ')}</div>}
-        {d.nhuocDiem.length > 0 && <div>Nhược điểm: {d.nhuocDiem.join(', ')}</div>}
+        {d.khoangGia && <div>{t(ngonNgu, 'gia')}: {d.khoangGia}</div>}
+        {d.gioMoCua && <div>{t(ngonNgu, 'gio-mo-cua')}: {d.gioMoCua}</div>}
+        {d.diaChi && <div>{t(ngonNgu, 'dia-chi')}: {d.diaChi}</div>}
+        {d.thanThienVoiBe && <div>{t(ngonNgu, 'voi-be')}: {d.thanThienVoiBe}</div>}
+        {d.uuDiem.length > 0 && <div>{t(ngonNgu, 'uu-diem')}: {d.uuDiem.join(', ')}</div>}
+        {d.nhuocDiem.length > 0 && <div>{t(ngonNgu, 'nhuoc-diem')}: {d.nhuocDiem.join(', ')}</div>}
         {d.linkDat && (
           <a class="nut-dat" href={d.linkDat.url} rel={REL_AFFILIATE} target="_blank">
-            Đặt qua {d.linkDat.nhaCungCap}
+            {t(ngonNgu, 'dat-qua', { ncc: d.linkDat.nhaCungCap })}
           </a>
         )}
       </li>

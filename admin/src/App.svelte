@@ -1,0 +1,182 @@
+<!-- Khung ứng dụng: thanh điều hướng + chọn trang theo đường dẫn + chặn trang cần đăng nhập. -->
+<script lang="ts">
+  import { coQuyen, type HanhDong } from '@vntraveltips/schema';
+  import { goiApi } from './lib/api';
+  import { bamLienKet, dieuHuong, di, GOC } from './lib/dieu-huong.svelte';
+  import { phien, taiPhien } from './lib/phien.svelte';
+  import BatTotp from './routes/BatTotp.svelte';
+  import DangNhap from './routes/DangNhap.svelte';
+  import DatLai from './routes/DatLai.svelte';
+  import Mail from './routes/Mail.svelte';
+  import NhanLoiMoi from './routes/NhanLoiMoi.svelte';
+  import NhatKy from './routes/NhatKy.svelte';
+  import TaiKhoan from './routes/TaiKhoan.svelte';
+  import Menu from './routes/Menu.svelte';
+  import Redirect from './routes/Redirect.svelte';
+  import SoanTrang from './routes/SoanTrang.svelte';
+  import Tag from './routes/Tag.svelte';
+  import Tinh from './routes/Tinh.svelte';
+  import Trang from './routes/Trang.svelte';
+  import BanTin from './routes/BanTin.svelte';
+  import CaiDatAi from './routes/CaiDatAi.svelte';
+  import ChuoiGiaoDien from './routes/ChuoiGiaoDien.svelte';
+  import DichCauTruc from './routes/DichCauTruc.svelte';
+  import NgonNgu from './routes/NgonNgu.svelte';
+  import SoanBanDich from './routes/SoanBanDich.svelte';
+  import BinhLuan from './routes/BinhLuan.svelte';
+  import NguoiDangKy from './routes/NguoiDangKy.svelte';
+  import SoanBanTin from './routes/SoanBanTin.svelte';
+  import CaiDatSite from './routes/CaiDatSite.svelte';
+  import ChuyenMuc from './routes/ChuyenMuc.svelte';
+  import DanhSachBai from './routes/DanhSachBai.svelte';
+  import LichSuBai from './routes/LichSuBai.svelte';
+  import SoanBai from './routes/SoanBai.svelte';
+  import ThuVienAnh from './routes/ThuVienAnh.svelte';
+  import ThungRac from './routes/ThungRac.svelte';
+  import QuenMatKhau from './routes/QuenMatKhau.svelte';
+  import ThietBi from './routes/ThietBi.svelte';
+  import TongQuan from './routes/TongQuan.svelte';
+  import Totp from './routes/Totp.svelte';
+
+  const CONG_KHAI = [`${GOC}/dang-nhap`, `${GOC}/quen-mat-khau`, `${GOC}/dat-lai`, `${GOC}/nhan-loi-moi`];
+  // `hd`: hành động cần có để THẤY mục này (chỉ để ẩn/hiện — máy chủ mới là nơi quyết định quyền).
+  const MUC: { duong: string; ten: string; hd?: HanhDong }[] = [
+    { duong: GOC, ten: 'Tổng quan' },
+    { duong: `${GOC}/bai`, ten: 'Bài viết' },
+    { duong: `${GOC}/anh`, ten: 'Ảnh' },
+    { duong: `${GOC}/binh-luan`, ten: 'Bình luận' },
+    { duong: `${GOC}/ban-tin`, ten: 'Bản tin', hd: 'ban-tin.gui' },
+    { duong: `${GOC}/thung-rac`, ten: 'Thùng rác' },
+    { duong: `${GOC}/chuyen-muc`, ten: 'Chuyên mục', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/tinh`, ten: 'Tỉnh', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/tag`, ten: 'Tag', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/trang`, ten: 'Trang tĩnh', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/menu`, ten: 'Menu', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/redirect`, ten: 'Chuyển hướng', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/cai-dat`, ten: 'Cài đặt site', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/ngon-ngu`, ten: 'Ngôn ngữ', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/dich-cau-truc`, ten: 'Bản dịch cấu trúc', hd: 'cau-truc.sua' },
+    { duong: `${GOC}/chuoi-giao-dien`, ten: 'Chuỗi giao diện', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/cai-dat-ai`, ten: 'Cài đặt AI', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/mail`, ten: 'Cài đặt mail', hd: 'cai-dat.sua' },
+    { duong: `${GOC}/tai-khoan`, ten: 'Tài khoản', hd: 'tai-khoan.quan-ly' },
+    { duong: `${GOC}/nhat-ky`, ten: 'Nhật ký', hd: 'nhat-ky.xem' },
+    { duong: `${GOC}/thiet-bi`, ten: 'Của tôi' },
+  ];
+  const hienMuc = (m: { hd?: HanhDong }) => !m.hd || (phien.nguoiDung !== null && coQuyen(phien.nguoiDung, m.hd));
+
+  // Mỗi lần đổi trang: kiểm tra phiên rồi điều hướng nếu chưa đủ điều kiện vào trang đó.
+  $effect(() => {
+    const duong = dieuHuong.duong;
+    void (async () => {
+      await taiPhien();
+      const congKhai = CONG_KHAI.includes(duong);
+      if (phien.choTotp) {
+        if (duong !== `${GOC}/totp`) di(`${GOC}/totp`, true);
+      } else if (!phien.nguoiDung) {
+        if (!congKhai) di(`${GOC}/dang-nhap`, true);
+      } else if (phien.nguoiDung.vaiTro === 'quan-tri' && !phien.nguoiDung.coTotp) {
+        if (duong !== `${GOC}/bat-totp`) di(`${GOC}/bat-totp`, true); // quản trị bắt buộc bật 2FA
+      } else if (congKhai || duong === `${GOC}/totp`) {
+        di(GOC, true);
+      }
+    })();
+  });
+
+  async function dangXuat() {
+    try {
+      await goiApi('POST', '/dang-xuat');
+    } finally {
+      phien.nguoiDung = null;
+      di(`${GOC}/dang-nhap`);
+    }
+  }
+</script>
+
+{#if phien.nguoiDung && !phien.choTotp}
+  <header class="thanh">
+    <nav class="thanh-trong" aria-label="Điều hướng quản trị">
+      <span class="nhan-hieu">VNTravelTips</span>
+      {#each MUC.filter(hienMuc) as m}
+        <a href={m.duong} class:dang-o={dieuHuong.duong === m.duong} onclick={bamLienKet}>{m.ten}</a>
+      {/each}
+      <button class="lien-ket" onclick={dangXuat}>Đăng xuất</button>
+    </nav>
+  </header>
+{/if}
+
+{#if !phien.daTai}
+  <p class="khung nhat">Đang tải…</p>
+{:else if dieuHuong.duong === `${GOC}/dang-nhap`}
+  <DangNhap />
+{:else if dieuHuong.duong === `${GOC}/quen-mat-khau`}
+  <QuenMatKhau />
+{:else if dieuHuong.duong === `${GOC}/dat-lai`}
+  <DatLai />
+{:else if dieuHuong.duong === `${GOC}/nhan-loi-moi`}
+  <NhanLoiMoi />
+{:else if phien.choTotp || dieuHuong.duong === `${GOC}/totp`}
+  <Totp />
+{:else if phien.nguoiDung}
+  <main class="khung">
+    {#if dieuHuong.duong === `${GOC}/bat-totp`}
+      <BatTotp />
+    {:else if dieuHuong.duong === `${GOC}/bai`}
+      <DanhSachBai />
+    {:else if dieuHuong.duong === `${GOC}/binh-luan`}
+      <BinhLuan />
+    {:else if dieuHuong.duong === `${GOC}/ban-tin`}
+      <BanTin />
+    {:else if dieuHuong.duong === `${GOC}/nguoi-dang-ky`}
+      <NguoiDangKy />
+    {:else if /^\/quan-tri\/ban-tin\/\d+$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanBanTin id={Number(dieuHuong.duong.split('/').pop())} />{/key}
+    {:else if dieuHuong.duong === `${GOC}/chuyen-muc`}
+      <ChuyenMuc />
+    {:else if dieuHuong.duong === `${GOC}/tinh`}
+      <Tinh />
+    {:else if dieuHuong.duong === `${GOC}/tag`}
+      <Tag />
+    {:else if dieuHuong.duong === `${GOC}/tai-khoan`}
+      <TaiKhoan />
+    {:else if dieuHuong.duong === `${GOC}/nhat-ky`}
+      <NhatKy />
+    {:else if dieuHuong.duong === `${GOC}/menu`}
+      <Menu />
+    {:else if dieuHuong.duong === `${GOC}/redirect`}
+      <Redirect />
+    {:else if dieuHuong.duong === `${GOC}/cai-dat`}
+      <CaiDatSite />
+    {:else if dieuHuong.duong === `${GOC}/ngon-ngu`}
+      <NgonNgu />
+    {:else if dieuHuong.duong === `${GOC}/dich-cau-truc`}
+      <DichCauTruc />
+    {:else if dieuHuong.duong === `${GOC}/chuoi-giao-dien`}
+      <ChuoiGiaoDien />
+    {:else if dieuHuong.duong === `${GOC}/cai-dat-ai`}
+      <CaiDatAi />
+    {:else if /^\/quan-tri\/bai\/\d+\/ban-dich\/[a-z]{2}(-[a-z]{2})?$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanBanDich id={Number(dieuHuong.duong.split('/')[3])} ma={dieuHuong.duong.split('/')[5]!} />{/key}
+    {:else if dieuHuong.duong === `${GOC}/trang`}
+      <Trang />
+    {:else if /^\/quan-tri\/trang\/[a-z0-9-]+$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanTrang slug={dieuHuong.duong.split('/').pop()!} />{/key}
+    {:else if dieuHuong.duong === `${GOC}/anh`}
+      <ThuVienAnh />
+    {:else if dieuHuong.duong === `${GOC}/thung-rac`}
+      <ThungRac />
+    {:else if /^\/quan-tri\/bai\/\d+\/lich-su$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<LichSuBai id={Number(dieuHuong.duong.split('/')[3])} />{/key}
+    {:else if dieuHuong.duong === `${GOC}/bai/moi`}
+      {#key 'moi'}<SoanBai idBanDau={null} />{/key}
+    {:else if /^\/quan-tri\/bai\/\d+$/.test(dieuHuong.duong)}
+      {#key dieuHuong.duong}<SoanBai idBanDau={Number(dieuHuong.duong.split('/').pop())} />{/key}
+    {:else if dieuHuong.duong === `${GOC}/thiet-bi`}
+      <ThietBi />
+    {:else if dieuHuong.duong === `${GOC}/mail`}
+      <Mail />
+    {:else}
+      <TongQuan />
+    {/if}
+  </main>
+{/if}

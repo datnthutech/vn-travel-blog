@@ -1,6 +1,9 @@
-# Sao lưu ảnh VNTravelTips
+# Sao lưu VNTravelTips (ảnh + cơ sở dữ liệu)
 
-Bài viết đã nằm trên GitHub, nên chỉ **thư mục ảnh** cần sao lưu ra ngoài VPS. Ảnh nằm trong volume Docker `vntraveltips_data`, thư mục `anh/`.
+Nội dung bài viết nay nằm trong SQLite (`db/vntraveltips.sqlite` trong volume `vntraveltips_data`). Dịch vụ tự sao lưu DB **mỗi giờ** vào `db/sao-luu/` (giữ 48 bản theo giờ + bản đầu mỗi ngày trong 14 ngày). Script này đưa **ảnh** (`anh/`) và **các bản sao lưu DB gần nhất** ra ngoài VPS (đích DB mặc định `gdrive:vntraveltips-db`, đổi bằng `RCLONE_DICH_DB`).
+
+Khôi phục: `docker exec -it vntraveltips-mcp npm run cli -w @vntraveltips/mcp -- khoi-phuc --file /data/db/sao-luu/<file>` (phải gõ `KHOI-PHUC`), rồi `docker compose -p vntraveltips restart vntraveltips-mcp`.
+
 
 `backup-anh.sh` chạy `rclone copy` **bên trong Docker** (image `rclone/rclone`), không cài rclone trên host:
 

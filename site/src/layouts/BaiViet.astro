@@ -15,51 +15,62 @@ import Faq from '../components/Faq.astro';
 import RelatedPosts from '../components/RelatedPosts.astro';
 import AdSlot from '../components/AdSlot.astro';
 import AffiliateDisclosure from '../components/AffiliateDisclosure.astro';
+import BinhLuan from '../components/BinhLuan.astro';
+import DangKyBanTin from '../components/DangKyBanTin.astro';
 import { coAffiliate } from '../lib/affiliate';
 import { breadcrumb } from '../lib/breadcrumb';
 import { layBaiViet } from '../lib/bai';
 import { related } from '../lib/related';
+import { t } from '../i18n/giao-dien';
 
 interface Props {
   bai: BaiViet;
   entry: CollectionEntry<'bai-viet'>;
   tinh?: Tinh;
+  ngonNgu?: string;
 }
-const { bai, entry, tinh } = Astro.props;
+const { bai, entry, tinh, ngonNgu = 'vi' } = Astro.props;
+const tien = ngonNgu === 'vi' ? '' : `/${ngonNgu}`;
+// hreflang: trang này + các bản đã đăng khác (xuatNoiDung ghi `banDich`). Bài chỉ có một ngôn ngữ → rỗng (không sinh thẻ thừa).
+const hreflang = bai.banDich && Object.keys(bai.banDich).length > 0 ? { [ngonNgu]: tien + urlBai(bai), ...bai.banDich } : {};
 const { Content, headings } = await render(entry);
-const lienQuan = related(bai, await layBaiViet());
-const ngay = (d?: Date) => d?.toLocaleDateString('vi-VN');
+const lienQuan = related(bai, await layBaiViet(ngonNgu));
+const ngay = (d?: Date) => d?.toLocaleDateString(ngonNgu === 'vi' ? 'vi-VN' : ngonNgu);
 const phut = Math.max(1, Math.round((entry.body ?? '').split(/\s+/).length / 200));
 ---
 
 <Base
   title={bai.tieuDe}
+  ngonNgu={ngonNgu}
+  hreflang={hreflang}
   moTa={bai.moTa}
-  duongDan={urlBai(bai)}
+  duongDan={tien + urlBai(bai)}
   anh={`/anh/${bai.anhBia.ma}/1600.webp`}
   loai="article"
-  jsonLd={jsonLd(bai, { site: Astro.site!.toString(), tinh })}
+  jsonLd={jsonLd(bai, { site: Astro.site!.toString(), tinh, ngonNgu })}
 >
   <article data-pagefind-body>
     <Picture ma={bai.anhBia.ma} alt={bai.anhBia.alt} uuTien />
-    <Breadcrumb muc={breadcrumb(bai, tinh)} />
+    <Breadcrumb muc={breadcrumb(bai, tinh, ngonNgu)} />
     <h1>{bai.tieuDe}</h1>
     <p class="meta">
-      {bai.ngayDi && <>Đi ngày {ngay(bai.ngayDi)} · </>}
-      {bai.ngayCapNhat && <>Cập nhật {ngay(bai.ngayCapNhat)} · </>}
-      {phut} phút đọc
-      {bai.hopTac && <span class="nhan-hop-tac">Bài hợp tác</span>}
+      {bai.ngayDi && <>{t(ngonNgu, 'di-ngay')} {ngay(bai.ngayDi)} · </>}
+      {bai.ngayCapNhat && <>{t(ngonNgu, 'cap-nhat')} {ngay(bai.ngayCapNhat)} · </>}
+      {phut} {t(ngonNgu, 'phut-doc')}
+      {bai.hopTac && <span class="nhan-hop-tac">{t(ngonNgu, 'bai-hop-tac')}</span>}
     </p>
-    <QuickBox bai={bai} />
+    <QuickBox bai={bai} ngonNgu={ngonNgu} />
     <AdSlot viTri="sauTraNhanh" />
-    <Toc headings={headings} />
+    <Toc headings={headings} ngonNgu={ngonNgu} />
     <div class="noi-dung"><Content /></div>
     <AdSlot viTri="giuaBai" />
-    <DoChoBe doMang={bai.doMangChoBe} />
-    <Faq faq={bai.faq} />
-    <RelatedPosts bai={lienQuan} />
+    <DoChoBe doMang={bai.doMangChoBe} ngonNgu={ngonNgu} />
+    <Faq faq={bai.faq} ngonNgu={ngonNgu} />
+    <RelatedPosts bai={lienQuan} ngonNgu={ngonNgu} />
     <AdSlot viTri="cuoiBai" />
-    {coAffiliate(bai) && <AffiliateDisclosure />}
+    {coAffiliate(bai) && <AffiliateDisclosure ngonNgu={ngonNgu} />}
+    <DangKyBanTin ngonNgu={ngonNgu} />
+    <BinhLuan maBai={bai.maBai} ngonNgu={ngonNgu} />
   </article>
 </Base>
 

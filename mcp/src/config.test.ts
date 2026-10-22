@@ -6,17 +6,27 @@ import { createApp } from './app';
 const du = {
   GITHUB_TOKEN: 'ghp_bi_mat_khong_duoc_lo',
   GITHUB_REPO: 'chu/repo',
-  ALLOWED_GITHUB_USER: 'chu-blog',
   PUBLIC_BASE_URL: 'https://vntraveltips.monai.click',
   PREVIEW_BASE_URL: 'https://nhap-vntraveltips.monai.click',
   ANH_DIR: '/data/anh',
   SESSION_SECRET: 'x'.repeat(32),
-  GITHUB_OAUTH_CLIENT_ID: 'id',
-  GITHUB_OAUTH_CLIENT_SECRET: 'secret',
   GITHUB_WEBHOOK_SECRET: 'whsec_bi_mat',
+  KHOA_BI_MAT: 'a'.repeat(64),
 };
 
 describe('loadConfig', () => {
+  it('GITHUB_TOKEN là TUỲ CHỌN (repo code public fetch không cần token): thiếu → githubToken rỗng, không lỗi', () => {
+    const { GITHUB_TOKEN: _t, ...khongToken } = du;
+    expect(loadConfig(khongToken).githubToken).toBe('');
+    expect(loadConfig(du).githubToken).toBe(du.GITHUB_TOKEN);
+  });
+
+  it('không còn đòi biến GitHub OAuth / ALLOWED_GITHUB_USER (MCP đăng nhập bằng tài khoản admin); GITHUB_TOKEN vẫn cần để lấy code build', () => {
+    const c = loadConfig(du) as unknown as Record<string, unknown>;
+    expect('allowedGithubUser' in c || 'githubOauthClientId' in c || 'githubOauthClientSecret' in c).toBe(false);
+    expect(() => loadConfig({ ...du, ALLOWED_GITHUB_USER: undefined, GITHUB_OAUTH_CLIENT_ID: undefined })).not.toThrow();
+  });
+
   it('đủ biến → trả Config, PORT mặc định 8091', () => {
     const c = loadConfig(du);
     expect(c.port).toBe(8091);
@@ -52,8 +62,22 @@ describe('loadConfig', () => {
   });
 
   it('thiếu biến → lỗi nêu tên mọi biến thiếu', () => {
-    const { GITHUB_TOKEN: _a, SESSION_SECRET: _b, ...thieu } = du;
-    expect(() => loadConfig(thieu)).toThrow(/GITHUB_TOKEN.*SESSION_SECRET|SESSION_SECRET.*GITHUB_TOKEN/);
+    const { GITHUB_REPO: _a, SESSION_SECRET: _b, ...thieu } = du;
+    expect(() => loadConfig(thieu)).toThrow(/GITHUB_REPO.*SESSION_SECRET|SESSION_SECRET.*GITHUB_REPO/);
+  });
+
+  it('KHOA_BI_MAT thiếu hoặc không đúng 64 hex → lỗi nêu tên biến, không in giá trị', () => {
+    const { KHOA_BI_MAT: _k, ...thieu } = du;
+    expect(() => loadConfig(thieu)).toThrow(/KHOA_BI_MAT/);
+    for (const sai of ['a'.repeat(63), 'z'.repeat(64), 'a'.repeat(65)]) {
+      expect(() => loadConfig({ ...du, KHOA_BI_MAT: sai })).toThrow(/KHOA_BI_MAT/);
+      try {
+        loadConfig({ ...du, KHOA_BI_MAT: sai });
+      } catch (e) {
+        expect(String((e as Error).message)).not.toContain(sai);
+      }
+    }
+    expect(loadConfig(du).khoaBiMat).toBe('a'.repeat(64));
   });
 
   it('SESSION_SECRET ngắn hơn 32 ký tự → lỗi', () => {

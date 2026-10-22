@@ -20,12 +20,12 @@ afterAll(() => rm(dataDir, { recursive: true, force: true }));
 const app = () =>
   createApp(
     loadConfig({
-      GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
+      GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',
       PUBLIC_BASE_URL: 'https://x.test', PREVIEW_BASE_URL: 'https://y.test',
       ANH_DIR: '/khong/ghi/duoc', SESSION_SECRET: 'x'.repeat(32),
-      GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec', DATA_DIR: dataDir,
+       GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64), DATA_DIR: dataDir,
     }),
-    { khongLuuOAuth: true },
+    {},
   );
 const dat = async (noiDung: string, mtimeSec?: number) => {
   const p = join(dir, 'redirects.json');
@@ -58,11 +58,11 @@ describe('URL không còn tồn tại → 301 theo redirects.json, ngược lạ
     const trong = await mkdtemp(join(tmpdir(), 'vtt-trong-'));
     const a = createApp(
       loadConfig({
-        GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u', PUBLIC_BASE_URL: 'https://x.test',
+        GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',PUBLIC_BASE_URL: 'https://x.test',
         PREVIEW_BASE_URL: 'https://y.test', ANH_DIR: '/x', SESSION_SECRET: 'x'.repeat(32),
-        GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec', DATA_DIR: trong,
+         GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64), DATA_DIR: trong,
       }),
-      { khongLuuOAuth: true },
+      {},
     );
     expect((await request(a).get('/bat-ky/')).status).toBe(404);
     await rm(trong, { recursive: true });

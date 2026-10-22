@@ -1,15 +1,18 @@
 ---
 // Mục lục tự động từ các tiêu đề ## và ### trong nội dung Markdown (Astro cung cấp headings khi render).
+import { t } from '../i18n/giao-dien';
 interface Props {
   headings: { depth: number; slug: string; text: string }[];
+  ngonNgu?: string;
 }
+const ngonNgu = Astro.props.ngonNgu ?? 'vi';
 const muc = Astro.props.headings.filter((h) => h.depth === 2 || h.depth === 3);
 ---
 
 {
   muc.length >= 2 && (
-    <nav class="toc" aria-label="Mục lục">
-      <strong>Mục lục</strong>
+    <nav class="toc" aria-label={t(ngonNgu, 'muc-luc')}>
+      <strong>{t(ngonNgu, 'muc-luc')}</strong>
       <ol>{muc.map((h) => <li class={`d${h.depth}`}><a href={`#${h.slug}`}>{h.text}</a></li>)}</ol>
     </nav>
   )

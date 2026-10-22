@@ -1,0 +1,12 @@
+---
+// Trang tĩnh do chủ blog tạo: /trang/<slug>/ (3 trang cố định có URL riêng: /gioi-thieu/, /chinh-sach-lien-ket/, /lien-he/).
+import TrangTinh from '../../components/TrangTinh.astro';
+import { trangTuDo } from '../../lib/trang';
+
+export async function getStaticPaths() {
+  return (await trangTuDo()).map((t) => ({ params: { slug: t.slug }, props: { trang: t } }));
+}
+const { trang } = Astro.props;
+---
+
+<TrangTinh trang={trang} />

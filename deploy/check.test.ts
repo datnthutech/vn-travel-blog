@@ -113,6 +113,18 @@ describe('sao lưu ảnh', () => {
     for (const loai of ['.upload-tmp', '.tmp-', '.oauth-state.json']) expect(sh, loai).toContain(loai);
   });
 
+  it('cũng sao chép bản sao lưu SQLite (db/sao-luu) theo cùng luật: chỉ đọc, chỉ thêm', () => {
+    expect(sh).toMatch(/rclone\/rclone\S* copy \/data\/db\/sao-luu/);
+    expect(sh.match(/vntraveltips_data:\/data:ro/g)).toHaveLength(2);
+  });
+
+  it('ghi file đánh dấu .da-day-ra-ngoai SAU khi cả hai lần rclone thành công (set -e), chỉ ghi đúng file đó', () => {
+    const lenh = sh.split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
+    const dau = lenh.indexOf('.da-day-ra-ngoai');
+    expect(dau).toBeGreaterThan(lenh.lastIndexOf('rclone/rclone'));
+    expect(lenh).toMatch(/> \/data\/db\/sao-luu\/\.da-day-ra-ngoai/);
+  });
+
   it('nguồn là thư mục anh/ trong volume vntraveltips_data; không còn đường dẫn /srv', () => {
     expect(sh).toContain('/data/anh');
     expect(sh).not.toContain('/srv/vntraveltips');
@@ -159,8 +171,10 @@ describe('hướng dẫn VPS', () => {
     expect(guide).not.toContain('docker load');
   });
 
-  it('callback URL của GitHub OAuth App phủ cả /oauth/github/callback (MCP) lẫn /oauth/cms/callback (admin)', () => {
-    expect(guide).toContain('https://vntraveltips.monai.click/oauth/');
+  it('GĐ8: hướng dẫn KHÔNG còn bước tạo GitHub OAuth App / biến ALLOWED_GITHUB_USER / GITHUB_OAUTH_*; connector Claude đăng nhập bằng tài khoản của blog', () => {
+    expect(guide).not.toMatch(/ALLOWED_GITHUB_USER|GITHUB_OAUTH_CLIENT|Authorization callback URL/);
+    expect(guide).toMatch(/email \+ mật khẩu của tài khoản quản trị/);
+    expect(guide).toMatch(/GITHUB_TOKEN.*(trống|để trống)/s);
   });
 
   it('không chứa token/secret thật', () => {
@@ -211,6 +225,10 @@ describe('nginx trên host (chỉ proxy)', () => {
     }
   });
 
+  it('host chính: /quan-tri/ và /api/ tới mcp 8091', () => {
+    for (const duong of ['/quan-tri/', '/api/']) expect(loc(chinh, duong)).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:8091;/);
+  });
+
   it('phần còn lại (kể cả /admin) tới web 8090; host nhap-vntraveltips tới web 8090', () => {
     expect(loc(chinh, '/')).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:8090;/);
     expect(loc(preview, '/')).toMatch(/proxy_pass http:\/\/127\.0\.0\.1:8090;/);
@@ -236,8 +254,9 @@ describe('mẫu biến môi trường deploy/.env.example', () => {
   const env = doc('deploy/.env.example');
   const bien = [...env.matchAll(/^([A-Z_]+)=/gm)].map((m) => m[1]);
 
-  it('có đủ biến bắt buộc mà deploy.sh kiểm tra (gồm GITHUB_WEBHOOK_SECRET)', () => {
-    for (const b of ['GITHUB_TOKEN', 'GITHUB_REPO', 'ALLOWED_GITHUB_USER', 'PUBLIC_BASE_URL', 'PREVIEW_BASE_URL', 'SESSION_SECRET', 'GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET', 'GITHUB_WEBHOOK_SECRET']) {
+  it('có đủ biến bắt buộc mà deploy.sh kiểm tra (gồm GITHUB_WEBHOOK_SECRET); KHÔNG còn biến GitHub OAuth / ALLOWED_GITHUB_USER', () => {
+    for (const b of ['ALLOWED_GITHUB_USER', 'GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET']) expect(bien).not.toContain(b);
+    for (const b of ['GITHUB_REPO', 'PUBLIC_BASE_URL', 'PREVIEW_BASE_URL', 'SESSION_SECRET', 'GITHUB_WEBHOOK_SECRET', 'KHOA_BI_MAT']) {
       expect(bien).toContain(b);
     }
   });
@@ -297,10 +316,15 @@ describe('vntraveltips-web', () => {
     expect(site).toMatch(/location \/anh\/ \{[\s\S]*?expires 1y;[\s\S]*?immutable/);
   });
 
-  it('/admin/ không cache và noindex', () => {
-    const admin = site.slice(site.indexOf('location /admin/ {'), site.indexOf('}', site.indexOf('location /admin/ {')));
-    expect(admin).toMatch(/Cache-Control "no-store"/);
-    expect(admin).toMatch(/X-Robots-Tag "noindex, nofollow"/);
+  it('/admin/ trả 301 tới /quan-tri/ (Sveltia đã gỡ)', () => {
+    expect(site).toMatch(/location ~ \^\/admin\(\/\|\$\) \{[^}]*return 301 \/quan-tri\/;/);
+  });
+
+  it('không còn file Sveltia/CMS trong repo', () => {
+    for (const f of ['site/scripts/build-cms.mjs', 'site/admin/config.template.yml', 'site/public/admin/index.html', 'mcp/src/auth/cms-oauth.ts']) {
+      expect(existsSync(join(goc, f)), f).toBe(false);
+    }
+    expect(doc('site/package.json')).not.toContain('sveltia');
   });
 
   it('sau proxy của host (HTTP/1.0): vẫn gzip; redirect tự thêm "/" dùng đường dẫn tương đối (giữ https và cổng)', () => {
@@ -333,6 +357,44 @@ describe('vntraveltips-web', () => {
 
   it('có endpoint sức khoẻ /healthz-web cho healthcheck', () => {
     expect(site).toMatch(/location = \/healthz-web \{/);
+  });
+});
+
+describe('header bảo mật của vntraveltips-web', () => {
+  const conf = doc('deploy/web/nginx.conf');
+  const khoi = conf.split(/\n(?=server \{)/).filter((k) => k.startsWith('server {'));
+  const baoMat = existsSync(join(goc, 'deploy/web/bao-mat.conf')) ? doc('deploy/web/bao-mat.conf') : '';
+  const INCLUDE = 'include /etc/nginx/bao-mat.conf;';
+  // Các khối location (không có dấu { lồng nhau).
+  const locations = (k: string) => [...k.matchAll(/location [^{]*\{[^}]*\}/g)].map((m) => m[0]);
+
+  it('nginx.conf include bao-mat.conf ở cấp server của CẢ HAI server', () => {
+    expect(khoi).toHaveLength(2);
+    for (const k of khoi) {
+      expect(k.replace(/location [^{]*\{[^}]*\}/g, '')).toContain(INCLUDE);
+    }
+  });
+
+  it('mọi location có add_header đều include bao-mat.conf (nginx bỏ add_header cấp trên khi location có add_header riêng)', () => {
+    const coAddHeader = khoi.flatMap(locations).filter((l) => l.includes('add_header'));
+    expect(coAddHeader).toHaveLength(2); // /anh/ của hai server
+    for (const l of coAddHeader) expect(l, l).toContain(INCLUDE);
+  });
+
+  it('bao-mat.conf có đủ 4 header, mỗi dòng add_header đều có always, KHÔNG có script-src', () => {
+    const code = baoMat.split('\n').filter((l) => !l.trimStart().startsWith('#'));
+    const headers = code.filter((l) => l.trim().startsWith('add_header'));
+    expect(headers).toHaveLength(4);
+    for (const h of headers) expect(h).toMatch(/ always;$/);
+    expect(baoMat).toContain(`add_header Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'" always;`);
+    expect(baoMat).toContain('add_header X-Content-Type-Options "nosniff" always;');
+    expect(baoMat).toContain('add_header Referrer-Policy "strict-origin-when-cross-origin" always;');
+    expect(baoMat).toContain('add_header X-Frame-Options "SAMEORIGIN" always;');
+    expect(code.join('\n')).not.toContain('script-src');
+  });
+
+  it('Dockerfile COPY bao-mat.conf vào /etc/nginx/bao-mat.conf', () => {
+    expect(doc('deploy/web/Dockerfile')).toContain('COPY bao-mat.conf /etc/nginx/bao-mat.conf');
   });
 });
 

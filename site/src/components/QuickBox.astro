@@ -4,13 +4,16 @@
 // Khối nào không có dữ liệu thì không hiện (bài top-list/cẩm nang có thể không có traNhanh).
 import type { BaiViet } from '@vntraveltips/schema';
 import { sao } from '../lib/stars';
+import { t as tr } from '../i18n/giao-dien';
 import DiaDiemDetails from './DiaDiemDetails.astro';
 interface Props {
   bai: BaiViet;
+  ngonNgu?: string;
 }
-const { bai } = Astro.props;
+const { bai, ngonNgu = 'vi' } = Astro.props;
+const t_ = (k: Parameters<typeof tr>[1], p?: Record<string, string | number>) => tr(ngonNgu, k, p);
 const t = bai.traNhanh;
-const chiPhi = t ? new Intl.NumberFormat('vi-VN').format(t.tongChiPhi) + 'đ' : '';
+const chiPhi = t ? new Intl.NumberFormat(ngonNgu === 'vi' ? 'vi-VN' : ngonNgu).format(t.tongChiPhi) + 'đ' : '';
 const choO = bai.diaDiem.filter((d) => d.kieu === 'cho-o');
 const anUong = bai.diaDiem.filter((d) => d.kieu === 'quan-an' || d.kieu === 'cho');
 const khac = bai.diaDiem.filter((d) => d.kieu === 'khu-sinh-thai' || d.kieu === 'diem-choi');
@@ -18,30 +21,30 @@ const khac = bai.diaDiem.filter((d) => d.kieu === 'khu-sinh-thai' || d.kieu === 
 
 {
   (t || bai.diaDiem.length > 0) && (
-    <section class="tra-nhanh" aria-label="Tra nhanh">
-      <h2>Tra nhanh</h2>
+    <section class="tra-nhanh" aria-label={t_('tra-nhanh')}>
+      <h2>{t_('tra-nhanh')}</h2>
       {t && (
         <dl>
-          <dt>Hợp với</dt><dd>{t.hopVoi}</dd>
-          <dt>Thời gian</dt><dd>{t.thoiGian}</dd>
-          {t.choO && (<><dt>Chỗ ở</dt><dd>{t.choO}</dd></>)}
-          <dt>Tổng chi phí</dt><dd>{chiPhi} / {t.soNguoi} người</dd>
-          <dt>Thân thiện với bé</dt><dd aria-label={`${t.diemThanThienVoiBe} trên 5 sao`}>{sao(t.diemThanThienVoiBe)}</dd>
-          <dt>Di chuyển</dt><dd>{t.diChuyen}</dd>
-          <dt>Thời điểm nên đi</dt><dd>{t.thoiDiemNenDi}</dd>
+          <dt>{t_('hop-voi')}</dt><dd>{t.hopVoi}</dd>
+          <dt>{t_('thoi-gian')}</dt><dd>{t.thoiGian}</dd>
+          {t.choO && (<><dt>{t_('cho-o')}</dt><dd>{t.choO}</dd></>)}
+          <dt>{t_('tong-chi-phi')}</dt><dd>{chiPhi} / {t.soNguoi} {t_('nguoi')}</dd>
+          <dt>{t_('than-thien-voi-be')}</dt><dd aria-label={t_('sao-tren-5', { n: t.diemThanThienVoiBe })}>{sao(t.diemThanThienVoiBe)}</dd>
+          <dt>{t_('di-chuyen')}</dt><dd>{t.diChuyen}</dd>
+          <dt>{t_('thoi-diem-nen-di')}</dt><dd>{t.thoiDiemNenDi}</dd>
         </dl>
       )}
       {choO.length > 0 && (
-        <details><summary>Chỗ ở chi tiết</summary><DiaDiemDetails diaDiem={choO} /></details>
+        <details><summary>{t_('cho-o-chi-tiet')}</summary><DiaDiemDetails diaDiem={choO} ngonNgu={ngonNgu} /></details>
       )}
       {anUong.length > 0 && (
-        <details><summary>Chợ & quán ăn ({anUong.length})</summary><DiaDiemDetails diaDiem={anUong} /></details>
+        <details><summary>{t_('cho-quan-an', { n: anUong.length })}</summary><DiaDiemDetails diaDiem={anUong} ngonNgu={ngonNgu} /></details>
       )}
       {khac.length > 0 && (
-        <details><summary>Điểm tham quan ({khac.length})</summary><DiaDiemDetails diaDiem={khac} /></details>
+        <details><summary>{t_('diem-tham-quan', { n: khac.length })}</summary><DiaDiemDetails diaDiem={khac} ngonNgu={ngonNgu} /></details>
       )}
       {t && t.luuYVoiBe.length > 0 && (
-        <details><summary>Lưu ý khi đi cùng bé</summary><ul>{t.luuYVoiBe.map((l) => <li>{l}</li>)}</ul></details>
+        <details><summary>{t_('luu-y-voi-be')}</summary><ul>{t.luuYVoiBe.map((l) => <li>{l}</li>)}</ul></details>
       )}
     </section>
   )

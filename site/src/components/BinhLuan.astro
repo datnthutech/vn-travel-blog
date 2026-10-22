@@ -1,0 +1,45 @@
+---
+// Khung bình luận: HTML tĩnh (không phụ thuộc server). Chỉ ở bản PRODUCTION và khi bài có mã trong DB (maBai); bản xem trước
+// và bài mẫu chạy local không có form. Bình luận được nạp bằng script nhỏ khi khung còn cách màn hình 600 px (scripts/binh-luan.ts).
+import { buildTarget } from '../lib/build-target';
+import { t } from '../i18n/giao-dien';
+interface Props { maBai?: number; ngonNgu?: string }
+const { maBai, ngonNgu = 'vi' } = Astro.props;
+const hien = buildTarget() === 'production' && maBai !== undefined;
+---
+
+{hien && (
+  <section class="binh-luan" data-binh-luan data-bai={maBai} data-ngon-ngu={ngonNgu} aria-label={t(ngonNgu, 'bl.tieu-de')}>
+    <h2>{t(ngonNgu, 'bl.tieu-de')}</h2>
+    <div class="bl-danh-sach" aria-live="polite"></div>
+    <p class="bl-trang-thai" role="status" hidden></p>
+    <form class="bl-form" hidden>
+      <label>{t(ngonNgu, 'bl.ten')} <input name="ten" required maxlength="60" autocomplete="name" /></label>
+      <label>{t(ngonNgu, 'bl.email')} <input name="email" type="email" required autocomplete="email" /></label>
+      <label>{t(ngonNgu, 'bl.noi-dung')} <textarea name="noiDung" required minlength="2" maxlength="2000" rows="4"></textarea></label>
+      <!-- ô bẫy cho bot (tên "bay", không phải "website" để trình duyệt/trình quản lý mật khẩu không tự điền) -->
+      <input name="bay" class="bl-bay" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <button type="submit">{t(ngonNgu, 'bl.gui')}</button>
+    </form>
+  </section>
+)}
+
+<script>
+  import { khoiTaoBinhLuan } from '../scripts/binh-luan';
+  document.querySelectorAll<HTMLElement>('[data-binh-luan]').forEach((k) => khoiTaoBinhLuan(k));
+</script>
+
+<style is:global>
+  /* Giữ sẵn chỗ để khung không làm nhảy bố cục khi bình luận nạp xong (CLS). */
+  .binh-luan { min-height: 12rem; margin-top: 2rem; }
+  .bl-bay { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .bl-muc { margin: 1rem 0; }
+  .bl-con { margin-left: 1.5rem; padding-left: 0.75rem; border-left: 3px solid #d6e4e8; }
+  .bl-dau { margin: 0 0 0.25rem; }
+  .bl-nhan { background: #14a79d; color: #fff; border-radius: 6px; padding: 1px 6px; font-size: 0.8rem; }
+  .bl-gio { color: #5b7881; font-size: 0.85rem; }
+  .bl-noi-dung { margin: 0; overflow-wrap: anywhere; }
+  .bl-form label { display: block; margin: 0.5rem 0; }
+  .bl-form input:not(.bl-bay), .bl-form textarea { display: block; width: 100%; min-height: 44px; }
+  .bl-form button, .bl-tra-loi { min-height: 44px; }
+</style>

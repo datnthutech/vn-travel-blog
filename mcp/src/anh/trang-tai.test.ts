@@ -11,10 +11,10 @@ import { layAnhGanDay } from './gan-day';
 
 let dir: string;
 const env = (anhDir: string) => ({
-  GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b', ALLOWED_GITHUB_USER: 'u',
+  GITHUB_TOKEN: 't', GITHUB_REPO: 'a/b',
   PUBLIC_BASE_URL: 'https://x.test', PREVIEW_BASE_URL: 'https://y.test',
   ANH_DIR: anhDir, SESSION_SECRET: 'x'.repeat(32),
-  GITHUB_OAUTH_CLIENT_ID: 'i', GITHUB_OAUTH_CLIENT_SECRET: 's', GITHUB_WEBHOOK_SECRET: 'whsec',
+   GITHUB_WEBHOOK_SECRET: 'whsec', KHOA_BI_MAT: 'a'.repeat(64),
 });
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'vtt-tai-'));

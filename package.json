@@ -5,10 +5,11 @@
   "workspaces": [
     "packages/*",
     "site",
-    "mcp"
+    "mcp",
+    "admin"
   ],
   "scripts": {
-    "typecheck": "tsc -p mcp && npm run check -w site",
+    "typecheck": "tsc -p mcp && npm run check -w site && npm run check -w @vntraveltips/admin",
     "test": "npm run typecheck && vitest run --passWithNoTests"
   },
   "devDependencies": {

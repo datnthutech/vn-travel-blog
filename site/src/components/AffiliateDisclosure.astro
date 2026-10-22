@@ -1,10 +1,13 @@
 ---
 // Dòng tiết lộ affiliate (ngắn) — hiện ở cuối bài khi bài có link kiếm hoa hồng. Dẫn tới trang chính sách.
+import { t } from '../i18n/giao-dien';
+interface Props { ngonNgu?: string }
+const { ngonNgu = 'vi' } = Astro.props;
 ---
 
 <p class="tiet-lo">
-  Bài này có liên kết giới thiệu: nếu bạn đặt qua đó, chúng mình có thể nhận một khoản hoa hồng nhỏ, bạn không trả thêm gì.
-  <a href="/chinh-sach-lien-ket/">Xem chính sách liên kết</a>.
+  {t(ngonNgu, 'tiet-lo-affiliate')}
+  <a href="/chinh-sach-lien-ket/">{t(ngonNgu, 'xem-chinh-sach')}</a>.
 </p>
 
 <style>

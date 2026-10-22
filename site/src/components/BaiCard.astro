@@ -4,12 +4,14 @@ import { urlBai, type BaiViet } from '@vntraveltips/schema';
 import Picture from './Picture.astro';
 interface Props {
   bai: BaiViet;
+  ngonNgu?: string;
 }
-const { bai } = Astro.props;
+const { bai, ngonNgu = 'vi' } = Astro.props;
+const tien = ngonNgu === 'vi' ? '' : `/${ngonNgu}`;
 ---
 
 <article class="the-bai">
-  <a href={urlBai(bai)}>
+  <a href={tien + urlBai(bai)}>
     <Picture ma={bai.anhBia.ma} alt={bai.anhBia.alt} sizes="(min-width: 800px) 360px, 100vw" />
     <h3>{bai.tieuDe}</h3>
   </a>
