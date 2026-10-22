@@ -360,6 +360,44 @@ describe('vntraveltips-web', () => {
   });
 });
 
+describe('header bảo mật của vntraveltips-web', () => {
+  const conf = doc('deploy/web/nginx.conf');
+  const khoi = conf.split(/\n(?=server \{)/).filter((k) => k.startsWith('server {'));
+  const baoMat = existsSync(join(goc, 'deploy/web/bao-mat.conf')) ? doc('deploy/web/bao-mat.conf') : '';
+  const INCLUDE = 'include /etc/nginx/bao-mat.conf;';
+  // Các khối location (không có dấu { lồng nhau).
+  const locations = (k: string) => [...k.matchAll(/location [^{]*\{[^}]*\}/g)].map((m) => m[0]);
+
+  it('nginx.conf include bao-mat.conf ở cấp server của CẢ HAI server', () => {
+    expect(khoi).toHaveLength(2);
+    for (const k of khoi) {
+      expect(k.replace(/location [^{]*\{[^}]*\}/g, '')).toContain(INCLUDE);
+    }
+  });
+
+  it('mọi location có add_header đều include bao-mat.conf (nginx bỏ add_header cấp trên khi location có add_header riêng)', () => {
+    const coAddHeader = khoi.flatMap(locations).filter((l) => l.includes('add_header'));
+    expect(coAddHeader).toHaveLength(2); // /anh/ của hai server
+    for (const l of coAddHeader) expect(l, l).toContain(INCLUDE);
+  });
+
+  it('bao-mat.conf có đủ 4 header, mỗi dòng add_header đều có always, KHÔNG có script-src', () => {
+    const code = baoMat.split('\n').filter((l) => !l.trimStart().startsWith('#'));
+    const headers = code.filter((l) => l.trim().startsWith('add_header'));
+    expect(headers).toHaveLength(4);
+    for (const h of headers) expect(h).toMatch(/ always;$/);
+    expect(baoMat).toContain(`add_header Content-Security-Policy "object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'" always;`);
+    expect(baoMat).toContain('add_header X-Content-Type-Options "nosniff" always;');
+    expect(baoMat).toContain('add_header Referrer-Policy "strict-origin-when-cross-origin" always;');
+    expect(baoMat).toContain('add_header X-Frame-Options "SAMEORIGIN" always;');
+    expect(code.join('\n')).not.toContain('script-src');
+  });
+
+  it('Dockerfile COPY bao-mat.conf vào /etc/nginx/bao-mat.conf', () => {
+    expect(doc('deploy/web/Dockerfile')).toContain('COPY bao-mat.conf /etc/nginx/bao-mat.conf');
+  });
+});
+
 // Repo code là PUBLIC: không file nào được commit có dạng token/khoá bí mật.
 describe('repo public không chứa bí mật', () => {
   it('không file đang theo dõi nào chứa dạng token GitHub, API key, khoá riêng', async () => {

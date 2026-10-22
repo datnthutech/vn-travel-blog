@@ -3,6 +3,8 @@
 FROM nginx:alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Header bảo mật, được nginx.conf include (cấp server và trong location /anh/).
+COPY bao-mat.conf /etc/nginx/bao-mat.conf
 
 # Kiểm tra sức khoẻ: endpoint /healthz-web (khai báo trong nginx.conf).
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
