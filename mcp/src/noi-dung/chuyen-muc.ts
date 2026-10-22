@@ -2,6 +2,7 @@
 import { SLUG_HE_THONG, slugHopLe, taoSlug, urlChuyenMuc } from '@vntraveltips/schema';
 import type { Db } from '../db/ket-noi';
 import { bienDoiDuLieuBai, themRedirectKhiDoiUrl } from './bai';
+import { doiKhoaDichCauTruc } from './doi-khoa-dich';
 import { danhDauNoiDungDoi } from './phien-noi-dung';
 
 export interface ChuyenMuc {
@@ -93,6 +94,7 @@ export function suaChuyenMuc(db: Db, slug: string, input: { ten?: unknown; slug?
         return true;
       });
       themRedirectKhiDoiUrl(db, urlChuyenMuc(slug), urlChuyenMuc(moiSlug));
+      doiKhoaDichCauTruc(db, 'chuyen-muc', slug, moiSlug);
     }
     danhDauNoiDungDoi(db);
   })();

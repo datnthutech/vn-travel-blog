@@ -82,12 +82,17 @@ export function tienDo(db: Db, banTinId: number): TienDo {
 export function nhapTuBai(db: Db, baiId: number, ngonNgu: string, publicBaseUrl: string, now: () => number): BanTin | undefined {
   const r = db
     .prepare(
-      `SELECT d.slug, d.du_lieu, b.tinh FROM bai b JOIN ban_dich d ON d.bai_id = b.id AND d.ngon_ngu = ?
-       WHERE b.id = ? AND b.xoa_luc IS NULL AND d.trang_thai = 'da-dang'`,
+      // Bản dịch chỉ lưu CHỮ, nên ảnh bìa lấy từ bản tiếng Việt; và bản tiếng Việt phải đang đăng
+      // (bản dịch của bài vi chưa đăng không được xuất → link trong mail sẽ là 404).
+      `SELECT d.slug, d.du_lieu, b.tinh, vi.du_lieu AS du_lieu_vi FROM bai b
+       JOIN ban_dich d ON d.bai_id = b.id AND d.ngon_ngu = ?
+       JOIN ban_dich vi ON vi.bai_id = b.id AND vi.ngon_ngu = 'vi'
+       WHERE b.id = ? AND b.xoa_luc IS NULL AND d.trang_thai = 'da-dang' AND vi.trang_thai = 'da-dang'`,
     )
-    .get(ngonNgu, baiId) as { slug: string; du_lieu: string; tinh: string | null } | undefined;
+    .get(ngonNgu, baiId) as { slug: string; du_lieu: string; tinh: string | null; du_lieu_vi: string } | undefined;
   if (!r) return undefined;
   const d = JSON.parse(r.du_lieu) as { tieuDe?: string; moTa?: string; anhBia?: { ma?: string } };
+  d.anhBia = (JSON.parse(r.du_lieu_vi) as { anhBia?: { ma?: string } }).anhBia;
   const duongDan = ngonNgu === 'vi' ? urlBai({ slug: r.slug, tinh: r.tinh ?? undefined }) : `/${ngonNgu}${urlBai({ slug: r.slug, tinh: r.tinh ?? undefined })}`;
   const khuc = [d.moTa ?? '', d.anhBia?.ma ? `${publicBaseUrl}/anh/${d.anhBia.ma}/960.webp` : '', `Đọc bài: ${publicBaseUrl}${duongDan}`].filter(Boolean);
   const id = Number(

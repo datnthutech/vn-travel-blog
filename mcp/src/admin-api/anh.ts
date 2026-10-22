@@ -113,8 +113,14 @@ export function anhRouter(d: DepsAnh): Router {
     },
   );
 
+  // Đồng bộ ảnh có sẵn trên đĩa (khôi phục sao lưu, thêm ngoài trang quản trị) nhưng TỐI ĐA một lần mỗi 60 giây (review cuối #10):
+  // quét cả thư mục + stat từng ảnh ở mọi lần xem/gõ tìm là quá tốn trên VPS khi có hàng nghìn ảnh.
+  let dongBoLuc = -Infinity;
   r.get('/anh', (req, res) => {
-    dongBoAnh(d.db, d.config.anhDir);
+    if (d.now() - dongBoLuc >= 60_000) {
+      dongBoAnh(d.db, d.config.anhDir);
+      dongBoLuc = d.now();
+    }
     const q = String(req.query.q ?? '').trim();
     const baiId = /^\d+$/.test(String(req.query.baiId ?? '')) ? Number(req.query.baiId) : null;
     const trang = Math.max(1, Number.parseInt(String(req.query.trang ?? '1'), 10) || 1);

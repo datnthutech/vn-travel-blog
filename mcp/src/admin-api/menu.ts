@@ -6,6 +6,7 @@ import type { HangDoiBuild } from '../build/hang-doi';
 import type { Db } from '../db/ket-noi';
 import { ghiNhatKy } from '../tai-khoan/nhat-ky';
 import { docCaiDat, ghiCaiDat } from '../noi-dung/cai-dat';
+import { chuyenKhoaDichMenu } from '../noi-dung/doi-khoa-dich';
 
 export function menuRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => number }): Router {
   const r = Router();
@@ -15,7 +16,11 @@ export function menuRouter(d: { db: Db; hangDoi: HangDoiBuild; now: () => number
   r.put('/menu', yeuCauQuyen('cau-truc.sua'), (req, res) => {
     const kq = menuSchema.safeParse(req.body);
     if (!kq.success) return void res.status(400).json({ loi: 'Menu không hợp lệ', chiTiet: loiMenu(kq.error) });
-    ghiCaiDat(d.db, 'menu', kq.data);
+    d.db.transaction(() => {
+      // Bản dịch nhãn đi theo đúng mục khi đổi thứ tự/chèn/xoá (review cuối #6).
+      chuyenKhoaDichMenu(d.db, docCaiDat(d.db, 'menu') as Parameters<typeof chuyenKhoaDichMenu>[1], kq.data);
+      ghiCaiDat(d.db, 'menu', kq.data);
+    })();
     ghiNhatKy(d.db, { nguoiDungId: req.nguoiDung!.id, loai: 'sua-menu', ip: req.ip }, d.now);
     d.hangDoi.yeuCau();
     res.json(kq.data);

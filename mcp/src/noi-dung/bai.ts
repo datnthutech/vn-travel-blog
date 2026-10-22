@@ -106,7 +106,8 @@ export function luuBai(db: Db, input: LuuBaiInput, now: () => number = Date.now)
       phienSo = cu.phien_so + 1;
       // Đổi slug/tỉnh của bài ĐÃ ĐĂNG làm đổi URL → thêm 301 từ URL cũ sang URL mới (bài nháp thì không cần).
       if (cu.trang_thai_cu === 'da-dang') {
-        themRedirectKhiDoiUrl(db, urlBai({ slug: cu.slug_cu, tinh: cu.tinh_cu ?? undefined }), urlBai({ slug: bai.slug, tinh: bai.tinh }));
+        themRedirectKhiDoiUrl(db, urlBai({ slug: cu.slug_cu, tinh: cu.tinh_cu ?? undefined }), urlBai({ slug: bai.slug, tinh: bai.tinh }), { kemBanDich: false });
+        if (input.ngonNgu === 'vi') themRedirectBanDichKhiDoiTinh(db, id, cu.tinh_cu ?? undefined, bai.tinh);
       }
       db.prepare('UPDATE bai SET tinh = ?, loai = ?, nguoi_sua_cuoi_id = ?, sua_luc = ? WHERE id = ?').run(bai.tinh ?? null, bai.loai ?? '', input.nguoiId ?? null, t, id);
       // Vừa chuyển sang "đã đăng": ghi người đăng.
@@ -150,18 +151,33 @@ export function bienDoiDuLieuBai(db: Db, fn: (du: Record<string, unknown>, baiId
  * Ghi redirect URL cũ → mới. Các redirect đang trỏ vào URL cũ được trỏ thẳng sang URL mới (không có chuỗi 301);
  * redirect nào có nguồn trùng URL thật mới thì bỏ (kẻo đè lên bài đang có).
  */
-export function themRedirectKhiDoiUrl(db: Db, urlCu: string, urlMoi: string): void {
+export function themRedirectKhiDoiUrl(db: Db, urlCu: string, urlMoi: string, opts: { kemBanDich?: boolean } = {}): void {
   if (urlCu === urlMoi) return;
-  // URL tiếng Việt đổi thì URL các bản dịch (/<mã>/…) cũng đổi theo (tỉnh/chuyên mục/slug bài đổi): thêm redirect cho từng ngôn ngữ.
-  // Đích chưa tồn tại (chưa có bản dịch) bị bỏ ở bước xuất nên thêm thừa là vô hại.
+  // Hub (tỉnh, chuyên mục, trang tĩnh) giữ nguyên slug giữa các ngôn ngữ: URL tiếng Việt đổi thì /<mã>/… đổi y hệt → thêm redirect
+  // cho từng ngôn ngữ (đích chưa có bản dịch bị bỏ ở bước xuất nên thêm thừa là vô hại).
+  // URL BÀI thì KHÔNG: bản dịch có slug riêng → người gọi truyền { kemBanDich: false } rồi dùng themRedirectBanDichKhiDoiTinh.
   const maNn = (db.prepare('SELECT ma FROM ngon_ngu WHERE ma <> ?').all('vi') as { ma: string }[]).map((r) => r.ma);
-  if (!maNn.some((ma) => urlCu.startsWith(`/${ma}/`))) {
+  if (opts.kemBanDich !== false && !maNn.some((ma) => urlCu.startsWith(`/${ma}/`))) {
     for (const ma of maNn) themRedirectKhiDoiUrl(db, `/${ma}${urlCu}`, `/${ma}${urlMoi}`);
   }
   db.prepare('UPDATE redirect SET den = ? WHERE den = ?').run(urlMoi, urlCu);
   db.prepare('DELETE FROM redirect WHERE tu = ?').run(urlMoi);
   db.prepare('DELETE FROM redirect WHERE tu = den').run();
   db.prepare('INSERT OR REPLACE INTO redirect (tu, den, tu_dong) VALUES (?, ?, 1)').run(urlCu, urlMoi);
+}
+
+/**
+ * Tỉnh của bài đổi (sửa bài, đổi slug/xoá tỉnh) → URL MỌI bản dịch đã đăng của bài đổi theo, mỗi bản với slug riêng của nó:
+ * /<mã>/<tỉnh-cũ>/<slug-dịch>/ → /<mã>/<tỉnh-mới>/<slug-dịch>/. (Đổi slug bản tiếng Việt thì URL bản dịch KHÔNG đổi.)
+ */
+export function themRedirectBanDichKhiDoiTinh(db: Db, baiId: number, tinhCu: string | undefined, tinhMoi: string | undefined): void {
+  if (tinhCu === tinhMoi) return;
+  const cac = db
+    .prepare("SELECT ngon_ngu, slug FROM ban_dich WHERE bai_id = ? AND ngon_ngu <> 'vi' AND trang_thai = 'da-dang'")
+    .all(baiId) as { ngon_ngu: string; slug: string }[];
+  for (const d of cac) {
+    themRedirectKhiDoiUrl(db, `/${d.ngon_ngu}${urlBai({ slug: d.slug, tinh: tinhCu })}`, `/${d.ngon_ngu}${urlBai({ slug: d.slug, tinh: tinhMoi })}`, { kemBanDich: false });
+  }
 }
 
 /** Thêm "-2", "-3"… cho tới khi slug không trùng bài nào (và không trùng đường dẫn hệ thống). `truBaiId`: bỏ qua chính bài đang sửa. */

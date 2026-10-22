@@ -198,4 +198,15 @@ describe('tắt 2FA', () => {
     expect((await get(s, 'toi')).body.nguoiDung.coTotp).toBe(false);
     expect(db.prepare('SELECT count(*) AS n FROM ma_du_phong').get()).toEqual({ n: 0 });
   });
+
+  it('review cuối #3: sai 5 lần → lần 6 bị chặn 429 dù đúng cả mật khẩu và mã; lần sai được ghi nhật ký', async () => {
+    const s = await taoVaDangNhap('w2@x.vn', 'writer');
+    const { biMat } = await bat2fa(s, 'w2@x.vn');
+    t += 5 * BUOC;
+    for (let i = 0; i < 5; i++) expect((await post(s, '2fa/tat', { matKhau: 'sai-mat-khau-day-nhe', ma: '000000' })).status).toBe(400);
+    const r = await post(s, '2fa/tat', { matKhau: MK, ma: maTotpHienTai(biMat, t) });
+    expect(r.status).toBe(429);
+    expect((await get(s, 'toi')).body.nguoiDung.coTotp).toBe(true);
+    expect((db.prepare("SELECT count(*) AS n FROM dang_nhap_thu WHERE thanh_cong = 0").get() as { n: number }).n).toBeGreaterThanOrEqual(5);
+  });
 });

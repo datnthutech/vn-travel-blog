@@ -151,6 +151,8 @@ export function taiKhoanRouter(d: Deps): Router {
       d.db.prepare('UPDATE nguoi_dung SET totp_bi_mat = NULL, totp_tam = NULL, totp_buoc_cuoi = 0 WHERE id = ?').run(id);
       d.db.prepare('DELETE FROM ma_du_phong WHERE nguoi_dung_id = ?').run(id);
       xoaMoiPhien(d.db, id);
+      // Mất thiết bị: token MCP (Claude) — kể cả refresh token 30 ngày — cũng phải hết hiệu lực, như khi khoá/đổi mật khẩu.
+      d.db.prepare('DELETE FROM oauth_token WHERE nguoi_dung_id = ?').run(id);
       ghiNhatKy(d.db, { nguoiDungId: req.nguoiDung!.id, loai: 'dat-lai-2fa', ip: req.ip, chiTiet: { doi: id } }, d.now);
     })();
     res.json({ ok: true });

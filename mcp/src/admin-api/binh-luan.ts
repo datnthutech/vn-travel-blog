@@ -89,7 +89,15 @@ export function binhLuanRouter(d: { config: Config; db: Db; mail: DichVuMail; ha
     if (!c) return void res.status(404).json({ loi: 'Không tìm thấy bình luận' });
     if (noiDung.length < 1 || noiDung.length > 2000) return void res.status(400).json({ loi: 'Câu trả lời cần từ 1 đến 2000 ký tự' });
     const u = req.nguoiDung!;
-    const kq = themBinhLuan(d.db, { baiId: c.bai_id, ngonNgu: c.ngon_ngu, chaId: c.id, ten: u.ten, email: u.email, noiDung, ipBam: 'noi-bo', trangThai: 'hien', nguoiDungId: u.id, laTacGia: true }, d.now);
+    // Chỉ trả lời bình luận ĐANG HIỆN (trả lời một bình luận ẩn/chờ xem sẽ làm nó lộ ra qua câu trả lời).
+    if (c.trang_thai !== 'hien') return void res.status(400).json({ loi: 'Chỉ trả lời được bình luận đang hiện. Hãy cho hiện bình luận này trước.' });
+    let kq: { id: number };
+    try {
+      kq = themBinhLuan(d.db, { baiId: c.bai_id, ngonNgu: c.ngon_ngu, chaId: c.id, ten: u.ten, email: u.email, noiDung, ipBam: 'noi-bo', trangThai: 'hien', nguoiDungId: u.id, laTacGia: true }, d.now);
+    } catch (e) {
+      // Trả lời của trả lời được gắn vào bình luận gốc cấp 1 — gốc đó có thể không còn hiện.
+      return void res.status(400).json({ loi: e instanceof Error ? e.message : 'Không trả lời được bình luận này' });
+    }
     nhatKy(req, 'tra-loi-binh-luan', { id: kq.id, cha: c.id, baiId: c.bai_id });
     thongBaoBinhLuanMoi(d.db, d.mail, { baiId: c.bai_id, binhLuanId: kq.id, nguoiTraLoiId: u.id, ten: u.ten, noiDung, trangThai: 'hien', publicBaseUrl: d.config.publicBaseUrl });
     res.status(201).json({ id: kq.id });

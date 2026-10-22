@@ -1,8 +1,9 @@
 // Tỉnh (trang hub /<slug>/): thêm, sửa, đổi slug (301 cho hub và MỌI bài đã đăng), xoá (chuyển bài sang tỉnh khác hoặc bỏ tỉnh).
 import { slugHopLe, taoSlug, tinhSchema, urlBai, urlTinh, type Tinh } from '@vntraveltips/schema';
 import type { Db } from '../db/ket-noi';
-import { bienDoiDuLieuBai, themRedirectKhiDoiUrl } from './bai';
+import { bienDoiDuLieuBai, themRedirectBanDichKhiDoiTinh, themRedirectKhiDoiUrl } from './bai';
 import { LoiNghiepVu } from './chuyen-muc';
+import { doiKhoaDichCauTruc } from './doi-khoa-dich';
 import { danhDauNoiDungDoi } from './phien-noi-dung';
 import { lyDoSlugTinhKhongDung } from './slug-cap-1';
 
@@ -65,7 +66,11 @@ export function suaTinh(db: Db, slug: string, input: Record<string, unknown>): T
       });
       // Hub cũ và MỌI bài đã đăng của tỉnh: 301 sang địa chỉ mới.
       themRedirectKhiDoiUrl(db, urlTinh(slug), urlTinh(moiSlug));
-      for (const b of dangDang) themRedirectKhiDoiUrl(db, urlBai({ slug: b.slug, tinh: slug }), urlBai({ slug: b.slug, tinh: moiSlug }));
+      doiKhoaDichCauTruc(db, 'tinh', slug, moiSlug);
+      for (const b of dangDang) {
+        themRedirectKhiDoiUrl(db, urlBai({ slug: b.slug, tinh: slug }), urlBai({ slug: b.slug, tinh: moiSlug }), { kemBanDich: false });
+        themRedirectBanDichKhiDoiTinh(db, b.id, slug, moiSlug);
+      }
     }
     db.prepare('INSERT OR REPLACE INTO tinh (slug, du_lieu) VALUES (?, ?)').run(moiSlug, JSON.stringify(t));
     danhDauNoiDungDoi(db);
@@ -88,7 +93,10 @@ export function xoaTinh(db: Db, slug: string, chuyenSang?: string): { daChuyen: 
       return true;
     });
     db.prepare('DELETE FROM tinh WHERE slug = ?').run(slug);
-    for (const b of dangDang) themRedirectKhiDoiUrl(db, urlBai({ slug: b.slug, tinh: slug }), urlBai({ slug: b.slug, tinh: chuyenSang || undefined }));
+    for (const b of dangDang) {
+      themRedirectKhiDoiUrl(db, urlBai({ slug: b.slug, tinh: slug }), urlBai({ slug: b.slug, tinh: chuyenSang || undefined }), { kemBanDich: false });
+      themRedirectBanDichKhiDoiTinh(db, b.id, slug, chuyenSang || undefined);
+    }
     // Trỏ lại redirect cũ sang hub mới TRƯỚC khi bỏ những redirect nhắm vào hub đã mất (không có tỉnh nhận).
     if (chuyenSang) themRedirectKhiDoiUrl(db, urlTinh(slug), urlTinh(chuyenSang));
     else db.prepare('DELETE FROM redirect WHERE den = ?').run(urlTinh(slug));

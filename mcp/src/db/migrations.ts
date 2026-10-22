@@ -397,5 +397,12 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE ban_dich ADD COLUMN noi_dung_phien_luu INTEGER; -- bộ đếm "phiên nội dung" ngay sau lần lưu cuối của bản này: cổng dang_bai (MCP) so với bản xem trước đã build
           UPDATE ban_dich SET noi_dung_phien_luu = (SELECT CAST(gia_tri AS INTEGER) FROM he_thong WHERE khoa = 'noi_dung_phien'); -- bài có sẵn: coi như lưu ở phiên hiện tại
     `,
+  },  {
+    // Review cuối #8: đọc bản dịch/lịch sử dùng truy vấn con trên phien_ban theo (bai_id, ngon_ngu) sắp theo luc —
+    // phien_ban tăng mỗi lần lưu + tự lưu 10 phút, nên thiếu chỉ mục là quét cả bảng ở mỗi trang danh sách/mỗi lần xuất build.
+    phienBan: 17,
+    sql: `
+      CREATE INDEX IF NOT EXISTS phien_ban_bai_nn_luc ON phien_ban(bai_id, ngon_ngu, luc);
+    `,
   },
 ];

@@ -1,13 +1,10 @@
 // Các tool ĐỌC bài lấy dữ liệu từ SQLite (nguồn sự thật nội dung): liệt kê, đọc, kiểm tra bài. Tham số nhận `id` HOẶC `slug` (slug tiếng Việt).
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { tinhSchema, urlBai, type Tinh } from '@vntraveltips/schema';
+import { urlBai } from '@vntraveltips/schema';
 import { docBai as docBaiDb, lietKeBai as lietKeBaiDb, timIdTheoSlug, type BaiDoc } from '../noi-dung/bai';
-import { kiemTraBai, type KetQuaKiemTra } from '../seo/checklist';
+import { kiemTraDayDu } from '../noi-dung/kiem-tra';
+import type { KetQuaKiemTra } from '../seo/checklist';
 import { SLUG_HOP_LE, type ToolCtx } from './ctx';
 import type { TomTatBai } from './doc';
-
-const MA_ANH = /^[A-Za-z0-9]{1,64}$/;
 
 export interface ThamChieuBai { id?: number; slug?: string }
 
@@ -50,13 +47,6 @@ export async function kiemTraBaiToolTuDb(
   ctx: ToolCtx,
   input: { bai: unknown; noiDung?: string; slugDangSua?: string },
 ): Promise<KetQuaKiemTra> {
-  const tinh: Tinh[] = (ctx.db.prepare('SELECT du_lieu FROM tinh').all() as { du_lieu: string }[])
-    .map((r) => tinhSchema.safeParse(JSON.parse(r.du_lieu)))
-    .flatMap((k) => (k.success ? [k.data] : []));
-  const baiKhac = (ctx.db.prepare("SELECT slug FROM ban_dich WHERE ngon_ngu = 'vi'").all() as { slug: string }[]).filter(
-    (r) => r.slug !== input.slugDangSua,
-  );
-  const chuyenMuc = ctx.db.prepare('SELECT slug FROM chuyen_muc').all() as { slug: string }[];
-  const maAnhHopLe = (ma: string) => MA_ANH.test(ma) && existsSync(join(ctx.config.anhDir, ma, 'meta.json'));
-  return kiemTraBai(input.bai, tinh, baiKhac, input.noiDung ?? '', maAnhHopLe, chuyenMuc);
+  // Cùng MỘT luật đăng bài với trang quản trị (noi-dung/kiem-tra.ts) — không giữ bản sao thứ hai để khỏi lệch nhau.
+  return kiemTraDayDu(ctx.db, ctx.config.anhDir, input.bai, input.noiDung ?? '', input.slugDangSua);
 }

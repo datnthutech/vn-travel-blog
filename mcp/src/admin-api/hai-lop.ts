@@ -112,7 +112,13 @@ export function haiLopRouter(d: DepsXacThuc): Router {
     res.json({ maDuPhong }); // chỉ hiện MỘT lần
   });
 
-  r.post('/2fa/tat', async (req, res) => {
+  // Tắt 2FA cần đúng mật khẩu + mã: cũng là một lần "đoán bí mật" → tính vào chống dò và xử lý tuần tự theo IP như đăng nhập
+  // (kẻ có cookie phiên mượn không được đoán vô hạn hay song song).
+  r.post('/2fa/tat', (req, res, next) => {
+    tuanTu(req.ip ?? 'khong-ro', async () => xuLyTat(req, res)).catch(next);
+  });
+
+  const xuLyTat = async (req: import('express').Request, res: import('express').Response): Promise<void> => {
     const u = req.nguoiDung!;
     if (u.vaiTro === 'quan-tri') {
       res.status(403).json({ loi: 'Quản trị viên không được tắt xác thực 2 lớp' });
@@ -123,17 +129,26 @@ export function haiLopRouter(d: DepsXacThuc): Router {
       res.status(400).json({ loi: 'Cần nhập mật khẩu và mã xác thực' });
       return;
     }
+    const ip = req.ip ?? 'khong-ro';
+    const kt = chongDo.kiemTra(ip, u.email);
+    if (!kt.choPhep) {
+      res.status(429).json({ loi: 'Nhập sai quá nhiều lần. Hãy thử lại sau.', conLaiGiay: kt.conLaiGiay });
+      return;
+    }
     if (!(await kiemMatKhau(docMatKhauBam(d.db, u.id)!, matKhau)) || !thuMa(d.db, d.config.khoaBiMat, u.id, ma.trim(), d.now())) {
+      chongDo.ghiThatBai(ip, u.email);
+      ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'tat-2fa-that-bai', ip }, d.now);
       res.status(400).json({ loi: 'Mật khẩu hoặc mã xác thực không đúng' });
       return;
     }
+    chongDo.ghiThanhCong(ip, u.email);
     d.db.transaction(() => {
       d.db.prepare('UPDATE nguoi_dung SET totp_bi_mat = NULL, totp_tam = NULL, totp_buoc_cuoi = 0 WHERE id = ?').run(u.id);
       d.db.prepare('DELETE FROM ma_du_phong WHERE nguoi_dung_id = ?').run(u.id);
     })();
     ghiNhatKy(d.db, { nguoiDungId: u.id, loai: 'tat-2fa', ip: req.ip }, d.now);
     res.json({ ok: true });
-  });
+  };
 
   return r;
 }

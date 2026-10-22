@@ -93,6 +93,13 @@ describe('đặt lại 2FA', () => {
     expect(khac.body.loi).toBe('Cần bật xác thực 2 lớp');
   });
 
+  it('review cuối #4: đặt lại 2FA thu hồi luôn token MCP (Claude) của người đó', async () => {
+    const ba = await m.dangNhap('ba@x.vn', 'Ba', 'writer');
+    m.db.prepare("INSERT INTO oauth_token (token_bam, loai, client_id, nguoi_dung_id, het_han_luc, scopes, resource) VALUES ('t1', 'refresh', 'c', ?, ?, '', NULL)").run(ba.nguoi.id, Date.now() + 86_400_000);
+    expect((await m.chinh.gui('post', `/tai-khoan/${ba.nguoi.id}/dat-lai-2fa`)).status).toBe(200);
+    expect(m.db.prepare('SELECT count(*) AS n FROM oauth_token WHERE nguoi_dung_id = ?').get(ba.nguoi.id)).toEqual({ n: 0 });
+  });
+
   it('không tự đặt lại 2FA của mình (400); tài khoản lạ 404; writer gọi 403', async () => {
     expect((await m.chinh.gui('post', `/tai-khoan/${m.chinh.nguoi.id}/dat-lai-2fa`)).status).toBe(400);
     expect((await m.chinh.gui('post', '/tai-khoan/9999/dat-lai-2fa')).status).toBe(404);

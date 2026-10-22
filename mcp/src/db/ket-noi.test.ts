@@ -54,3 +54,12 @@ describe('moDb', () => {
     expect(db.prepare("SELECT name FROM sqlite_master WHERE name='tam_thoi'").get()).toBeUndefined();
   });
 });
+
+describe('chỉ mục', () => {
+  it('review cuối #8: phien_ban có chỉ mục (bai_id, ngon_ngu, luc) và truy vấn lịch sử dùng nó', () => {
+    const db = moDb(':memory:');
+    const plan = db.prepare("EXPLAIN QUERY PLAN SELECT luc FROM phien_ban WHERE bai_id = 1 AND ngon_ngu = 'vi' ORDER BY luc DESC LIMIT 1").all() as { detail: string }[];
+    expect(plan.map((p) => p.detail).join(' ')).toMatch(/phien_ban_bai_nn_luc/);
+  });
+});
+

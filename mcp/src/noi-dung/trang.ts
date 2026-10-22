@@ -5,6 +5,7 @@ import { SLUG_HE_THONG, slugHopLe, taoSlug, urlTrang } from '@vntraveltips/schem
 import type { Db } from '../db/ket-noi';
 import { themRedirectKhiDoiUrl, XungDotPhienBan } from './bai';
 import { LoiNghiepVu } from './chuyen-muc';
+import { doiKhoaDichCauTruc } from './doi-khoa-dich';
 import { danhDauNoiDungDoi } from './phien-noi-dung';
 
 export type TrangThaiTrang = 'nhap' | 'da-dang';
@@ -105,6 +106,7 @@ export function suaTrang(
     );
     if (moiSlug !== slug) {
       db.prepare('UPDATE phien_ban SET trang_slug = ? WHERE trang_slug = ?').run(moiSlug, slug);
+      doiKhoaDichCauTruc(db, 'trang', slug, moiSlug);
       if (cu.trangThai === 'da-dang') themRedirectKhiDoiUrl(db, urlTrang(slug), urlTrang(moiSlug));
     }
     ghiPhienBan(db, moiSlug, nguoiId, t);

@@ -128,3 +128,15 @@ describe('kiểm duyệt', () => {
     expect((await m.chinh.gui('get', '/tong-quan')).body.binhLuanMoi).toBe(0);
   });
 });
+
+describe('review cuối #5: trả lời bình luận không đang hiện', () => {
+  it('bình luận chờ xem hoặc đã ẩn → 400 có thông báo tiếng Việt (không phải 500)', async () => {
+    const cho = (await khach('xem http://a.vn http://b.vn http://c.vn', '7.7.8.1')).body.id;
+    const r1 = await w.gui('post', `/binh-luan/${cho}/tra-loi`, { noiDung: 'trả lời' });
+    expect(r1.status).toBe(400);
+    expect(r1.body.loi).toMatch(/đang hiện/);
+    const an = (await khach('bình luận thường', '7.7.8.2')).body.id;
+    await w.gui('put', `/binh-luan/${an}`, { trangThai: 'an' });
+    expect((await w.gui('post', `/binh-luan/${an}/tra-loi`, { noiDung: 'trả lời' })).status).toBe(400);
+  });
+});

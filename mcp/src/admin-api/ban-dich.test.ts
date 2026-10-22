@@ -137,7 +137,10 @@ describe('review GĐ7', () => {
     expect((await m.chinh.gui('put', `/bai/${id}`, { bai: { ...vi.bai, slug: 'bai-a-moi' }, noiDung: vi.noiDung, phienSo: vi.phienSo })).status).toBe(200);
     const rd = Object.fromEntries((m.db.prepare('SELECT tu, den FROM redirect').all() as { tu: string; den: string }[]).map((r) => [r.tu, r.den]));
     expect(rd['/kinh-nghiem/bai-a/']).toBe('/kinh-nghiem/bai-a-moi/');
-    expect(rd['/en/kinh-nghiem/bai-a/']).toBe('/en/kinh-nghiem/bai-a-moi/'); // URL cũ của bản dịch (chưa đổi slug dịch) trỏ sang URL mới theo bài gốc
+    // Sửa ở review cuối (#1): bản dịch có slug RIÊNG (`en-a`) nên URL thật là /en/kinh-nghiem/en-a/ — đổi slug bản tiếng Việt KHÔNG làm
+    // URL đó đổi. Trước đây test này kỳ vọng redirect /en/kinh-nghiem/bai-a/ → /en/kinh-nghiem/bai-a-moi/: cả hai URL đều chưa từng tồn tại.
+    expect(rd['/en/kinh-nghiem/bai-a/']).toBeUndefined();
+    expect(Object.keys(rd).some((k) => k === '/en/kinh-nghiem/en-a/')).toBe(false); // URL bản dịch vẫn đang dùng, không bị chuyển đi
     expect(Object.keys(rd).some((k) => k.startsWith('/en/en/'))).toBe(false);
   });
 
