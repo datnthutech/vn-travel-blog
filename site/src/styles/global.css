@@ -54,6 +54,11 @@ img { max-width: 100%; height: auto; }
 .menu li ul { margin-left: 12px; font-size: .9em; }
 .menu-mt .menu a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--chu); text-decoration: none; }
 .menu-mt .menu a:hover { color: var(--nhan-dam); text-decoration: underline; }
+/* Máy tính: menu con thả xuống khi rê chuột hoặc khi dùng phím Tab (focus-within), không bày thành hàng thứ hai. */
+.menu-mt .menu li { position: relative; }
+.menu-mt .menu li ul { display: none; position: absolute; top: 100%; left: -12px; z-index: 10; min-width: 200px; margin: 0; padding: 6px 12px; flex-direction: column; gap: 0; font-size: 1em; background: #fff; border: 1px solid var(--vien); border-radius: var(--bo); box-shadow: 0 8px 24px rgb(43 36 32 / 0.12); }
+.menu-mt .menu li:hover > ul, .menu-mt .menu li:focus-within > ul { display: flex; }
+.menu-mt .menu li:has(> ul) > a::after { content: ' ▾'; font-size: .8em; }
 
 /* Chân trang: nền đậm hơn một bậc. */
 .site-footer { padding: 28px 16px; background: var(--nen-dam); color: var(--chu-phu); font-size: .95rem; text-align: center; }
