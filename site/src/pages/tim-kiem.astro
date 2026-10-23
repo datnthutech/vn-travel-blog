@@ -6,7 +6,9 @@ import Base from '../layouts/Base.astro';
 
 <Base title="Tìm kiếm — VNTravelTips">
   <link slot="head" href="/pagefind/pagefind-ui.css" rel="stylesheet" />
-  <h1>Tìm kiếm</h1>
+  <section class="dai-tieu-de">
+    <h1>Tìm kiếm</h1>
+  </section>
   <div id="tim-kiem"></div>
   <noscript>Cần bật JavaScript để dùng tìm kiếm.</noscript>
   <script is:inline src="/pagefind/pagefind-ui.js"></script>
@@ -18,3 +20,14 @@ import Base from '../layouts/Base.astro';
     }
   </script>
 </Base>
+
+<style is:global>
+  /* Pagefind dùng biến CSS này: đưa ô tìm và kết quả về cùng tông với giao diện B. */
+  :root {
+    --pagefind-ui-primary: #d9622b;
+    --pagefind-ui-border: #f0e3d3;
+    --pagefind-ui-background: #fff;
+    --pagefind-ui-border-radius: 14px;
+    --pagefind-ui-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+</style>

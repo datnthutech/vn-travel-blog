@@ -591,3 +591,35 @@ describe('giao diện B — trang bài', () => {
     expect(ul).not.toContain('undefined');
   });
 });
+
+describe('giao diện B — trang phụ', () => {
+  // Astro có thể tách CSS ra file `_astro/*.css`: kiểm tra trên cả HTML lẫn các file CSS được nạp.
+  const cssTrang = (goc: string, html: string) =>
+    html + [...html.matchAll(/href="(\/_astro\/[^"]+\.css)"/g)].map((m) => readFileSync(join(goc, m[1]), 'utf8')).join('\n');
+
+  it('404 production (không có bài đã đăng): có nút về trang chủ, không lưới bài', () => {
+    const html = readFileSync(join(out, '404.html'), 'utf8');
+    expect(html).toContain('class="nut" href="/"');
+    expect(html).not.toContain('class="luoi-bai"');
+  });
+
+  it('404 bản xem trước: lưới tối đa 3 bài mới nhất', () => {
+    const html = readFileSync(join(outPrev, '404.html'), 'utf8');
+    expect(html).toContain('class="luoi-bai"');
+    const so = (html.match(/class="the-bai/g) ?? []).length;
+    expect(so).toBeGreaterThanOrEqual(1);
+    expect(so).toBeLessThanOrEqual(3);
+  });
+
+  it('trang tĩnh (giới thiệu): có tiêu đề dải kem và thân bài trong cột đọc', () => {
+    const html = docPrev('gioi-thieu');
+    expect(html).toContain('class="dai-tieu-de"');
+    expect(html).toContain('class="noi-dung"');
+  });
+
+  it('tìm kiếm: biến màu Pagefind theo giao diện B', () => {
+    const css = cssTrang(out, doc('tim-kiem'));
+    expect(css).toMatch(/--pagefind-ui-primary:\s*#d9622b/);
+    expect(css).toMatch(/--pagefind-ui-border:\s*#f0e3d3/);
+  });
+});

@@ -1,5 +1,5 @@
 ---
-// Giao diện chung của một trang tĩnh: tiêu đề + nội dung Markdown.
+// Giao diện chung của một trang tĩnh: dải tiêu đề + thân bài Markdown trong cột đọc (như thân bài viết).
 import { render } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import type { TrangTinh } from '../lib/trang';
@@ -10,6 +10,13 @@ const { Content } = await render(trang.entry);
 ---
 
 <Base title={`${trang.tieuDe} — ${SITE.ten}`} ngonNgu={ngonNgu} moTa={trang.moTa || undefined}>
-  <h1>{trang.tieuDe}</h1>
+  <section class="dai-tieu-de">
+    <h1>{trang.tieuDe}</h1>
+  </section>
   <div class="noi-dung"><Content /></div>
 </Base>
+
+<style>
+  .noi-dung { max-width: var(--rong-bai); margin: 0 auto; font-size: 1.0625rem; line-height: 1.7; }
+  .noi-dung :global(img) { border-radius: 10px; }
+</style>

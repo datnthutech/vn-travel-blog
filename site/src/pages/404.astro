@@ -1,9 +1,32 @@
 ---
 // Trang 404 — nginx dùng /404.html cho mọi URL không tồn tại.
+// Thân thiện: câu xin lỗi, nút về trang chủ, và tối đa 3 bài mới nhất (không có bài đã đăng thì không hiện lưới).
 import Base from '../layouts/Base.astro';
+import LuoiBai from '../components/LuoiBai.astro';
+import { layBaiViet, layTinh } from '../lib/bai';
+import { baiMoiNhat } from '../lib/giao-dien-b';
+const moi = baiMoiNhat(await layBaiViet(), 3);
+const tenTinhCua = new Map((await layTinh()).map((x) => [x.slug, x.ten]));
 ---
 
 <Base title="Không tìm thấy trang — VNTravelTips">
-  <h1>Không tìm thấy trang</h1>
-  <p>Trang bạn tìm có thể đã đổi địa chỉ. Hãy thử <a href="/tim-kiem/">tìm kiếm</a> hoặc quay về <a href="/">trang chủ</a>.</p>
+  <section class="dai-tieu-de">
+    <h1>Không tìm thấy trang</h1>
+    <p>Trang bạn tìm có thể đã đổi địa chỉ. Hãy thử <a href="/tim-kiem/">tìm kiếm</a> hoặc quay về <a href="/">trang chủ</a>.</p>
+  </section>
+  <a class="nut" href="/">Về trang chủ</a>
+  {
+    moi.length > 0 && (
+      <section>
+        <h2>Bài mới</h2>
+        <LuoiBai bai={moi} tenTinh={(s) => tenTinhCua.get(s)} />
+      </section>
+    )
+  }
 </Base>
+
+<style>
+  .nut { margin: 8px 0 32px; }
+  section { margin-bottom: 32px; }
+  h2 { margin: 0 0 12px; font-size: 1.35rem; }
+</style>
