@@ -549,3 +549,45 @@ describe('giao diện B — trang chủ', () => {
     expect(html).not.toContain('Điểm đến');
   });
 });
+
+describe('giao diện B — trang bài', () => {
+  const BAI = 'vung-tau/vung-tau-can-ho-banh-canh';
+  const khoi = (html: string, lop: string) => new RegExp(`<${lop.split(' ')[0]} class="${lop.split(' ')[1]}"[\\s\\S]*?</${lop.split(' ')[0]}>`).exec(html)?.[0] ?? '';
+
+  it('đầu bài có nhãn: tên tỉnh, loại bài và điểm với bé', () => {
+    const ul = /<ul class="nhan-dau-bai"[^>]*>([\s\S]*?)<\/ul>/.exec(docPrev(BAI))?.[1] ?? '';
+    expect(ul).toContain('Vũng Tàu');
+    expect(ul).toContain('Nhật ký chuyến đi');
+    expect(ul).toContain('/5 với bé');
+  });
+
+  it('Tra nhanh là lưới ô: <dl class="luoi-tra-nhanh"> có 7 cặp, mỗi cặp nằm trong <div class="o">', () => {
+    const dl = /<dl class="luoi-tra-nhanh"[\s\S]*?<\/dl>/.exec(khoi(docPrev(BAI), 'section tra-nhanh'))?.[0] ?? '';
+    expect(dl).not.toBe('');
+    expect(dl.match(/<dt/g)).toHaveLength(7);
+    expect(dl.match(/<div class="o"[^>]*><dt/g)).toHaveLength(7);
+  });
+
+  it('thứ tự: Tra nhanh → mục lục → thân bài', () => {
+    const html = docPrev(BAI);
+    const a = html.indexOf('class="tra-nhanh"');
+    const b = html.indexOf('class="toc"');
+    const c = html.indexOf('class="noi-dung"');
+    expect(a).toBeGreaterThan(-1);
+    expect(b).toBeGreaterThan(a);
+    expect(c).toBeGreaterThan(b);
+  });
+
+  it('Tra nhanh vẫn có <details> và <summary> để mở mà không cần JS', () => {
+    const tra = khoi(docPrev(BAI), 'section tra-nhanh');
+    expect(tra).toContain('<details');
+    expect(tra).toContain('<summary');
+  });
+
+  it('bài không có Tra nhanh (top-list, không tỉnh): đầu bài chỉ có loại bài, không "undefined"', () => {
+    const ul = /<ul class="nhan-dau-bai"[^>]*>([\s\S]*?)<\/ul>/.exec(docPrev('kinh-nghiem/top-bai-bien-cho-be'))?.[1] ?? '';
+    expect(ul).toContain('Top list');
+    expect(ul).not.toContain('với bé');
+    expect(ul).not.toContain('undefined');
+  });
+});

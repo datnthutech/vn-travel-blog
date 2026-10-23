@@ -14,9 +14,6 @@
   --bo: 14px;
   --rong-trang: 1200px;
   --rong-bai: 760px;
-  /* Tạm: giữ hai tên cũ cho các component chưa đổi sang giao diện mới; bỏ khi các component đó được làm lại. */
-  --bien: var(--nhan-dam);
-  --ngoc: var(--nhan);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 * { box-sizing: border-box; }

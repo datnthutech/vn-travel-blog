@@ -11,7 +11,7 @@ const { doMang, ngonNgu = 'vi' } = Astro.props;
 
 {
   doMang.length > 0 && (
-    <section>
+    <section class="the khoi">
       <h2>{t(ngonNgu, 'do-mang-cho-be')}</h2>
       <ul>
         {doMang.map((d) => (
@@ -24,3 +24,8 @@ const { doMang, ngonNgu = 'vi' } = Astro.props;
     </section>
   )
 }
+
+<style>
+  .khoi { margin: 24px 0; padding: 16px; }
+  h2 { margin: 0 0 8px; font-size: 1.2rem; }
+</style>

@@ -21,6 +21,7 @@ import { coAffiliate } from '../lib/affiliate';
 import { breadcrumb } from '../lib/breadcrumb';
 import { layBaiViet } from '../lib/bai';
 import { related } from '../lib/related';
+import { nhanDauBai } from '../lib/giao-dien-b';
 import { t } from '../i18n/giao-dien';
 
 interface Props {
@@ -37,6 +38,7 @@ const { Content, headings } = await render(entry);
 const lienQuan = related(bai, await layBaiViet(ngonNgu));
 const ngay = (d?: Date) => d?.toLocaleDateString(ngonNgu === 'vi' ? 'vi-VN' : ngonNgu);
 const phut = Math.max(1, Math.round((entry.body ?? '').split(/\s+/).length / 200));
+const nhan = nhanDauBai(bai, ngonNgu, tinh?.ten);
 ---
 
 <Base
@@ -53,11 +55,14 @@ const phut = Math.max(1, Math.round((entry.body ?? '').split(/\s+/).length / 200
     <Picture ma={bai.anhBia.ma} alt={bai.anhBia.alt} uuTien />
     <Breadcrumb muc={breadcrumb(bai, tinh, ngonNgu)} />
     <h1>{bai.tieuDe}</h1>
+    <ul class="nhan-dau-bai">
+      {nhan.map((n) => <li class="nhan">{n.bieuTuong && <span aria-hidden="true">{n.bieuTuong}</span>}{n.chu}</li>)}
+    </ul>
     <p class="meta">
       {bai.ngayDi && <>{t(ngonNgu, 'di-ngay')} {ngay(bai.ngayDi)} · </>}
       {bai.ngayCapNhat && <>{t(ngonNgu, 'cap-nhat')} {ngay(bai.ngayCapNhat)} · </>}
       {phut} {t(ngonNgu, 'phut-doc')}
-      {bai.hopTac && <span class="nhan-hop-tac">{t(ngonNgu, 'bai-hop-tac')}</span>}
+      {bai.hopTac && <span class="nhan">{t(ngonNgu, 'bai-hop-tac')}</span>}
     </p>
     <QuickBox bai={bai} ngonNgu={ngonNgu} />
     <AdSlot viTri="sauTraNhanh" />
@@ -75,7 +80,12 @@ const phut = Math.max(1, Math.round((entry.body ?? '').split(/\s+/).length / 200
 </Base>
 
 <style>
-  .meta { color: #5b7881; font-size: 0.9rem; }
-  .nhan-hop-tac { margin-left: 8px; padding: 2px 8px; background: #fff3cd; border-radius: 6px; }
+  /* Cột đọc hẹp (760 px) cho cả đầu bài và thân bài; ảnh bìa vẫn lấp đầy cột. */
+  article { max-width: var(--rong-bai); margin: 0 auto; }
+  .nhan-dau-bai { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 8px 0 0; padding: 0; }
+  .meta { margin: 12px 0 0; color: var(--chu-phu); font-size: 0.9rem; }
+  .meta .nhan { margin-left: 8px; }
+  .noi-dung { font-size: 1.0625rem; line-height: 1.7; }
+  .noi-dung :global(img) { border-radius: 10px; }
   .noi-dung :global(h2) { margin-top: 1.8em; }
 </style>

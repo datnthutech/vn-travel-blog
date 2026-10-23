@@ -38,5 +38,6 @@ const { diaDiem, ngonNgu = 'vi' } = Astro.props;
 <style>
   .dia-diem { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 12px; }
   .sao { color: #e6a700; }
-  .nut-dat { display: inline-block; margin-top: 6px; padding: 8px 14px; background: var(--ngoc); color: #fff; border-radius: 8px; text-decoration: none; }
+  .dia-diem li { padding: 12px; background: #fff; border: 1px solid var(--vien); border-radius: var(--bo); }
+  .nut-dat { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 0 16px; background: var(--nhan); color: #fff; border-radius: 20px; font-weight: 700; text-decoration: none; }
 </style>
