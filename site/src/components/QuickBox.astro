@@ -4,6 +4,7 @@
 // Khối nào không có dữ liệu thì không hiện (bài top-list/cẩm nang có thể không có traNhanh).
 import type { BaiViet } from '@vntraveltips/schema';
 import { sao } from '../lib/stars';
+import { dinhDangTien } from '../lib/giao-dien-b';
 import { t as tr } from '../i18n/giao-dien';
 import DiaDiemDetails from './DiaDiemDetails.astro';
 interface Props {
@@ -13,7 +14,7 @@ interface Props {
 const { bai, ngonNgu = 'vi' } = Astro.props;
 const t_ = (k: Parameters<typeof tr>[1], p?: Record<string, string | number>) => tr(ngonNgu, k, p);
 const t = bai.traNhanh;
-const chiPhi = t ? new Intl.NumberFormat(ngonNgu === 'vi' ? 'vi-VN' : ngonNgu).format(t.tongChiPhi) + 'đ' : '';
+const chiPhi = t ? dinhDangTien(t.tongChiPhi, ngonNgu) : '';
 const choO = bai.diaDiem.filter((d) => d.kieu === 'cho-o');
 const anUong = bai.diaDiem.filter((d) => d.kieu === 'quan-an' || d.kieu === 'cho');
 const khac = bai.diaDiem.filter((d) => d.kieu === 'khu-sinh-thai' || d.kieu === 'diem-choi');
