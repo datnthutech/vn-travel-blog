@@ -45,7 +45,8 @@ npm run build -w site      # build thật ra site/dist (BUILD_TARGET=production 
 Xem thử giao diện với bài mẫu (không cần Docker, build từ code đang có trong thư mục — kể cả nhánh chưa merge):
 
 ```bash
-./xem-thu.sh               # http://localhost:4321 ; điện thoại cùng Wi-Fi mở địa chỉ IP script in ra
+./xem-thu.sh               # http://localhost:4321 — chỉ máy này xem được
+LAN=1 ./xem-thu.sh         # cho điện thoại cùng Wi-Fi vào (mở địa chỉ IP script in ra); xem xong Ctrl+C
 ```
 
 Bài mẫu nằm ở `site/demo/noi-dung/`, ảnh mẫu tải từ picsum.photos (không có mạng thì dùng ảnh chuyển màu) vào `.xem-thu/` (gitignore).

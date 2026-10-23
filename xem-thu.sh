@@ -2,15 +2,17 @@
 # xem-thu.sh — xem thử giao diện site ngay trên máy, với bộ bài mẫu (site/demo/noi-dung) và ảnh mẫu.
 # Build site từ CODE ĐANG CÓ TRONG THƯ MỤC NÀY (nhánh hiện tại, kể cả chưa commit) — khác deploy.sh (container build từ GitHub main).
 # Không cần Docker, không đụng container/volume của VNTravelTips, không cần deploy/.env.
-# Mở được từ điện thoại cùng mạng Wi-Fi để thử co giãn thật trên mobile.
+# Mặc định CHỈ máy này xem được (127.0.0.1). Muốn mở từ điện thoại cùng Wi-Fi: LAN=1 ./xem-thu.sh — tắt (Ctrl+C) ngay khi xem xong.
 #
 # Cách dùng:  ./xem-thu.sh            (cổng mặc định 4321)
 #             CONG=5000 ./xem-thu.sh  (đổi cổng)
+#             LAN=1 ./xem-thu.sh      (cho điện thoại cùng Wi-Fi vào xem)
 # Dừng: Ctrl+C. Mọi thứ sinh ra nằm trong .xem-thu/ (gitignore), xoá thư mục đó là sạch.
 set -euo pipefail
 
 GOC="$(cd "$(dirname "$0")" && pwd)"
 CONG="${CONG:-4321}"
+LAN="${LAN:-0}"
 LAM="$GOC/.xem-thu"
 WEB="$LAM/web"
 
@@ -28,10 +30,20 @@ echo "[1/3] Cài thư viện (nếu chưa có)"
 echo "[2/3] Build bản demo"
 "$GOC/site/demo/build.sh" "$LAM"
 
-IP="$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || true)"
+if [ "$LAN" = "1" ]; then
+  BIND=0.0.0.0
+  IP="$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || true)"
+else
+  BIND=127.0.0.1
+  IP=""
+fi
 echo "[3/3] Đang chạy — Ctrl+C để dừng"
 echo "  Máy tính:   http://localhost:$CONG/"
-[ -n "$IP" ] && echo "  Điện thoại (cùng Wi-Fi): http://$IP:$CONG/"
+if [ -n "$IP" ]; then
+  echo "  Điện thoại (cùng Wi-Fi): http://$IP:$CONG/  — mọi máy trong mạng này đều vào được, xem xong nhớ Ctrl+C"
+elif [ "$LAN" != "1" ]; then
+  echo "  Chỉ máy này xem được. Muốn thử trên điện thoại: LAN=1 ./xem-thu.sh"
+fi
 echo "  Gợi ý: trên Chrome máy tính bấm F12 → biểu tượng điện thoại (Ctrl+Shift+M) để thử 375 px, 768 px, 1280 px."
 echo "  Lưu ý: bình luận và form nhận tin cần máy chủ thật nên ở đây chỉ xem giao diện, bấm gửi sẽ không chạy."
-cd "$WEB" && exec python3 -m http.server "$CONG" --bind 0.0.0.0
+cd "$WEB" && exec python3 -m http.server "$CONG" --bind "$BIND"
