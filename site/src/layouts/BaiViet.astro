@@ -82,6 +82,8 @@ const nhan = nhanDauBai(bai, ngonNgu, tinh?.ten);
 <style>
   /* Cột đọc hẹp (760 px) cho cả đầu bài và thân bài; ảnh bìa vẫn lấp đầy cột. */
   article { max-width: var(--rong-bai); margin: 0 auto; }
+  /* Ảnh bìa dạng băng ngang như mẫu (ảnh dọc/4:3 không chiếm cả màn hình); width/height vẫn có → không nhảy trang. */
+  article > :global(picture:first-child img) { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--bo); }
   .nhan-dau-bai { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 8px 0 0; padding: 0; }
   .meta { margin: 12px 0 0; color: var(--chu-phu); font-size: 0.9rem; }
   .meta .nhan { margin-left: 8px; }

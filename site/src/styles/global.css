@@ -3,9 +3,9 @@
 :root {
   --nen: #fffaf3;
   --chu: #2b2420;
-  --chu-phu: #8a7766;
+  --chu-phu: #75614f; /* tối hơn mẫu (#8a7766) để đạt tương phản WCAG AA 4.5:1 trên nền kem và nền footer */
   --vien: #f0e3d3;
-  --nhan: #d9622b;
+  --nhan: #c0501c; /* tối hơn mẫu (#d9622b) để chữ trắng trên nút đạt 4.5:1 */
   --nhan-dam: #a8481c;
   --nen-tra-nhanh: #fff3e8;
   --vien-tra-nhanh: #f3d3b8;
@@ -33,6 +33,8 @@ img { max-width: 100%; height: auto; }
 /* Điện thoại (mặc định): ☰ mở menu xổ xuống; bản máy tính ẩn. */
 .menu-mt { display: none; }
 .menu-dt { position: relative; }
+/* Chưa có mục menu nào (Menu.astro không render gì) → ẩn luôn nút ☰ thay vì mở ra khung trống. */
+.menu-dt:not(:has(.menu)) { display: none; }
 .menu-dt > summary { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 20px; font-size: 1.4rem; cursor: pointer; list-style: none; }
 .menu-dt > summary::-webkit-details-marker { display: none; }
 .menu-dt[open] > summary { background: var(--nen-nhan); }

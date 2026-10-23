@@ -469,7 +469,12 @@ describe('giao diện B — khung trang', () => {
   it('bảng màu của giao diện B khai báo trên :root', () => {
     const css = cssCua(outPrev, docPrev(''));
     expect(css).toMatch(/--nen:\s*#fffaf3/);
-    expect(css).toMatch(/--nhan:\s*#d9622b/);
+    expect(css).toMatch(/--nhan:\s*#c0501c/);
+  });
+
+  it('chưa có mục menu nào → CSS ẩn nút ☰ (không mở ra khung trống)', () => {
+    const css = cssCua(outPrev, docPrev(''));
+    expect(css).toMatch(/\.menu-dt:not\(:has\(\.menu\)\)\s*\{\s*display:\s*none/);
   });
 
   it('điện thoại có đúng một ☰ (details.menu-dt) với nhãn "Mở menu"', () => {
@@ -619,7 +624,7 @@ describe('giao diện B — trang phụ', () => {
 
   it('tìm kiếm: biến màu Pagefind theo giao diện B', () => {
     const css = cssTrang(out, doc('tim-kiem'));
-    expect(css).toMatch(/--pagefind-ui-primary:\s*#d9622b/);
+    expect(css).toMatch(/--pagefind-ui-primary:\s*#c0501c/);
     expect(css).toMatch(/--pagefind-ui-border:\s*#f0e3d3/);
   });
 });
