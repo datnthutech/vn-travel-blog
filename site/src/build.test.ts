@@ -256,7 +256,7 @@ describe('build với NOI_DUNG_DIR', () => {
       expect(html, trang).toContain('id="ban-tin-da-gui"');
     }
     const bai = readFileSync(join(prod, 'kinh-nghiem/top-bai-bien-cho-be/index.html'), 'utf8');
-    expect(bai.split('data-ban-tin').length - 1).toBeGreaterThanOrEqual(2); // chân trang + cuối bài (script cũng chứa chuỗi selector)
+    expect(bai.split('action="/api/cong-khai/ban-tin/dang-ky"').length - 1).toBe(1); // chỉ một form ở cuối bài, chân trang không lặp lại
     const assets = join(prod, '_astro');
     const trongHtml = [...bai.matchAll(/<script[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g)].map((x) => x[1]!);
     const taiSan = existsSync(assets) ? readdirSync(assets).filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(assets, f), 'utf8')) : [];

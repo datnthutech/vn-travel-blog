@@ -53,7 +53,7 @@ const tenSite = chuoiDich('site', 'site', ngonNgu, 'tenSite', SITE.ten);
     </header>
     <main><slot /></main>
     <footer class="site-footer">
-      <DangKyBanTin neo ngonNgu={ngonNgu} />
+      {seo.loai !== 'article' && <DangKyBanTin neo ngonNgu={ngonNgu} />}{/* trang bài đã có form ở cuối bài — không lặp ở chân trang */}
       © {SITE.ten} — {t(ngonNgu, 'chan-trang')}
       {Object.keys(SITE.mangXaHoi).length > 0 && (
         <ul class="mxh">{Object.entries(SITE.mangXaHoi).map(([k, u]) => <li><a href={u} rel="noopener me" target="_blank">{k}</a></li>)}</ul>
