@@ -1,24 +1,12 @@
 ---
-// Trang chủ: bài mới nhất + các tỉnh nổi bật.
+// Trang chủ tiếng Việt: nội dung dựng ở components/TrangChu.astro, dùng chung với trang chủ ngôn ngữ phụ.
 import Base from '../layouts/Base.astro';
-import BaiCard from '../components/BaiCard.astro';
+import TrangChu from '../components/TrangChu.astro';
 import { layBaiViet, layTinh } from '../lib/bai';
 import { SITE } from '../config/site';
 const [bai, tinh] = await Promise.all([layBaiViet(), layTinh()]);
-const moiNhat = [...bai].sort((a, b) => +b.ngayDang - +a.ngayDang).slice(0, 12);
 ---
 
 <Base title={`${SITE.ten} — nhật ký du lịch gia đình`} moTa={SITE.moTa}>
-  <h1>{SITE.ten}</h1>
-  <p>{SITE.moTa}</p>
-  {tinh.length > 0 && (
-    <section>
-      <h2>Điểm đến</h2>
-      <ul>{tinh.map((t) => <li><a href={`/${t.slug}/`}>{t.ten}</a></li>)}</ul>
-    </section>
-  )}
-  <section>
-    <h2>Bài mới</h2>
-    {moiNhat.map((b) => <BaiCard bai={b} />)}
-  </section>
+  <TrangChu ngonNgu="vi" bai={bai} tinh={tinh} />
 </Base>

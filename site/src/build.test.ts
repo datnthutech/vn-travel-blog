@@ -524,3 +524,28 @@ describe('giao diện B — thẻ bài và trang danh sách', () => {
     }
   });
 });
+
+describe('giao diện B — trang chủ', () => {
+  it('bản xem trước: ảnh lớn có nút tới bài mới nhất (cùng ngày thì slug nhỏ hơn)', () => {
+    const html = docPrev('');
+    expect(html).toContain('class="anh-lon"');
+    expect(html).toMatch(/href="\/kinh-nghiem\/top-bai-bien-cho-be\/"[^>]*>[^<]*Đọc chuyến mới nhất/);
+  });
+
+  it('bản xem trước: khối chủ đề chỉ có chuyên mục có bài; chuyên mục không bài bị bỏ', () => {
+    const cuaVao = /<section class="cua-vao"[\s\S]*?<\/section>/.exec(docPrev(''))?.[0] ?? '';
+    for (const slug of ['vui-choi', 'luu-tru', 'an-uong']) expect(cuaVao).toContain(`href="/chu-de/${slug}/"`);
+    expect(cuaVao).not.toContain('href="/chu-de/sinh-thai/"');
+  });
+
+  it('production không có bài đã đăng: vẫn có câu chào; không nút, không khối chủ đề, không lưới bài, không điểm đến', () => {
+    const html = doc('');
+    expect(html).toMatch(/<h1[^>]*>Du lịch cùng con nhỏ/);
+    expect(html).toContain('class="anh-lon khong-anh"');
+    expect(html).not.toContain('<picture');
+    expect(html).not.toContain('Đọc chuyến mới nhất');
+    expect(html).not.toContain('class="cua-vao"');
+    expect(html).not.toContain('class="luoi-bai"');
+    expect(html).not.toContain('Điểm đến');
+  });
+});

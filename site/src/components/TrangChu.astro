@@ -1,0 +1,98 @@
+---
+// Trang chủ dùng chung cho tiếng Việt (pages/index.astro) và ngôn ngữ phụ ([...duongDich].astro): cùng một giao diện.
+// Gồm: ảnh lớn với bài mới nhất → cửa vào theo chủ đề → bài mới → điểm đến (tỉnh có bài).
+import { urlBai, type BaiViet, type Tinh } from '@vntraveltips/schema';
+import LuoiBai from './LuoiBai.astro';
+import Picture from './Picture.astro';
+import { SITE } from '../config/site';
+import { t } from '../i18n/giao-dien';
+import { chuoiDich } from '../lib/dich-cau-truc';
+import { layChuyenMuc } from '../lib/chuyen-muc';
+import { baiMoiNhat, chuDeNoiBat } from '../lib/giao-dien-b';
+interface Props {
+  ngonNgu: string;
+  bai: BaiViet[];
+  tinh: Tinh[];
+}
+const { ngonNgu, bai, tinh } = Astro.props;
+const tien = ngonNgu === 'vi' ? '' : `/${ngonNgu}`;
+const [moi] = baiMoiNhat(bai, 1);
+const moTa = chuoiDich('site', 'site', ngonNgu, 'moTaMacDinh', SITE.moTa);
+const tenTinh = (slug: string) => {
+  const x = tinh.find((y) => y.slug === slug);
+  return x ? chuoiDich('tinh', x.slug, ngonNgu, 'ten', x.ten) : undefined;
+};
+const tinhCoBai = tinh.filter((x) => bai.some((b) => b.tinh === x.slug));
+const chuDe = chuDeNoiBat(layChuyenMuc(), bai);
+const moiNhat = baiMoiNhat(bai, 12);
+---
+
+<section class={`anh-lon${moi ? '' : ' khong-anh'}`}>
+  {moi && <Picture ma={moi.anhBia.ma} alt={moi.anhBia.alt} uuTien sizes="(min-width: 1200px) 1200px, 100vw" />}
+  <div class="anh-lon-noi-dung">
+    <h1>{t(ngonNgu, 'chao-trang-chu')}</h1>
+    <p>{moTa}</p>
+    {moi && <a class="nut" href={tien + urlBai(moi)}>{t(ngonNgu, 'doc-chuyen-moi-nhat')} →</a>}
+  </div>
+</section>
+
+{chuDe.length > 0 && (
+  <section class="cua-vao">
+    <h2>{t(ngonNgu, 'chu-de')}</h2>
+    <div class="cua-vao-ds">
+      {chuDe.map((d) => (
+        <a class="o-chu-de" href={`${tien}/chu-de/${d.slug}/`}>
+          {d.anh && <Picture ma={d.anh.ma} alt={d.anh.alt} sizes="(min-width: 760px) 300px, 150px" />}
+          <span>{chuoiDich('chuyen-muc', d.slug, ngonNgu, 'ten', d.ten)}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+)}
+
+{moiNhat.length > 0 && (
+  <section>
+    <h2>{t(ngonNgu, 'bai-moi')}</h2>
+    <LuoiBai bai={moiNhat} ngonNgu={ngonNgu} tenTinh={tenTinh} />
+  </section>
+)}
+
+{tinhCoBai.length > 0 && (
+  <section>
+    <h2>{t(ngonNgu, 'diem-den')}</h2>
+    <div class="diem-den">
+      {tinhCoBai.map((x) => <a class="nhan" href={`${tien}/${x.slug}/`}>{tenTinh(x.slug)}</a>)}
+    </div>
+  </section>
+)}
+
+<style>
+  section { margin: 0 0 32px; }
+  h2 { margin: 0 0 12px; font-size: 1.35rem; }
+  .anh-lon { position: relative; display: flex; align-items: flex-end; min-height: 320px; margin: 0 0 32px; padding: 24px; overflow: hidden; border-radius: var(--bo); background: var(--nen-tra-nhanh); color: #fff; }
+  .anh-lon :global(picture) { position: absolute; inset: 0; }
+  .anh-lon :global(picture img) { width: 100%; height: 100%; object-fit: cover; }
+  .anh-lon::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgb(43 36 32 / 0.8) 0%, rgb(43 36 32 / 0.35) 75%, rgb(43 36 32 / 0.15) 100%); }
+  .anh-lon.khong-anh { color: var(--chu); }
+  .anh-lon.khong-anh::after { display: none; }
+  .anh-lon-noi-dung { position: relative; z-index: 1; max-width: 560px; }
+  .anh-lon h1 { margin: 0 0 8px; font-size: 1.8rem; }
+  .anh-lon p { margin: 0 0 16px; font-size: 1.05rem; }
+  /* Điện thoại: hàng ô cuộn ngang ngay trong khung này, trang không cuộn ngang. */
+  .cua-vao { overflow-x: auto; }
+  .cua-vao-ds { display: flex; gap: 12px; scroll-snap-type: x mandatory; padding-bottom: 8px; }
+  .o-chu-de { flex: 0 0 150px; display: flex; flex-direction: column; gap: 6px; scroll-snap-align: start; color: var(--chu); text-decoration: none; }
+  .o-chu-de :global(picture img) { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--bo); }
+  .o-chu-de span { font-weight: 700; }
+  .diem-den { display: flex; flex-wrap: wrap; gap: 8px; }
+  .diem-den a.nhan { min-height: 44px; padding: 0 14px; font-size: 0.95rem; text-decoration: none; display: inline-flex; align-items: center; }
+  @media (min-width: 640px) {
+    .anh-lon { min-height: 380px; padding: 32px; }
+    .anh-lon h1 { font-size: 2.4rem; }
+  }
+  @media (min-width: 760px) {
+    .cua-vao { overflow: visible; }
+    .cua-vao-ds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .o-chu-de { flex: none; }
+  }
+</style>

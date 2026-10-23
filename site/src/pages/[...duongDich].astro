@@ -4,8 +4,8 @@
 // Slug tỉnh/chuyên mục giữ nguyên giữa các ngôn ngữ (chỉ tên/mô tả được dịch). Tiếng Việt không đi qua route này (URL không đổi).
 import { urlBai, type BaiViet, type Tinh } from '@vntraveltips/schema';
 import type { CollectionEntry } from 'astro:content';
-import BaiCard from '../components/BaiCard.astro';
 import DanhSachBai from '../components/DanhSachBai.astro';
+import TrangChu from '../components/TrangChu.astro';
 import BaiVietLayout from '../layouts/BaiViet.astro';
 import Base from '../layouts/Base.astro';
 import TrangTinh from '../components/TrangTinh.astro';
@@ -69,18 +69,7 @@ const tenTinhDich = (slug: string) => {
 
 {p.kieu === 'trang-chu' && (
   <Base title={`${SITE.ten} — ${t(ma, 'chan-trang')}`} ngonNgu={ma} moTa={chuoiDich('site', 'site', ma, 'moTaMacDinh', SITE.moTa)}>
-    <h1>{chuoiDich('site', 'site', ma, 'tenSite', SITE.ten)}</h1>
-    <p>{chuoiDich('site', 'site', ma, 'moTaMacDinh', SITE.moTa)}</p>
-    {p.tinh.length > 0 && (
-      <section>
-        <h2>{t(ma, 'diem-den')}</h2>
-        <ul>{p.tinh.map((x) => <li><a href={`/${ma}/${x.slug}/`}>{chuoiDich('tinh', x.slug, ma, 'ten', x.ten)}</a></li>)}</ul>
-      </section>
-    )}
-    <section>
-      <h2>{t(ma, 'bai-moi')}</h2>
-      {[...p.bai].sort((a, b) => +b.ngayDang - +a.ngayDang).slice(0, 12).map((b) => <BaiCard bai={b} ngonNgu={ma} />)}
-    </section>
+    <TrangChu ngonNgu={ma} bai={p.bai} tinh={p.tinh} />
   </Base>
 )}
 

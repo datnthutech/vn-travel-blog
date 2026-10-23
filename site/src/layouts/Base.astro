@@ -9,6 +9,7 @@ import Menu from '../components/Menu.astro';
 import DangKyBanTin from '../components/DangKyBanTin.astro';
 import ChuyenNgonNgu from '../components/ChuyenNgonNgu.astro';
 import { t } from '../i18n/giao-dien';
+import { chuoiDich } from '../lib/dich-cau-truc';
 import { SITE } from '../config/site';
 interface Props {
   ngonNgu?: string;
@@ -24,6 +25,7 @@ interface Props {
 const { title, ngonNgu = 'vi', hreflang = {}, ...seo } = Astro.props;
 const tien = ngonNgu === 'vi' ? '' : `/${ngonNgu}`;
 const gc = goatcounterScript();
+const tenSite = chuoiDich('site', 'site', ngonNgu, 'tenSite', SITE.ten);
 ---
 
 <!doctype html>
@@ -40,7 +42,7 @@ const gc = goatcounterScript();
   </head>
   <body>
     <header class="site-header">
-      <a class="logo" href={`${tien}/`}>{SITE.logo ? <img src={`/anh/${SITE.logo.ma}/480.webp`} alt={SITE.ten} height="32" /> : <><span aria-hidden="true">🧳</span> {SITE.ten}</>}</a>
+      <a class="logo" href={`${tien}/`}>{SITE.logo ? <img src={`/anh/${SITE.logo.ma}/480.webp`} alt={tenSite} height="32" /> : <><span aria-hidden="true">🧳</span> {tenSite}</>}</a>
       <div class="menu-mt"><Menu vitri="dauTrang" ngonNgu={ngonNgu} /></div>
       <a class="tim" href="/tim-kiem/" aria-label={t(ngonNgu, 'tim-kiem')}><span aria-hidden="true">🔍</span></a>
       <ChuyenNgonNgu ngonNgu={ngonNgu} hreflang={hreflang} />
