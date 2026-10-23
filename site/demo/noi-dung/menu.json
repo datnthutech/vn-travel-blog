@@ -1,0 +1,68 @@
+{
+ "dauTrang": [
+  {
+   "nhan": "Điểm đến",
+   "loai": "link",
+   "giaTri": "/vung-tau/",
+   "con": [
+    {
+     "nhan": "Vũng Tàu",
+     "loai": "tinh",
+     "giaTri": "vung-tau"
+    },
+    {
+     "nhan": "Đà Lạt",
+     "loai": "tinh",
+     "giaTri": "da-lat"
+    },
+    {
+     "nhan": "Phú Quốc",
+     "loai": "tinh",
+     "giaTri": "phu-quoc"
+    },
+    {
+     "nhan": "Côn Đảo",
+     "loai": "tinh",
+     "giaTri": "con-dao"
+    }
+   ]
+  },
+  {
+   "nhan": "Ăn uống",
+   "loai": "chuyen-muc",
+   "giaTri": "an-uong"
+  },
+  {
+   "nhan": "Vui chơi",
+   "loai": "chuyen-muc",
+   "giaTri": "vui-choi"
+  },
+  {
+   "nhan": "Kinh nghiệm",
+   "loai": "link",
+   "giaTri": "/kinh-nghiem/"
+  },
+  {
+   "nhan": "Giới thiệu",
+   "loai": "trang",
+   "giaTri": "gioi-thieu"
+  }
+ ],
+ "chanTrang": [
+  {
+   "nhan": "Giới thiệu",
+   "loai": "trang",
+   "giaTri": "gioi-thieu"
+  },
+  {
+   "nhan": "Liên hệ",
+   "loai": "trang",
+   "giaTri": "lien-he"
+  },
+  {
+   "nhan": "Chính sách liên kết",
+   "loai": "trang",
+   "giaTri": "chinh-sach-lien-ket"
+  }
+ ]
+}

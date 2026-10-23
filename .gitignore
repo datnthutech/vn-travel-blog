@@ -16,3 +16,6 @@ npm-debug.log*
 
 # Tài liệu thiết kế/kế hoạch: giữ trên máy, KHÔNG đưa lên repo public (có chi tiết vận hành)
 docs/
+
+# Thư mục build xem thử của xem-thu.sh (nội dung + ảnh mẫu)
+.xem-thu/

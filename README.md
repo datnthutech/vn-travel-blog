@@ -42,6 +42,14 @@ npm test                   # chạy toàn bộ test (schema, site, mcp, deploy)
 npm run build -w site      # build thật ra site/dist (BUILD_TARGET=production để loại bài nháp)
 ```
 
+Xem thử giao diện với bài mẫu (không cần Docker, build từ code đang có trong thư mục — kể cả nhánh chưa merge):
+
+```bash
+./xem-thu.sh               # http://localhost:4321 ; điện thoại cùng Wi-Fi mở địa chỉ IP script in ra
+```
+
+Bài mẫu nằm ở `site/demo/noi-dung/`, ảnh mẫu tải từ picsum.photos (không có mạng thì dùng ảnh chuyển màu) vào `.xem-thu/` (gitignore).
+
 Ảnh khi chạy local: site đọc kích thước ảnh từ `site/dev-anh/<mã>/meta.json` (ảnh thật nằm trong volume Docker trên VPS).
 
 ## Viết bài
