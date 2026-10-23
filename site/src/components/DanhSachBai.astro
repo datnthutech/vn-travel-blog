@@ -1,0 +1,24 @@
+---
+// Khung trang danh sách (tỉnh, chuyên mục, loại bài, kinh nghiệm): tiêu đề + mô tả trong dải kem đậm, rồi lưới thẻ bài.
+// Mọi trang danh sách — tiếng Việt và ngôn ngữ phụ — dùng component này để ra cùng một giao diện.
+import type { BaiViet } from '@vntraveltips/schema';
+import Base from '../layouts/Base.astro';
+import LuoiBai from './LuoiBai.astro';
+interface Props {
+  title: string;
+  tieuDe: string;
+  moTa?: string;
+  bai: BaiViet[];
+  ngonNgu?: string;
+  tenTinh?: (slug: string) => string | undefined;
+}
+const { title, tieuDe, moTa, bai, ngonNgu = 'vi', tenTinh } = Astro.props;
+---
+
+<Base title={title} moTa={moTa} ngonNgu={ngonNgu}>
+  <section class="dai-tieu-de">
+    <h1>{tieuDe}</h1>
+    {moTa && <p>{moTa}</p>}
+  </section>
+  <LuoiBai bai={bai} ngonNgu={ngonNgu} tenTinh={tenTinh} />
+</Base>

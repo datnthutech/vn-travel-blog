@@ -1,8 +1,7 @@
 ---
 // Trang chuyên mục: /chu-de/[chuyen-muc]/ — chỉ tạo cho chuyên mục đã có bài.
-import Base from '../../layouts/Base.astro';
-import BaiCard from '../../components/BaiCard.astro';
-import { layBaiViet } from '../../lib/bai';
+import DanhSachBai from '../../components/DanhSachBai.astro';
+import { layBaiViet, layTinh } from '../../lib/bai';
 import { layChuyenMuc } from '../../lib/chuyen-muc';
 import { SITE } from '../../config/site';
 
@@ -14,9 +13,13 @@ export async function getStaticPaths() {
 }
 const { cm, bai } = Astro.props;
 const ten = cm.ten;
+const tenTinhCua = new Map((await layTinh()).map((x) => [x.slug, x.ten]));
 ---
 
-<Base title={`${ten} — ${SITE.ten}`} moTa={cm.moTa || `Các bài về ${ten.toLowerCase()} khi đi du lịch cùng bé nhỏ.`}>
-  <h1>{ten}</h1>
-  {bai.map((b) => <BaiCard bai={b} />)}
-</Base>
+<DanhSachBai
+  title={`${ten} — ${SITE.ten}`}
+  tieuDe={ten}
+  moTa={cm.moTa || `Các bài về ${ten.toLowerCase()} khi đi du lịch cùng bé nhỏ.`}
+  bai={bai}
+  tenTinh={(s) => tenTinhCua.get(s)}
+/>

@@ -489,3 +489,38 @@ describe('giao diện B — khung trang', () => {
     expect(html).toContain('class="site-footer"');
   });
 });
+
+describe('giao diện B — thẻ bài và trang danh sách', () => {
+  const trongMain = (html: string) => /<main>([\s\S]*?)<\/main>/.exec(html)![1];
+  // Mỗi thẻ là một <article class="the-bai …">; chọn thẻ có link tới bài có slug này.
+  const theBai = (html: string, slug: string) =>
+    [...html.matchAll(/<article class="the-bai[\s\S]*?<\/article>/g)].map((m) => m[0]).find((the) => the.includes(`/${slug}/`)) ?? '';
+  // Astro thêm data-astro-cid-* vào mọi phần tử, nên bộ chọn phải chấp nhận thuộc tính thêm.
+  const nhanCua = (the: string) => /<ul class="nhan-the"[^>]*>([\s\S]*?)<\/ul>/.exec(the)?.[1] ?? '';
+
+  it('trang tỉnh: lưới thẻ bài; thẻ có nhãn "4/5 với bé" và tên tỉnh', () => {
+    const html = docPrev('vung-tau');
+    expect(html).toContain('class="luoi-bai"');
+    const nhan = nhanCua(theBai(html, 'vung-tau-can-ho-banh-canh'));
+    expect(nhan).toContain('4/5 với bé');
+    expect(nhan).toContain('Vũng Tàu');
+  });
+
+  it('chuyên mục vui chơi: thẻ bài không có Tra nhanh không có nhãn "với bé" và không có "undefined"', () => {
+    const the = theBai(docPrev('chu-de/vui-choi'), 'top-bai-bien-cho-be');
+    expect(the).not.toBe('');
+    expect(the).not.toContain('với bé');
+    expect(the).not.toContain('undefined');
+  });
+
+  it('trang kinh nghiệm và loại top-list dùng lưới thẻ bài', () => {
+    expect(trongMain(docPrev('kinh-nghiem'))).toContain('class="luoi-bai"');
+    expect(trongMain(docPrev('loai/top-list'))).toContain('class="luoi-bai"');
+  });
+
+  it('bốn trang danh sách không còn danh sách link trần tới bài', () => {
+    for (const p of ['vung-tau', 'chu-de/vui-choi', 'kinh-nghiem', 'loai/top-list']) {
+      expect(trongMain(docPrev(p)), p).not.toMatch(/<ul><li><a href="\//);
+    }
+  });
+});

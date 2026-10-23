@@ -1,0 +1,22 @@
+---
+// Lưới thẻ bài dùng chung: 1 cột trên điện thoại, 2 cột từ 640 px, 3 cột từ 1000 px.
+// tenTinh tra tên tỉnh theo slug (trang vi: từ layTinh(); ngôn ngữ phụ: qua chuoiDich).
+import type { BaiViet } from '@vntraveltips/schema';
+import BaiCard from './BaiCard.astro';
+interface Props {
+  bai: BaiViet[];
+  ngonNgu?: string;
+  tenTinh?: (slug: string) => string | undefined;
+}
+const { bai, ngonNgu = 'vi', tenTinh } = Astro.props;
+---
+
+<div class="luoi-bai">
+  {bai.map((b) => <BaiCard bai={b} ngonNgu={ngonNgu} tenTinh={b.tinh ? tenTinh?.(b.tinh) : undefined} />)}
+</div>
+
+<style>
+  .luoi-bai { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  @media (min-width: 640px) { .luoi-bai { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1000px) { .luoi-bai { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+</style>

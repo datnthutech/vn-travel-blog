@@ -1,18 +1,14 @@
 ---
 // Trang hub của một tỉnh: /[tinh]/ — giới thiệu + các bài thuộc tỉnh đó.
-import Base from '../../layouts/Base.astro';
+import DanhSachBai from '../../components/DanhSachBai.astro';
 import { layBaiViet, layTinh } from '../../lib/bai';
-import { urlBai } from '@vntraveltips/schema';
 
 export async function getStaticPaths() {
   const [tinh, bai] = await Promise.all([layTinh(), layBaiViet()]);
   return tinh.map((t) => ({ params: { tinh: t.slug }, props: { tinh: t, bai: bai.filter((b) => b.tinh === t.slug) } }));
 }
 const { tinh, bai } = Astro.props;
+const tenTinhCua = new Map((await layTinh()).map((x) => [x.slug, x.ten]));
 ---
 
-<Base title={`${tinh.ten} — VNTravelTips`}>
-  <h1>{tinh.ten}</h1>
-  <p>{tinh.gioiThieu}</p>
-  <ul>{bai.map((b) => <li><a href={urlBai(b)}>{b.tieuDe}</a></li>)}</ul>
-</Base>
+<DanhSachBai title={`${tinh.ten} — VNTravelTips`} tieuDe={tinh.ten} moTa={tinh.gioiThieu} bai={bai} tenTinh={(s) => tenTinhCua.get(s)} />

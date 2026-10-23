@@ -5,6 +5,7 @@
 import { urlBai, type BaiViet, type Tinh } from '@vntraveltips/schema';
 import type { CollectionEntry } from 'astro:content';
 import BaiCard from '../components/BaiCard.astro';
+import DanhSachBai from '../components/DanhSachBai.astro';
 import BaiVietLayout from '../layouts/BaiViet.astro';
 import Base from '../layouts/Base.astro';
 import TrangTinh from '../components/TrangTinh.astro';
@@ -56,6 +57,12 @@ export async function getStaticPaths() {
 }
 const p = Astro.props;
 const ma = p.ngonNgu;
+const tinhTatCa = await layTinh();
+// Tên tỉnh theo ngôn ngữ của trang (chuoiDich), dùng cho nhãn thẻ bài; slug không có trong danh sách → không nhãn.
+const tenTinhDich = (slug: string) => {
+  const x = tinhTatCa.find((y) => y.slug === slug);
+  return x ? chuoiDich('tinh', x.slug, ma, 'ten', x.ten) : undefined;
+};
 ---
 
 {p.kieu === 'bai' && <BaiVietLayout bai={p.bai} entry={p.entry} tinh={p.tinh ? { ...p.tinh, ten: chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten) } : undefined} ngonNgu={ma} />}
@@ -78,18 +85,25 @@ const ma = p.ngonNgu;
 )}
 
 {p.kieu === 'tinh' && (
-  <Base title={`${chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten)} — ${SITE.ten}`} ngonNgu={ma}>
-    <h1>{chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten)}</h1>
-    <p>{chuoiDich('tinh', p.tinh.slug, ma, 'gioiThieu', p.tinh.gioiThieu)}</p>
-    <ul>{p.bai.map((b) => <li><a href={`/${ma}${urlBai(b)}`}>{b.tieuDe}</a></li>)}</ul>
-  </Base>
+  <DanhSachBai
+    title={`${chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten)} — ${SITE.ten}`}
+    tieuDe={chuoiDich('tinh', p.tinh.slug, ma, 'ten', p.tinh.ten)}
+    moTa={chuoiDich('tinh', p.tinh.slug, ma, 'gioiThieu', p.tinh.gioiThieu)}
+    bai={p.bai}
+    ngonNgu={ma}
+    tenTinh={tenTinhDich}
+  />
 )}
 
 {p.kieu === 'chuyen-muc' && (
-  <Base title={`${p.cm.ten} — ${SITE.ten}`} ngonNgu={ma} moTa={p.cm.moTa || t(ma, 'mo-ta-chuyen-muc', { ten: p.cm.ten.toLowerCase() })}>
-    <h1>{p.cm.ten}</h1>
-    {p.bai.map((b) => <BaiCard bai={b} ngonNgu={ma} />)}
-  </Base>
+  <DanhSachBai
+    title={`${p.cm.ten} — ${SITE.ten}`}
+    tieuDe={p.cm.ten}
+    moTa={p.cm.moTa || t(ma, 'mo-ta-chuyen-muc', { ten: p.cm.ten.toLowerCase() })}
+    bai={p.bai}
+    ngonNgu={ma}
+    tenTinh={tenTinhDich}
+  />
 )}
 
 {p.kieu === 'trang' && <TrangTinh trang={{ slug: p.trang.slug, tieuDe: p.trang.tieuDe, moTa: p.trang.moTa, entry: p.trang.entry as never }} ngonNgu={ma} />}

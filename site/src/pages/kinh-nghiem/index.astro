@@ -1,12 +1,8 @@
 ---
 // Danh sách các bài không thuộc tỉnh nào.
-import Base from '../../layouts/Base.astro';
+import DanhSachBai from '../../components/DanhSachBai.astro';
 import { layBaiViet } from '../../lib/bai';
-import { urlBai } from '@vntraveltips/schema';
 const bai = (await layBaiViet()).filter((b) => !b.tinh);
 ---
 
-<Base title="Kinh nghiệm — VNTravelTips">
-  <h1>Kinh nghiệm</h1>
-  <ul>{bai.map((b) => <li><a href={urlBai(b)}>{b.tieuDe}</a></li>)}</ul>
-</Base>
+<DanhSachBai title="Kinh nghiệm — VNTravelTips" tieuDe="Kinh nghiệm" bai={bai} />
