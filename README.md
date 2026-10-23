@@ -50,6 +50,8 @@ Xem thử giao diện với bài mẫu (không cần Docker, build từ code đa
 
 Bài mẫu nằm ở `site/demo/noi-dung/`, ảnh mẫu tải từ picsum.photos (không có mạng thì dùng ảnh chuyển màu) vào `.xem-thu/` (gitignore).
 
+**Bản demo online để gửi người khác xem** (không cần máy chủ): https://datnthutech.github.io/vn-travel-blog/ — workflow `.github/workflows/demo.yml` tự build bộ bài mẫu ở trên và đăng lên GitHub Pages mỗi lần push `main` (bấm tay: tab Actions → "Demo giao diện" → Run workflow). Bật một lần: GitHub → Settings → Pages → Source: **GitHub Actions**. Demo chặn Google lập chỉ mục; bình luận, nhận tin, quản trị không chạy vì cần máy chủ thật.
+
 Ảnh khi chạy local: site đọc kích thước ảnh từ `site/dev-anh/<mã>/meta.json` (ảnh thật nằm trong volume Docker trên VPS).
 
 ## Viết bài

@@ -1,0 +1,44 @@
+# Bản demo giao diện trên GitHub Pages: https://datnthutech.github.io/vn-travel-blog/
+# Dùng bài mẫu + ảnh mẫu trong site/demo (KHÔNG có bài thật, không cần máy chủ hay bí mật nào).
+# Tự chạy mỗi lần push main; bấm tay được ở tab Actions → "Demo giao diện" → Run workflow.
+# Bình luận, đăng ký nhận tin, quản trị cần máy chủ thật nên trên demo chỉ xem được giao diện.
+name: Demo giao diện
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: demo-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: site/demo/build.sh "$RUNNER_TEMP/demo" /vn-travel-blog/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/demo/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.dang.outputs.page_url }}
+    steps:
+      - id: dang
+        uses: actions/deploy-pages@v4

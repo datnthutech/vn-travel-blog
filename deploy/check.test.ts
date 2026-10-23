@@ -244,9 +244,13 @@ describe('nginx trên host (chỉ proxy)', () => {
   });
 });
 
-describe('GitHub Actions và rsync đã gỡ', () => {
-  it('không còn thư mục .github/workflows (không chạy CI, không SSH vào VPS)', () => {
-    expect(existsSync(join(goc, '.github', 'workflows'))).toBe(false);
+describe('GitHub Actions: chỉ có workflow demo GitHub Pages, không đụng VPS', () => {
+  it('thư mục .github/workflows chỉ có demo.yml (không CI deploy)', () => {
+    expect(readdirSync(join(goc, '.github', 'workflows'))).toEqual(['demo.yml']);
+  });
+  it('demo.yml không SSH/rsync vào VPS, không dùng secret nào', () => {
+    const wf = doc('.github/workflows/demo.yml');
+    for (const cam of ['ssh', 'rsync', 'scp', 'secrets.', 'monai.click']) expect(wf.toLowerCase()).not.toContain(cam);
   });
 });
 
