@@ -28,10 +28,11 @@ const hien = buildTarget() === 'production';
 </script>
 
 <style is:global>
-  .ban-tin { margin: 1.5rem 0; }
+  .ban-tin { max-width: 520px; margin: 1.5rem auto; padding: 16px; background: #fff; border: 1px solid var(--vien); border-radius: var(--bo); text-align: left; }
+  .bt-tieu-de { margin: 0 0 8px; font-weight: 800; }
   .ban-tin label { display: inline-block; margin-right: 0.5rem; }
-  .ban-tin input[type=email] { min-height: 44px; min-width: 14rem; }
-  .ban-tin button { min-height: 44px; padding: 0 1rem; }
+  .ban-tin input[type=email] { min-height: 44px; min-width: 14rem; padding: 0 12px; border: 1px solid var(--vien); border-radius: 20px; }
+  .ban-tin button { min-height: 44px; padding: 0 1rem; border: 0; border-radius: 20px; background: var(--nhan); color: #fff; font-weight: 700; }
   .bt-bay { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
   .bt-da-gui { display: none; }
   .bt-da-gui:target { display: block; }

@@ -460,3 +460,32 @@ describe('nội dung do người viết nhập không thể chèn mã chạy tr�
     expect(khoi.some((k) => JSON.parse(k).headline?.includes('</script>'))).toBe(true); // dữ liệu vẫn đúng
   });
 });
+
+describe('giao diện B — khung trang', () => {
+  // Astro tách CSS của layout ra file `_astro/*.css`; gom các file đó lại để kiểm tra biến và luật CSS.
+  const cssCua = (goc: string, html: string) =>
+    [...html.matchAll(/href="(\/_astro\/[^"]+\.css)"/g)].map((m) => readFileSync(join(goc, m[1]), 'utf8')).join('\n');
+
+  it('bảng màu của giao diện B khai báo trên :root', () => {
+    const css = cssCua(outPrev, docPrev(''));
+    expect(css).toMatch(/--nen:\s*#fffaf3/);
+    expect(css).toMatch(/--nhan:\s*#d9622b/);
+  });
+
+  it('điện thoại có đúng một ☰ (details.menu-dt) với nhãn "Mở menu"', () => {
+    const html = docPrev('');
+    expect(html.match(/<details class="menu-dt"/g)).toHaveLength(1);
+    expect(html).toMatch(/<summary[^>]*aria-label="Mở menu"/);
+  });
+
+  it('header có nút tìm kiếm tới /tim-kiem/ với nhãn "Tìm kiếm"', () => {
+    const the = /<a [^>]*href="\/tim-kiem\/"[^>]*>/.exec(docPrev(''))?.[0] ?? '';
+    expect(the).toContain('aria-label="Tìm kiếm"');
+  });
+
+  it('trang 404 production vẫn có header và footer', () => {
+    const html = readFileSync(join(out, '404.html'), 'utf8');
+    expect(html).toContain('class="site-header"');
+    expect(html).toContain('class="site-footer"');
+  });
+});

@@ -1,23 +1,77 @@
-/* CSS toàn cục. Thiết kế cho điện thoại trước, màn lớn mở rộng sau. Màu chủ đạo: xanh biển/xanh ngọc. */
+/* CSS toàn cục — giao diện hướng B "Blog gia đình theo chủ đề": nền kem, nhấn cam đất, thẻ bo tròn, font hệ thống.
+   Thiết kế cho điện thoại trước (375 px không cuộn ngang); máy tính mở rộng từ 760 px. Màu đặt ở đây, component chỉ dùng biến. */
 :root {
-  --bien: #0b6e8a;
-  --ngoc: #14a79d;
-  --nen: #f7fbfc;
-  --chu: #17323a;
-  --vien: #d3e6ea;
+  --nen: #fffaf3;
+  --chu: #2b2420;
+  --chu-phu: #8a7766;
+  --vien: #f0e3d3;
+  --nhan: #d9622b;
+  --nhan-dam: #a8481c;
+  --nen-tra-nhanh: #fff3e8;
+  --vien-tra-nhanh: #f3d3b8;
+  --nen-nhan: #fde7d9;
+  --nen-dam: #f6ead9;
+  --bo: 14px;
+  --rong-trang: 1200px;
+  --rong-bai: 760px;
+  /* Tạm: giữ hai tên cũ cho các component chưa đổi sang giao diện mới; bỏ khi các component đó được làm lại. */
+  --bien: var(--nhan-dam);
+  --ngoc: var(--nhan);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--nen); color: var(--chu); line-height: 1.65; }
-main { max-width: 760px; margin: 0 auto; padding: 16px; }
-a { color: var(--bien); }
+main { max-width: var(--rong-trang); margin: 0 auto; padding: 16px; }
+h1, h2, h3 { font-weight: 800; line-height: 1.3; }
+a { color: var(--nhan-dam); }
 img { max-width: 100%; height: auto; }
-.site-header { background: var(--bien); padding: 12px 16px; }
-.site-header a { color: #fff; font-weight: 700; text-decoration: none; }
-.site-footer { text-align: center; padding: 24px 16px; color: #5b7881; font-size: 0.9rem; }
+:focus-visible { outline: 3px solid var(--nhan); outline-offset: 2px; }
+
+/* Đầu trang: logo trái; menu, tìm kiếm, ngôn ngữ, ☰ bên phải. */
+.site-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 16px; background: var(--nen); border-bottom: 1px solid var(--vien); }
+.site-header .logo { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-right: auto; font-size: 1.25rem; font-weight: 800; color: var(--nhan); text-decoration: none; }
+.site-header .logo img { height: 32px; width: auto; }
+.site-header .tim { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; font-size: 1.2rem; text-decoration: none; }
+
+/* Điện thoại (mặc định): ☰ mở menu xổ xuống; bản máy tính ẩn. */
+.menu-mt { display: none; }
+.menu-dt { position: relative; }
+.menu-dt > summary { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 20px; font-size: 1.4rem; cursor: pointer; list-style: none; }
+.menu-dt > summary::-webkit-details-marker { display: none; }
+.menu-dt[open] > summary { background: var(--nen-nhan); }
+.menu-dt .menu { position: absolute; top: 100%; right: 0; z-index: 10; min-width: 240px; margin-top: 4px; padding: 8px 16px; background: #fff; border: 1px solid var(--vien); border-radius: var(--bo); box-shadow: 0 8px 24px rgb(43 36 32 / 0.12); }
+.menu-dt .menu ul { flex-direction: column; gap: 0; }
+.menu-dt .menu a { display: flex; align-items: center; min-height: 44px; font-weight: 600; }
+.menu-dt .menu li ul { margin-left: 16px; font-weight: 400; }
+
+@media (min-width: 760px) {
+  .menu-mt { display: block; }
+  .menu-dt { display: none; }
+  .site-header { padding: 8px 24px; }
+}
 
 /* Menu đầu/chân trang (một cấp con). */
 .menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .menu li ul { margin-left: 12px; font-size: .9em; }
-.site-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; }
-.mxh { list-style: none; margin: 8px 0 0; padding: 0; display: flex; gap: 12px; }
+.menu-mt .menu a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--chu); text-decoration: none; }
+.menu-mt .menu a:hover { color: var(--nhan-dam); text-decoration: underline; }
+
+/* Chân trang: nền đậm hơn một bậc. */
+.site-footer { padding: 28px 16px; background: var(--nen-dam); color: var(--chu-phu); font-size: .95rem; text-align: center; }
+.site-footer .menu ul { justify-content: center; }
+.site-footer .menu a { color: var(--chu); }
+.mxh { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; }
+.mxh a { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* Dùng chung: thẻ, nhãn viên thuốc, nút, dải tiêu đề. */
+.the { background: #fff; border: 1px solid var(--vien); border-radius: var(--bo); }
+.nhan { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 20px; background: var(--nen-nhan); color: var(--nhan-dam); font-size: .85rem; font-weight: 600; }
+.nut { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 20px; border-radius: 20px; background: var(--nhan); color: #fff; font-weight: 700; text-decoration: none; }
+.dai-tieu-de { margin: -16px -16px 24px; padding: 24px 16px; background: var(--nen-dam); }
+.dai-tieu-de h1 { margin: 0 0 8px; font-size: 1.6rem; }
+.dai-tieu-de p { margin: 0; color: var(--chu-phu); }
+
+@media (min-width: 760px) {
+  .dai-tieu-de { margin: -16px -16px 32px; padding: 32px 24px; }
+  .dai-tieu-de h1 { font-size: 2rem; }
+}

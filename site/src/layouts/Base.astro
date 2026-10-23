@@ -40,9 +40,14 @@ const gc = goatcounterScript();
   </head>
   <body>
     <header class="site-header">
-      <a href={`${tien}/`}>{SITE.logo ? <img src={`/anh/${SITE.logo.ma}/480.webp`} alt={SITE.ten} height="32" /> : SITE.ten}</a>
-      <Menu vitri="dauTrang" ngonNgu={ngonNgu} />
+      <a class="logo" href={`${tien}/`}>{SITE.logo ? <img src={`/anh/${SITE.logo.ma}/480.webp`} alt={SITE.ten} height="32" /> : <><span aria-hidden="true">🧳</span> {SITE.ten}</>}</a>
+      <div class="menu-mt"><Menu vitri="dauTrang" ngonNgu={ngonNgu} /></div>
+      <a class="tim" href="/tim-kiem/" aria-label={t(ngonNgu, 'tim-kiem')}><span aria-hidden="true">🔍</span></a>
       <ChuyenNgonNgu ngonNgu={ngonNgu} hreflang={hreflang} />
+      <details class="menu-dt">
+        <summary aria-label={t(ngonNgu, 'mo-menu')}><span aria-hidden="true">☰</span></summary>
+        <Menu vitri="dauTrang" ngonNgu={ngonNgu} />
+      </details>
     </header>
     <main><slot /></main>
     <footer class="site-footer">
